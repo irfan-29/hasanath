@@ -10000,3 +10000,77 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
     -webkit-backdrop-filter: var(--chrome-blur);
   }
 }
+
+/* --- Flat content surfaces -------------------------------------------------
+   Cards, panels and controls sit directly on the page background. Separation
+   comes from the hairline border that most of them already carry (or the rule
+   between sections), never from a second white layer on top of the page.
+   Overlays that must float - dropdown menus, dialogs, toasts, the sticky
+   reader bar, the docks - deliberately keep their own surface and are listed
+   nowhere here. */
+.container1,
+.card,
+.post-card,
+.challenge-card,
+.challenge-consistency,
+.prayer-card,
+.surah-card,
+.favourite-card,
+.account-card,
+.auth-card,
+.profile-header,
+.gate-notice,
+.error-card,
+.settings-panel,
+.qibla-card,
+.surah-pager-link,
+.surah-audio-card,
+.salah-status,
+.stats-tile,
+.stats-challenge-card,
+.stats-module-filter-btn,
+.stats-range-chip,
+.surah-meta-pill,
+.surah-back,
+.post-filter-toggle,
+.surah-pill,
+.challenge-empty-state,
+.hadith-chip,
+.calendar-table td,
+.table,
+.custom-selector,
+.form-control,
+.surah-search-input,
+.hadith-jump-input,
+.ayah-jump--settings,
+[data-theme="dark"] .container1,
+[data-theme="dark"] .card,
+[data-theme="dark"] .surah-card {
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Hovers tint instead of layering another surface on. */
+.surah-card:hover,
+.surah-back:hover,
+.surah-pager-link:hover,
+[data-theme="dark"] .surah-card:hover {
+  background: var(--color-primary-glow);
+}
+
+.surah-pager-link.is-disabled:hover { background: transparent; }
+
+/* Segmented tab control: the track keeps its translucent tint, the selected
+   tab is tinted teal instead of a white pill. */
+.quran-tab.is-active {
+  background: var(--color-primary-glow);
+  box-shadow: none;
+}
+
+.container1:hover,
+.card:hover,
+.post-card:hover,
+[data-theme="dark"] .container1:hover,
+[data-theme="dark"] .card:hover {
+  box-shadow: none;
+}
