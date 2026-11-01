@@ -5838,6 +5838,11 @@ body {
   line-height: 1.65;
 }
 
+/* The reader pages (surah, hadith book) run their back link, heading, jump
+   strip and verses down one 820px column, so the title sits flush with the
+   ayah text instead of hanging out to the left of it. */
+.page-header.reader-header { max-width: 820px; }
+
 /* ---- Cards ---- */
 
 .container1,
@@ -7327,20 +7332,27 @@ input[type="datetime-local"] { color-scheme: light; }
 
 /* Ayah navigator and the reading column. Keeping the text narrower than the
    surah meta card makes long translations comfortable to read. */
+/* Ayah navigator: a quiet strip on the reading column rather than a floating
+   card. Label, slider and the value/Go pair sit on one line on desktop and
+   stack in that order on phones. */
 .ayah-jump {
-  max-width: 460px;
-  margin: 1.5rem auto;
-  padding: 1.35rem 1.5rem 1.25rem;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.7rem 1rem;
+  max-width: 820px;
+  margin: 0 auto 1.9rem;
+  padding: 0.7rem 1rem;
+  text-align: left;
   border: 1px solid var(--color-border-light);
-  border-radius: 22px;
+  border-radius: 16px;
   background: var(--color-surface-elevated);
-  box-shadow: 0 14px 34px -30px rgba(16, 42, 40, 0.3);
 }
 
 .ayah-jump-label {
   display: block;
-  margin-bottom: 0.85rem;
+  flex: 0 0 auto;
+  margin: 0;
   color: var(--color-primary-dark);
   font-size: 0.72rem;
   font-weight: 800;
@@ -7351,10 +7363,11 @@ input[type="datetime-local"] { color-scheme: light; }
 [data-theme="dark"] .ayah-jump-label { color: var(--color-primary-light); }
 
 .ayah-jump .form-range {
-  width: 100%;
-  max-width: 320px;
+  flex: 1 1 13rem;
+  width: auto;
+  max-width: none;
   height: 24px;
-  margin: 0 auto;
+  margin: 0;
   background: transparent;
   cursor: pointer;
 }
@@ -7394,10 +7407,19 @@ input[type="datetime-local"] { color-scheme: light; }
 
 /* Reused for the Settings text-size pickers: same widget, slightly narrower
    so it indexes against the settings column instead of the reader's width. */
+/* Settings reuses the widget for text-size pickers: stacked and centred in a
+   narrow card, unlike the reader's single-line strip. */
 .ayah-jump--settings {
+  display: block;
   max-width: 420px;
   margin: 1.25rem auto;
+  padding: 1.35rem 1.5rem 1.25rem;
+  text-align: center;
 }
+
+.ayah-jump--settings .ayah-jump-label { margin-bottom: 0.85rem; }
+
+.ayah-jump--settings .form-range { width: 100%; }
 
 .ayah-jump--settings .form-section-hint {
   margin: -0.55rem auto 0.9rem;
@@ -7422,12 +7444,21 @@ input[type="datetime-local"] { color-scheme: light; }
   background: linear-gradient(90deg, rgba(45, 212, 191, 0.36), rgba(230, 189, 116, 0.25));
 }
 
+/* Phone: the strip becomes label, then a full-width slider, then the
+   value/Go pair spread across the line. */
+@media (max-width: 768px) {
+  .ayah-jump:not(.ayah-jump--settings) .ayah-jump-label { width: 100%; }
+  .ayah-jump:not(.ayah-jump--settings) .form-range { flex-basis: 100%; }
+  .ayah-jump:not(.ayah-jump--settings) .ayah-jump-row { width: 100%; justify-content: space-between; }
+}
+
 .ayah-jump-row {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   gap: 0.6rem;
-  margin-top: 0.9rem;
+  margin-top: 0;
 }
 
 .ayah-jump-caption { color: var(--color-text-secondary); font-size: 0.82rem; }
@@ -7496,6 +7527,23 @@ input[type="datetime-local"] { color-scheme: light; }
 }
 
 [data-theme="dark"] .page-header .surah-page-kicker { color: var(--color-primary-light); }
+
+/* The Arabic surah name is set in the reader's chosen Qur'an face - the same
+   font as the ayah text - so the header and the verses share one script. */
+.page-header .surah-arabic-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.1rem 0.55rem;
+}
+
+.page-header .surah-arabic-name {
+  color: var(--color-text);
+  font-size: clamp(1.5rem, 2.3vw, 1.8rem);
+  line-height: 1.8;
+}
+
+.page-header .surah-arabic-translation { color: var(--color-text-secondary); }
 
 /* Surah meta used to sit alone in a full-width card, which read as a large
    empty panel. Keep the same facts beside the title as compact pills. */
@@ -9469,9 +9517,9 @@ body:has(.tabbar-sheet) .tabbar {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  max-width: 860px;
+  max-width: 820px;
   margin: 0 auto 1.1rem;
-  padding: 0 1.35rem 0.9rem;
+  padding: 0 0 0.9rem;
   border-bottom: 1px solid var(--color-border-light);
 }
 
@@ -9516,9 +9564,9 @@ body:has(.tabbar-sheet) .tabbar {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  max-width: 860px;
+  max-width: 820px;
   margin: 0 auto 0.4rem;
-  padding: 0 1.35rem;
+  padding: 0;
 }
 
 .hadith-langs-label {
@@ -9568,9 +9616,9 @@ body:has(.tabbar-sheet) .tabbar {
 
 /* Jump-to-number row, styled after the surah page's ayah navigator. */
 .hadith-jump {
-  max-width: 860px;
+  max-width: 820px;
   margin: 0 auto 1.25rem;
-  padding: 0 1.35rem;
+  padding: 0;
 }
 
 .hadith-jump-label {
@@ -9616,14 +9664,16 @@ body:has(.tabbar-sheet) .tabbar {
 /* Back link at the top of the readers ("‹ Quran" on a surah, "‹ Hadith" on a
    collection). The in-app back gesture exists, but a visible way up the
    hierarchy saves the swipe on long reads. */
+/* Reader back link (surah, hadith book): sits on the same 820px column as
+   the verses below, with a little air before the title. */
 .reader-back {
   display: flex;
   align-items: center;
   gap: 0.25rem;
   width: 100%;
-  max-width: 860px;
-  margin: 0 auto 0.25rem;
-  padding: 0 1.35rem;
+  max-width: 820px;
+  margin: 0 auto 1.35rem;
+  padding: 0;
   color: var(--color-text-muted);
   font-size: 0.85rem;
   font-weight: 600;

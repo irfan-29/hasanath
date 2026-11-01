@@ -225,7 +225,7 @@ export default function HadithBookPage() {
         Hadith
       </Link>
 
-      <header className="page-header">
+      <header className="page-header reader-header">
         <p className="surah-page-kicker">Hadith collection</p>
         <h1>{manifest.name}</h1>
         <p>{manifest.translator} · {manifest.total} hadiths</p>

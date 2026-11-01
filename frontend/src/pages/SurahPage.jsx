@@ -149,10 +149,20 @@ export default function SurahPage() {
         Quran
       </Link>
 
-      <header className="page-header">
+      <header className="page-header reader-header">
         <p className="surah-page-kicker">Surah {data.surahNo} of 114</p>
         <h1>{data.surahName}</h1>
-        <p>{data.surahNameArabic} · {data.surahNameTranslation}</p>
+        <p className="surah-arabic-line">
+          <span
+            className="surah-arabic-name"
+            dir="rtl"
+            lang="ar"
+            style={{ fontFamily: `'${data.favoriteFont}', serif` }}
+          >
+            {data.surahNameArabic}
+          </span>
+          <span className="surah-arabic-translation">· {data.surahNameTranslation}</span>
+        </p>
         <div className="surah-meta-row">
           <span className="surah-meta-pill">
             <span className="material-symbols-rounded" aria-hidden="true">place</span>
