@@ -7334,7 +7334,8 @@ input[type="datetime-local"] { color-scheme: light; }
    surah meta card makes long translations comfortable to read. */
 /* Ayah navigator: a quiet strip on the reading column rather than a floating
    card. Label, slider and the value/Go pair sit on one line on desktop and
-   stack in that order on phones. */
+   stack in that order on phones. No surface of its own - it sits straight on
+   the page background, outlined just enough to read as one control. */
 .ayah-jump {
   display: flex;
   align-items: center;
@@ -7344,9 +7345,9 @@ input[type="datetime-local"] { color-scheme: light; }
   margin: 0 auto 1.9rem;
   padding: 0.7rem 1rem;
   text-align: left;
-  border: 1px solid var(--color-border-light);
+  border: 1px solid var(--color-border);
   border-radius: 16px;
-  background: var(--color-surface-elevated);
+  background: transparent;
 }
 
 .ayah-jump-label {
@@ -7415,6 +7416,8 @@ input[type="datetime-local"] { color-scheme: light; }
   margin: 1.25rem auto;
   padding: 1.35rem 1.5rem 1.25rem;
   text-align: center;
+  border-color: var(--color-border-light);
+  background: var(--color-surface-elevated);
 }
 
 .ayah-jump--settings .ayah-jump-label { margin-bottom: 0.85rem; }
