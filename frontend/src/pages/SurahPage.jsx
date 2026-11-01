@@ -125,6 +125,22 @@ export default function SurahPage() {
 
   const targetAyah = params.get('ayah');
 
+  // Compact bar that takes over once the page title scrolls away, so the
+  // surah number, name and the way back stay reachable while reading.
+  const headerRef = useRef(null);
+  const [barStuck, setBarStuck] = useState(false);
+
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => setBarStuck(!entry.isIntersecting && entry.boundingClientRect.top < 0),
+      { rootMargin: '-8px 0px 0px 0px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [data]);
+
   // Deep link support: /surah/2?ayah=255 opens scrolled to that ayah. Runs on
   // surah change and whenever the query changes, since the DOM only exists once
   // `data` has loaded.
@@ -149,7 +165,20 @@ export default function SurahPage() {
         Quran
       </Link>
 
-      <header className="page-header reader-header">
+      {barStuck && (
+        <div className="surah-sticky-bar">
+          <div className="surah-sticky-inner">
+            <Link to="/quran" className="surah-sticky-back" aria-label="Back to the surah list">
+              <span className="material-symbols-rounded" aria-hidden="true">arrow_back</span>
+            </Link>
+            <p className="surah-sticky-title">
+              <span className="surah-sticky-no">{data.surahNo}.</span> {data.surahName}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <header className="page-header reader-header" ref={headerRef}>
         <p className="surah-page-kicker">Surah {data.surahNo} of 114</p>
         <h1>{data.surahName}</h1>
         <p className="surah-arabic-line">

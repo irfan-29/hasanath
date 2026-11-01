@@ -7336,19 +7336,14 @@ input[type="datetime-local"] { color-scheme: light; }
 
 /* Ayah navigator and the reading column. Keeping the text narrower than the
    surah meta card makes long translations comfortable to read. */
-/* Ayah navigator: a quiet strip on the reading column rather than a floating
-   card. Label, slider and the value/Go pair sit on one line on desktop and
-   stack in that order on phones. No surface of its own - it sits straight on
-   the page background, outlined just enough to read as one control. */
+/* Ayah navigator: no surface of its own - it sits straight on the page
+   background, outlined just enough to read as one control. Inside, it keeps
+   the original stacked layout: label, slider, then the value/Go row. */
 .ayah-jump {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.7rem 1rem;
   max-width: 820px;
   margin: 0 auto 1.9rem;
-  padding: 0.7rem 1rem;
-  text-align: left;
+  padding: 1.1rem 1.5rem 1.05rem;
+  text-align: center;
   border: 1px solid var(--color-border);
   border-radius: 16px;
   background: transparent;
@@ -7356,8 +7351,7 @@ input[type="datetime-local"] { color-scheme: light; }
 
 .ayah-jump-label {
   display: block;
-  flex: 0 0 auto;
-  margin: 0;
+  margin: 0 0 0.85rem;
   color: var(--color-primary-dark);
   font-size: 0.72rem;
   font-weight: 800;
@@ -7368,11 +7362,10 @@ input[type="datetime-local"] { color-scheme: light; }
 [data-theme="dark"] .ayah-jump-label { color: var(--color-primary-light); }
 
 .ayah-jump .form-range {
-  flex: 1 1 13rem;
-  width: auto;
-  max-width: none;
+  width: 100%;
+  max-width: 340px;
   height: 24px;
-  margin: 0;
+  margin: 0 auto;
   background: transparent;
   cursor: pointer;
 }
@@ -7451,21 +7444,12 @@ input[type="datetime-local"] { color-scheme: light; }
   background: linear-gradient(90deg, rgba(45, 212, 191, 0.36), rgba(230, 189, 116, 0.25));
 }
 
-/* Phone: the strip becomes label, then a full-width slider, then the
-   value/Go pair spread across the line. */
-@media (max-width: 768px) {
-  .ayah-jump:not(.ayah-jump--settings) .ayah-jump-label { width: 100%; }
-  .ayah-jump:not(.ayah-jump--settings) .form-range { flex-basis: 100%; }
-  .ayah-jump:not(.ayah-jump--settings) .ayah-jump-row { width: 100%; justify-content: space-between; }
-}
-
 .ayah-jump-row {
   display: flex;
-  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   gap: 0.6rem;
-  margin-top: 0;
+  margin-top: 0.9rem;
 }
 
 .ayah-jump-caption { color: var(--color-text-secondary); font-size: 0.82rem; }
@@ -9689,6 +9673,86 @@ body:has(.tabbar-sheet) .tabbar {
 .reader-back .material-symbols-rounded { font-size: 1.15rem; }
 
 .reader-back:hover { color: var(--color-primary); }
+
+/* Compact surah bar: appears once the page title has scrolled away, keeping
+   the number, name and the way back within reach while reading. It hangs off
+   the content column, not the window, so the sidebar is never covered. */
+.surah-sticky-bar {
+  position: fixed;
+  top: 0;
+  left: var(--sidebar-width);
+  right: 0;
+  z-index: 150;
+  padding: 0.5rem 3rem;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border-light);
+  box-shadow: 0 16px 32px -28px rgba(16, 42, 40, 0.55);
+  animation: surah-bar-in 0.18s ease-out;
+}
+
+@keyframes surah-bar-in {
+  from { opacity: 0; transform: translateY(-100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .surah-sticky-bar { animation: none; }
+}
+
+.surah-sticky-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+.surah-sticky-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  color: var(--color-text-muted);
+  transition: color var(--transition), background var(--transition);
+}
+
+.surah-sticky-back:hover {
+  color: var(--color-primary);
+  background: var(--color-primary-glow);
+}
+
+.surah-sticky-back .material-symbols-rounded { font-size: 1.15rem; }
+
+.surah-sticky-title {
+  min-width: 0;
+  margin: 0;
+  color: var(--color-text);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.surah-sticky-no { color: var(--color-primary-dark); }
+
+[data-theme="dark"] .surah-sticky-no { color: var(--color-primary-light); }
+
+body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed); }
+
+/* Below 1024px the sidebar becomes a fixed top bar, so the compact bar sits
+   directly under it. */
+@media (max-width: 1024px) {
+  .surah-sticky-bar {
+    top: var(--header-height);
+    left: 0;
+    padding: 0.5rem 1rem;
+  }
+}
 
 /* --- Qibla direction ---------------------------------------------------------
    A compass card: a rotating rose that carries the Kaaba marker at the true
