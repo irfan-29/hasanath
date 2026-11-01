@@ -79,7 +79,7 @@ export default function HadithPage() {
       )}
 
       {tab === 'bookmarks' && (
-        <div className="container1">
+        <>
           {signedOut ? (
             <div className="gate-notice">
               <span className="material-symbols-rounded">lock</span>
@@ -93,7 +93,7 @@ export default function HadithPage() {
             </div>
           ) : (
             <>
-              <div className="card-header">
+              <div className="card-header bookmarks-head">
                 <h3>Bookmarked Hadiths</h3>
                 <span className="badge badge-primary">{bookmarks.length}</span>
               </div>
@@ -102,7 +102,7 @@ export default function HadithPage() {
                 <p className="post-empty">No bookmarks yet. Tap the bookmark beside any hadith while reading.</p>
               ) : (
                 bookmarks.map((entry) => (
-                  <article className="favourite-card" key={`${entry.collection}:${entry.number}`}>
+                  <article className="ayah-block favourite-card" key={`${entry.collection}:${entry.number}`}>
                     <header className="favourite-head">
                       <div className="favourite-heading">
                         <Link
@@ -143,7 +143,7 @@ export default function HadithPage() {
               )}
             </>
           )}
-        </div>
+        </>
       )}
     </>
   );
