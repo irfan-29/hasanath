@@ -114,17 +114,30 @@ export default function HadithPage() {
                         </Link>
                         <span className="favourite-num">Hadith № {entry.number}</span>
                       </div>
-                      {/* Same .fav-btn/is-active treatment as the reader, so
-                          the bookmark is the same size and fills when active. */}
-                      <button
-                        type="button"
-                        className="fav-btn bookmark-btn is-active"
-                        onClick={() => toggleBookmark(entry.collection, entry.number)}
-                        title="Remove bookmark"
-                        aria-label={`Remove hadith ${entry.number} of ${entry.collectionName} from bookmarks`}
-                      >
-                        <span className="material-symbols-rounded">bookmark</span>
-                      </button>
+                      <div className="ayah-actions">
+                        {/* ?no= is the collection reader's existing deep link:
+                            it resolves the hadith's section and page and
+                            highlights the block. */}
+                        <Link
+                          className="fav-btn"
+                          to={`/hadith/${entry.collection}?no=${entry.number}`}
+                          title="Open hadith in the reader"
+                          aria-label={`Open hadith ${entry.number} of ${entry.collectionName} in the reader`}
+                        >
+                          <span className="material-symbols-rounded">open_in_new</span>
+                        </Link>
+                        {/* Same .fav-btn/is-active treatment as the reader, so
+                            the bookmark is the same size and fills when active. */}
+                        <button
+                          type="button"
+                          className="fav-btn bookmark-btn is-active"
+                          onClick={() => toggleBookmark(entry.collection, entry.number)}
+                          title="Remove bookmark"
+                          aria-label={`Remove hadith ${entry.number} of ${entry.collectionName} from bookmarks`}
+                        >
+                          <span className="material-symbols-rounded">bookmark</span>
+                        </button>
+                      </div>
                     </header>
 
                     {entry.arabic && (

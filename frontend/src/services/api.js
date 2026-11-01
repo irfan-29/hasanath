@@ -63,6 +63,9 @@ export const api = {
 
 export const quran = {
   index: () => api.get('/quran/index'),
+  // Transient: the server picks a surah and ayah at random and does not store
+  // it, so the daily ayah is unchanged when the page is opened again.
+  randomAyah: () => api.get('/quran/random-ayah'),
   surah: (no) => api.get(`/quran/surah/${no}`),
   reciters: () => api.get('/quran/reciters'),
   audio: (surahNo, reciter) =>

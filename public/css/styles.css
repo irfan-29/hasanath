@@ -1579,9 +1579,10 @@ body:has(.global-audio-bar) .main-content {
   transition: all var(--transition);
 }
 
+/* The card is not a link any more - the action row underneath carries the
+   navigation - so it should not lift under the pointer. */
 .featured-surah:hover {
-  box-shadow: var(--shadow-glow);
-  transform: translateY(-2px);
+  border-color: rgba(13, 148, 136, 0.15);
 }
 
 .featured-label {
@@ -7940,7 +7941,7 @@ input[type="datetime-local"] { color-scheme: light; }
   min-width: 0;
 }
 
-.favourite-head .fav-btn { margin-left: auto; }
+.favourite-head .ayah-actions { margin-left: auto; }
 
 /* ---- Previous / next surah -------------------------------------------------- */
 .surah-pager {
@@ -10071,3 +10072,69 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 [data-theme="dark"] .card:hover {
   box-shadow: none;
 }
+
+/* --- Ayah of the Day: share / open / refresh -------------------------------- */
+
+.featured-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.featured-head .featured-label { margin-bottom: 0; }
+
+.featured-reset {
+  padding: 0;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.featured-reset:hover { text-decoration: underline; }
+
+.featured-ayah-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  margin-top: 1.1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border-light);
+}
+
+.featured-ayah-actions .fav-btn {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.featured-ayah-actions .fav-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.featured-ayah-actions .is-spinning { animation: featured-spin 0.9s linear infinite; }
+
+@keyframes featured-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .featured-ayah-actions .is-spinning { animation: none; }
+}
+
+/* The Arabic surah name sits beside the Latin one and follows the reader's
+   chosen Qur'an face, the same as the ayah text below it. */
+.featured-ayah-surah-arabic {
+  font-size: 1.05rem;
+  color: var(--color-primary);
+  direction: rtl;
+}
+
+.favourite-ref-arabic { color: var(--color-primary); }

@@ -904,6 +904,39 @@ app.get("/api/quran/index", async function(req, res){
     });
 });
 
+// A random ayah for the reader's "refresh" button on the Quran home.
+// Deliberately not persisted: the daily ayah is the stored one, this is a
+// transient look at another verse. Nothing here touches AyahOfTheDay, so
+// leaving the page and coming back shows the stored ayah again.
+app.get("/api/quran/random-ayah", async function(req, res){
+    const surahs = await cachedJsonOrNull(`https://quranapi.pages.dev/api/surah.json`);
+    if (!surahs) return res.status(503).json({ error: "surah-index-unavailable" });
+
+    const surahNo = Math.floor(Math.random() * surahs.length) + 1;
+    const totalAyah = Number(surahs[surahNo - 1]?.totalAyah) || 1;
+    const ayahNo = Math.floor(Math.random() * totalAyah) + 1;
+
+    const settings = await userData.getSettings(req);
+    const { id, lan, author } = parseEdition(getPrimaryEdition(settings) || DEFAULT_TRANSLATION);
+
+    const [surah, translationJson] = await Promise.all([
+        cachedJsonOrNull(`https://quranapi.pages.dev/api/${surahNo}.json`),
+        cachedJson(`https://cdn.jsdelivr.net/gh/fawazahmed0/quran-api@1/editions/${id}/${surahNo}.json`).catch(() => null)
+    ]);
+    if (!surah) return res.status(503).json({ error: "surah-unavailable" });
+
+    const meta = surahs[surahNo - 1] || {};
+    res.json({
+        surahNo,
+        ayahNo,
+        surahName: surah.surahName || meta.surahName || "",
+        surahNameArabic: surah.surahNameArabic || meta.surahNameArabic || "",
+        arabicText: (surah.arabic1 && surah.arabic1[ayahNo - 1]) || "",
+        translationText: (translationJson && translationJson.chapter && translationJson.chapter[ayahNo - 1]?.text) || "",
+        translationLabel: translationJson ? `${lan} - ${author}` : ""
+    });
+});
+
 // One surah: Arabic plus the reader's chosen translations. This is the payload
 // the reader page renders from, so it carries no HTML.
 app.get("/api/quran/surah/:surahNo", async function(req, res){

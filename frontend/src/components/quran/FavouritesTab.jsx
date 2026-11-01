@@ -39,22 +39,47 @@ export default function FavouritesTab({ entries, isLoggedIn, onToggle, favoriteF
               <div className="favourite-heading">
                 <Link className="favourite-ref" to={`/surah/${entry.surahNo}?ayah=${entry.ayahNo}`}>
                   {entry.surahName}
-                  {entry.surahNameArabic ? ` · ${entry.surahNameArabic}` : ''}
+                  {entry.surahNameArabic && (
+                    <>
+                      {' · '}
+                      <span
+                        className="favourite-ref-arabic"
+                        dir="rtl"
+                        lang="ar"
+                        style={{ fontFamily: `'${favoriteFont}', serif` }}
+                      >
+                        {entry.surahNameArabic}
+                      </span>
+                    </>
+                  )}
                 </Link>
                 <span className="favourite-num">Ayah {entry.ayahNo}</span>
               </div>
-              {/* Same .fav-btn/is-active treatment as the reader, so the
-                  bookmark is the same size and fills instead of staying
-                  outlined. */}
-              <button
-                type="button"
-                className="fav-btn bookmark-btn is-active"
-                onClick={() => onToggle(entry.surahNo, entry.ayahNo)}
-                title="Remove bookmark"
-                aria-label={`Remove ${entry.surahName} ayah ${entry.ayahNo} from bookmarks`}
-              >
-                <span className="material-symbols-rounded">bookmark</span>
-              </button>
+              <div className="ayah-actions">
+                {/* Same "open" affordance as the Ayah of the Day card: the
+                    bookmark list is for browsing, so opening the verse is an
+                    explicit action rather than the whole row being a link. */}
+                <Link
+                  className="fav-btn"
+                  to={`/surah/${entry.surahNo}?ayah=${entry.ayahNo}`}
+                  title="Open ayah in the reader"
+                  aria-label={`Open ${entry.surahName} ayah ${entry.ayahNo} in the reader`}
+                >
+                  <span className="material-symbols-rounded">open_in_new</span>
+                </Link>
+                {/* Same .fav-btn/is-active treatment as the reader, so the
+                    bookmark is the same size and fills instead of staying
+                    outlined. */}
+                <button
+                  type="button"
+                  className="fav-btn bookmark-btn is-active"
+                  onClick={() => onToggle(entry.surahNo, entry.ayahNo)}
+                  title="Remove bookmark"
+                  aria-label={`Remove ${entry.surahName} ayah ${entry.ayahNo} from bookmarks`}
+                >
+                  <span className="material-symbols-rounded">bookmark</span>
+                </button>
+              </div>
             </header>
 
             {entry.unavailable ? (
