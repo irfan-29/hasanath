@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState } fro
 // "Donation added" - the way most apps do it. Pages call `const toast =
 // useToast()` and `toast('Challenge deleted')` after the request succeeds;
 // each message hides itself after ~2.6s and stacked messages queue in a
-// column above the tab bar.
+// column under the header, clear of the audio player at the bottom.
 const ToastContext = createContext(() => {});
 
 let nextId = 0;

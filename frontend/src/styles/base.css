@@ -6809,21 +6809,39 @@ body {
 }
 
 /* --- Toasts -----------------------------------------------------------------
-   Self-dismissing confirmations for every write. Sits above the tab bar so
-   the phone dock never covers it, under the confirm dialog's overlay.
-   (Prefixed app-toast-: Bootstrap also ships a .toast, whose
-   .toast:not(.show) { display: none } would swallow ours.) */
+   Self-dismissing confirmations for every write. They sit at the top, just
+   under the fixed header: anchored to the bottom they were hidden behind the
+   audio player whenever it was open. Above the header/docks in stacking order
+   so neither the tab bar nor the player can cover one. */
 .app-toast-stack {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px));
-  z-index: 200;
+  top: calc(var(--header-height) + 0.65rem);
+  z-index: 1001;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
+  padding: 0 1rem;
   pointer-events: none;
+}
+
+/* On a wide screen the sidebar owns the left edge, so centre the pill over
+   the content column rather than over the window (which would sit it half a
+   sidebar to the left of everything else). */
+@media (min-width: 1025px) {
+  .app-toast-stack { left: var(--sidebar-width); }
+  body:has(.sidebar.collapsed) .app-toast-stack { left: var(--sidebar-collapsed); }
+}
+
+/* On a phone the reader's sticky surah bar sits in the strip right under the
+   header once the page is scrolled, so drop the toast beneath it instead of
+   printing over the surah title. */
+@media (max-width: 1024px) {
+  body:has(.surah-sticky-bar) .app-toast-stack {
+    top: calc(var(--header-height) + 3.65rem);
+  }
 }
 
 .app-toast {
@@ -6838,7 +6856,7 @@ body {
   font-size: 0.86rem;
   font-weight: 600;
   box-shadow: 0 12px 30px -12px rgba(10, 25, 24, 0.45);
-  animation: toast-rise 0.22s ease-out;
+  animation: toast-drop 0.22s ease-out;
 }
 
 .app-toast .material-symbols-rounded { font-size: 1.1rem; }
@@ -6851,8 +6869,8 @@ body {
 
 .app-toast-error .material-symbols-rounded { color: #f87171; }
 
-@keyframes toast-rise {
-  from { opacity: 0; transform: translateY(10px); }
+@keyframes toast-drop {
+  from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -10003,13 +10021,32 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   }
 }
 
-/* --- Flat content surfaces -------------------------------------------------
-   Cards, panels and controls sit directly on the page background. Separation
-   comes from the hairline border that most of them already carry (or the rule
-   between sections), never from a second white layer on top of the page.
-   Overlays that must float - dropdown menus, dialogs, toasts, the sticky
-   reader bar, the docks - deliberately keep their own surface and are listed
+/* --- Content surfaces ------------------------------------------------------
+   Cards, panels and controls sit a shade darker than the page rather than on
+   a second bright layer. The flat pass made everything transparent, which
+   left only a 1px hairline to separate a panel from the page - at a glance
+   the padding and the edges stopped reading, and the layout looked misaligned.
+   A shallow tint (--color-surface-tint) plus a slightly heavier hairline
+   restores the inside/outside distinction without bringing back the white
+   cards. Overlays that must float - dropdown menus, dialogs, toasts, the
+   sticky reader bar, the docks - keep their own surface and are listed
    nowhere here. */
+:root {
+  /* ~3% ink over the cream page: enough to see the panel, far from white. */
+  --color-surface-tint: rgba(16, 42, 40, 0.035);
+  /* The hairline was 7.5% ink and one pixel wide, which disappeared on the
+     tinted panel; it needs both a little more width and a little more
+     colour, still far from a hard black outline. */
+  --color-border-light: rgba(16, 42, 40, 0.12);
+  --content-border-width: 2px;
+}
+
+[data-theme="dark"] {
+  /* On a dark page the tint has to lift instead of darken. */
+  --color-surface-tint: rgba(255, 255, 255, 0.045);
+  --color-border-light: rgba(255, 255, 255, 0.14);
+}
+
 .container1,
 .card,
 .post-card,
@@ -10042,13 +10079,15 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 .table,
 .custom-selector,
 .form-control,
+.app-field-control,
 .surah-search-input,
 .hadith-jump-input,
 .ayah-jump--settings,
 [data-theme="dark"] .container1,
 [data-theme="dark"] .card,
 [data-theme="dark"] .surah-card {
-  background: transparent;
+  background: var(--color-surface-tint);
+  border-width: var(--content-border-width);
   box-shadow: none;
 }
 
@@ -10060,7 +10099,7 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   background: var(--color-primary-glow);
 }
 
-.surah-pager-link.is-disabled:hover { background: transparent; }
+.surah-pager-link.is-disabled:hover { background: var(--color-surface-tint); }
 
 /* Segmented tab control: the track keeps its translucent tint, the selected
    tab is tinted teal instead of a white pill. */
@@ -10172,4 +10211,24 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   direction: ltr;
   -webkit-font-feature-settings: 'liga';
   -webkit-font-smoothing: antialiased;
+}
+
+/* --- One column width on Challenges ---------------------------------------
+   The consistency card (680px), the add button row (680px) and the challenge
+   panel (744px) each centred themselves independently, so as soon as the
+   content column was wider than 744px their left and right edges drifted
+   apart by 32px. They now share the panel's width, and above the phone
+   breakpoint its horizontal padding, so the card border, the button and the
+   panel's content all start on one line. */
+.challenge-consistency,
+.post-actions.challenge-add-row {
+  max-width: 744px;
+}
+
+@media (min-width: 768px) {
+  .challenge-consistency,
+  .post-actions.challenge-add-row {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
 }
