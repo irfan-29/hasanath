@@ -31,6 +31,32 @@ const User = require("./models/User.js");
 
 const app=express();
 
+// Express 4 does not forward a rejected promise from an async handler to the
+// error middleware. A throw inside one of them therefore never becomes a
+// response: the request just hangs until the serverless function times out and
+// the browser gets a bare 500 with no JSON body - the "Request failed (500)"
+// screen with nothing to explain it. Wrapping every handler once, here, turns
+// those failures into the normal 500 handled at the bottom of this file.
+function wrapAsyncHandler(fn) {
+    // Arity 4 is an error middleware; it must keep its signature.
+    if (typeof fn !== "function" || fn.length === 4) return fn;
+    return function wrappedHandler(req, res, next) {
+        try {
+            const result = fn(req, res, next);
+            if (result && typeof result.then === "function") result.catch(next);
+            return result;
+        } catch (err) {
+            return next(err);
+        }
+    };
+}
+for (const method of ["get", "post", "put", "patch", "delete", "all"]) {
+    const original = app[method].bind(app);
+    app[method] = function (routePath, ...handlers) {
+        return original(routePath, ...handlers.map(wrapAsyncHandler));
+    };
+}
+
 // QStash signs the raw request body, so keep an untouched copy. Without this the
 // signature cannot be verified: re-serialising the parsed JSON does not reproduce
 // the exact bytes that were signed.
@@ -61,7 +87,30 @@ if (!MONGO_URI) {
     );
     process.exit(1);
 }
-mongoose.connect(MONGO_URI);
+// One connection attempt per instance, shared by every request. Fire-and-forget
+// `mongoose.connect` looked harmless, but on a cold start the first request
+// arrives while the handshake is still running: every query then buffers for
+// mongoose's 10s timeout and the function is killed before it can answer. The
+// middleware below awaits this promise once, so a slow database produces a
+// clear 503 instead of a hung request.
+let dbReady = null;
+function ensureDb() {
+    if (mongoose.connection.readyState === 1) return Promise.resolve();
+    if (!dbReady) {
+        dbReady = mongoose.connect(MONGO_URI).catch((err) => {
+            console.error("MongoDB connection failed -", err.message);
+            // Allow the next request to try again rather than caching the
+            // failure for the life of the instance.
+            dbReady = null;
+            throw err;
+        });
+        // A rejection is delivered to whichever request is waiting; without this
+        // handler Node also reports it as unhandled.
+        dbReady.catch(() => {});
+    }
+    return dbReady;
+}
+ensureDb();
 
 // Cookie + session secrets. These are REQUIRED in production: without them the
 // session falls back to a shared dev secret, which means every deployment
@@ -86,6 +135,25 @@ app.use(cookieParser(COOKIE_SECRET));
 // user straight back to a signed-out page.
 app.set("trust proxy", 1);
 
+// Gate every request behind the initial connection. Running before the session
+// middleware matters: the session store reads from Mongo on every request, so
+// without this a cold start spends its budget on a buffered session lookup.
+app.use(async function(req, res, next) {
+    if (mongoose.connection.readyState === 1) return next();
+    try {
+        await Promise.race([
+            ensureDb(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error("db-timeout")), 8000))
+        ]);
+        next();
+    } catch (err) {
+        res.status(503).json({
+            error: "database-unavailable",
+            message: "The service is warming up. Please try again in a moment."
+        });
+    }
+});
+
 app.use(session({
     secret: SESSION_SECRET,
     resave: false,
@@ -93,7 +161,10 @@ app.use(session({
     // Vercel runs each invocation in a fresh container, so the default
     // in-memory store silently drops logins between requests.
     store: MongoStore.create({
-        mongoUrl: MONGO_URI,
+        // Share mongoose's pool instead of opening a second TLS connection on
+        // every cold start - the session store and the models then answer from
+        // one warm connection.
+        client: mongoose.connection.getClient(),
         collectionName: "sessions",
         ttl: 30 * 24 * 60 * 60, // 30 days
         autoRemove: "native"
@@ -853,20 +924,35 @@ app.get("/api/quran/favourites", requireLogin, handleQuranFavourites);
 app.post("/api/quran/favourites/toggle", requireLogin, handleToggleFavourite);
 
 app.get("/api/quran/index", async function(req, res){
-    const surahs = await cachedJsonOrNull(`https://quranapi.pages.dev/api/surah.json`);
+    // The surah index and the reciter list are independent cache reads, and so
+    // are the daily ayah and last-read lookups. Fetching them one after another
+    // cost a full database round trip each; in parallel the page answers in one.
+    const [surahs, reciterSource] = await Promise.all([
+        cachedJsonOrNull(`https://quranapi.pages.dev/api/surah.json`),
+        // Reciters are identical across surahs, so one surah's payload covers all.
+        cachedJsonOrNull(`https://quranapi.pages.dev/api/1.json`)
+    ]);
     if (!surahs) return res.status(503).json({ error: "surah-index-unavailable" });
 
     const settings = await userData.getSettings(req);
     const edition = getPrimaryEdition(settings);
     const parsed = edition ? parseEdition(edition) : null;
 
-    // Reciters are identical across surahs, so one surah's payload covers all.
-    const reciterSource = await cachedJsonOrNull(`https://quranapi.pages.dev/api/1.json`);
-
     let ayah = null;
-    try {
-        const entry = await getOrCreateAyahOfTheDay(surahs);
-        if (entry) {
+    const [entry, lastReadSurahs] = await Promise.all([
+        getOrCreateAyahOfTheDay(surahs).catch((err) => {
+            // The daily ayah is a nicety; failing it must not fail the page.
+            console.error("api/quran/index: ayah of the day -", err.message);
+            return null;
+        }),
+        userData.getLastReadSurahs(req).catch((err) => {
+            console.error("api/quran/index: last read -", err.message);
+            return [];
+        })
+    ]);
+
+    if (entry) {
+        try {
             // Unconditional. The guard this replaces checked the top-level
             // translationText, which is only the cached copy of whichever
             // edition some other visitor happened to resolve first - so it
@@ -883,16 +969,15 @@ app.get("/api/quran/index", async function(req, res){
                 translationText: entry.translationText || '',
                 translationLabel: entry.translationLabel || ''
             };
+        } catch (err) {
+            console.error("api/quran/index: ayah text -", err.message);
         }
-    } catch (err) {
-        // The daily ayah is a nicety; failing it must not fail the page.
-        console.error("api/quran/index: ayah of the day -", err.message);
     }
 
     res.json({
         surahs,
         ayahOfTheDay: ayah,
-        lastReadSurahs: await userData.getLastReadSurahs(req),
+        lastReadSurahs,
         favoriteFont: settings.favoriteFont || 'QPC-Hafs',
         activeReciter: settings.favoriteReciter ? String(settings.favoriteReciter) : "1",
         reciters: reciterSource && reciterSource.audio
@@ -2418,4 +2503,20 @@ app.use(function(req, res){
     }
 
     res.redirect(302, FRONTEND_URL + req.originalUrl);
+});
+
+// Last middleware: anything a route threw reaches here now that handlers are
+// wrapped (see wrapAsyncHandler at the top). Always JSON, so the client can
+// show the message instead of a bare "Request failed (500)".
+app.use(function(err, req, res, next) {
+    console.error("api error:", req.method, req.originalUrl, "-", (err && err.stack) || err);
+    if (res.headersSent) return next(err);
+
+    const status = Number(err && (err.status || err.statusCode)) || 500;
+    res.status(status).json({
+        error: status === 500 ? "server-error" : (err.code || "request-failed"),
+        message: status === 500
+            ? "Something went wrong. Please try again."
+            : (err.message || "Request failed.")
+    });
 });

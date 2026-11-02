@@ -10138,3 +10138,34 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 }
 
 .favourite-ref-arabic { color: var(--color-primary); }
+
+/* --- Icon font -------------------------------------------------------------
+   Material Symbols used to come from fonts.googleapis.com with
+   `display=swap`. When that stylesheet was slow or blocked the class was
+   never defined at all, so every icon rendered as its ligature name - the
+   "explore", "favorite_border", "mosque" text that appeared in the UI. The
+   subset below ships with the app (same-origin, preloaded in index.html) and
+   `display: block` keeps the ligature hidden until the glyph is ready. */
+@font-face {
+  font-family: 'Material Symbols Rounded';
+  font-style: normal;
+  font-weight: 100 700;
+  font-display: block;
+  src: url('/fonts/material-symbols-rounded.woff2') format('woff2');
+}
+
+.material-symbols-rounded {
+  font-family: 'Material Symbols Rounded';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}

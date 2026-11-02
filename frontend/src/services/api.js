@@ -21,7 +21,7 @@ class ApiError extends Error {
   }
 }
 
-async function request(path, { method = 'GET', body, signal } = {}) {
+async function request(path, { method = 'GET', body, signal, retried = false } = {}) {
   const response = await fetch(BASE + path, {
     method,
     // Explicit even though same-origin: it documents the requirement and keeps
@@ -45,7 +45,21 @@ async function request(path, { method = 'GET', body, signal } = {}) {
   }
 
   if (!response.ok) {
-    const message = (payload && (payload.error || payload.message)) || `Request failed (${response.status})`;
+    // 502/503/504 from the platform are usually a cold start or a deploy blip,
+    // not a real answer. Retrying a GET once turns "Request failed" into a
+    // slightly slower page. Writes are never retried: they may have landed.
+    if (!retried && method === 'GET' && [502, 503, 504].includes(response.status)) {
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      return request(path, { method, body, signal, retried: true });
+    }
+
+    // Prefer the server's human-readable message; fall back to something that
+    // does not just repeat the status code, which told the reader nothing.
+    const raw = payload && (payload.message || payload.error);
+    const fallback = response.status >= 500
+      ? 'Something went wrong on our side. Please try again.'
+      : `Request failed (${response.status})`;
+    const message = (typeof raw === 'string' && raw && raw !== 'failed') ? raw : fallback;
     throw new ApiError(message, response.status, payload);
   }
 

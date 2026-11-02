@@ -50,12 +50,15 @@ export default function Loader({ variant = 'inline', label = 'Loading', classNam
             strokeDashoffset={c * 0.75}
           />
         </svg>
-        <span
-          className="app-loader__logo material-symbols-rounded"
-          style={{ fontSize: `${size.logo}px` }}
-        >
-          mosque
-        </span>
+        {/* The brand glyph is the same SVG the favicon and boot loader use, so
+            the loader never shows a ligature name while an icon font loads. */}
+        <img
+          className="app-loader__logo"
+          src="/logo-mark.svg"
+          alt=""
+          width={size.logo}
+          height={size.logo}
+        />
       </div>
       {size.label && <span className="app-loader__label">{label}</span>}
       {/* Announced for screen readers; the visual label is decorative-ish. */}
