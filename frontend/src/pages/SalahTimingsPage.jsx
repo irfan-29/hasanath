@@ -25,6 +25,16 @@ export default function SalahTimingsPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // The API can return a city that is not in the picker's list (an older saved
+  // setting, for example). Add it so the closed trigger still shows the city
+  // that the times above were actually fetched for.
+  const locationOptions = LOCATIONS.includes(state.location)
+    ? LOCATIONS.map((location) => ({ value: location, label: location }))
+    : [
+        ...(state.location ? [{ value: state.location, label: state.location }] : []),
+        ...LOCATIONS.map((location) => ({ value: location, label: location })),
+      ];
+
   async function changeLocation(value) {
     try {
       // Saved first so the setting and the displayed times cannot disagree on
@@ -39,9 +49,28 @@ export default function SalahTimingsPage() {
 
   return (
     <>
+      {/*
+        The city is the selector, the same way the day is on the Salah tracker:
+        a heading-sized trigger with a drop arrow opens the app's own menu.
+        That replaces the separate "Change Location" card below, so there is
+        one obvious place to change where the times come from.
+      */}
       <div className="page-header">
         <h1>Salah Timings</h1>
-        <p>Prayer times for {state.details ? state.details.location : 'your location'}</p>
+        <div className="timings-location">
+          <span className="timings-location-kicker">Location</span>
+          <FormSelect
+            id="timings-location"
+            className="timings-location-picker"
+            ariaLabel="Select location"
+            placeholder={state.loading ? 'Loading…' : 'Choose a city'}
+            value={state.location || ''}
+            disabled={state.loading}
+            onChange={changeLocation}
+            options={locationOptions}
+            compact
+          />
+        </div>
       </div>
 
       {state.loading ? <Loader variant="inline" label="Loading prayer times" /> : state.details ? (
@@ -63,18 +92,6 @@ export default function SalahTimingsPage() {
       ) : (
         <div className="container1"><p className="post-empty">{error || 'No prayer times available.'}</p></div>
       )}
-
-      <div className="container1">
-        <div className="card-header"><h3>Change Location</h3></div>
-        <FormSelect
-          id="timings-location"
-          label="Location"
-          value={state.location || ''}
-          disabled={state.loading}
-          onChange={changeLocation}
-          options={LOCATIONS.map((location) => ({ value: location, label: location }))}
-        />
-      </div>
     </>
   );
 }
