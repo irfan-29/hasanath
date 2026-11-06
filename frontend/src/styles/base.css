@@ -92,16 +92,14 @@ html {
   --color-accent: #f59e0b;
   --color-accent-light: #fbbf24;
 
-  /* Cool near-white. The page is the white end of the scale and content
-     panels sit a few percent darker (--color-surface-tint below), which is
-     what gives the UI its depth now that cards are no longer white. */
-  --color-bg: #f8fafc;
-  --color-bg-gradient:
-    radial-gradient(circle at 10% -4%, rgba(13, 148, 136, 0.07), transparent 38%),
-    radial-gradient(circle at 94% 2%, rgba(56, 189, 248, 0.06), transparent 34%),
-    linear-gradient(180deg, #ffffff 0%, #f8fafc 52%, #f1f5f9 100%);
+  /* Pure white page, with a barely-there cool wash in the panels
+     (--color-surface-tint below). The old cream page and the tinted page
+     gradient both added a second colour behind the UI; removing them leaves
+     the surface tint as the only thing separating a panel from the page. */
+  --color-bg: #ffffff;
+  --color-bg-gradient: #ffffff;
   --color-surface: #ffffff;
-  --color-surface-elevated: rgba(255, 255, 255, 0.9);
+  --color-surface-elevated: #ffffff;
 
   --color-sidebar: #092b27;
   --color-sidebar-hover: rgba(255, 255, 255, 0.07);
@@ -113,8 +111,8 @@ html {
   --color-text-muted: #64748b;
   --color-text-inverse: #f2fffb;
 
-  --color-border: rgba(15, 23, 42, 0.14);
-  --color-border-light: rgba(15, 23, 42, 0.08);
+  --color-border: rgba(15, 23, 42, 0.12);
+  --color-border-light: rgba(15, 23, 42, 0.07);
 
   --color-success: #0f9f7a;
   --color-danger: #d9534f;
@@ -10070,15 +10068,16 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 }
 
 /* --- Content surfaces ------------------------------------------------------
-   The page is the white end of the scale and every content panel sits a few
-   percent darker, which is what separates a card from the page now that the
-   white-card-on-cream look is gone. The fill does the work, so the outline
-   stays a single hairline. Overlays that must float - dropdown menus,
-   dialogs, toasts, the sticky reader bar, the docks - keep their own
+   The page is pure white and every content panel carries a very light
+   blue-grey wash (#f8f9fe-ish), closer to a business app's section bands than
+   to grey cards. The difference is deliberately small: the panel edge and
+   the hairline do the rest of the work. Overlays that must float - dropdown
+   menus, dialogs, toasts, the sticky reader bar, the docks - keep their own
    surface and are listed nowhere here. */
 :root {
-  /* A cool slate wash over white reads as light grey (#f2f4f7-ish). */
-  --color-surface-tint: rgba(15, 23, 42, 0.045);
+  /* 3.5% indigo over white - enough to see the panel, not enough to read as
+     a second background colour. */
+  --color-surface-tint: rgba(59, 91, 219, 0.035);
   --content-border-width: 1px;
 }
 
