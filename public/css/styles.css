@@ -43,44 +43,50 @@ html {
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 
   --color-primary: #0d9488;
-  --color-primary-light: #12a99b;
-  --color-primary-dark: #0b6b63;
-  --color-primary-glow: rgba(13, 148, 136, 0.12);
+  --color-primary-light: #14b8a6;
+  --color-primary-dark: #0f766e;
+  --color-primary-glow: rgba(13, 148, 136, 0.1);
 
-  --color-accent: #c08a35;
-  --color-accent-light: #e6bd74;
+  /* Gold is a streak/celebration accent only. The old mustard (#f59e0b)
+     tinted the whole app warm and made it read retro; amber keeps the warmth
+     where it belongs without colouring the chrome. */
+  --color-accent: #f59e0b;
+  --color-accent-light: #fbbf24;
 
-  --color-bg: #f6f3ec;
+  /* Cool near-white. The page is the white end of the scale and content
+     panels sit a few percent darker (--color-surface-tint below), which is
+     what gives the UI its depth now that cards are no longer white. */
+  --color-bg: #f8fafc;
   --color-bg-gradient:
-    radial-gradient(circle at 12% 4%, rgba(13, 148, 136, 0.12), transparent 32%),
-    radial-gradient(circle at 88% 8%, rgba(192, 138, 53, 0.09), transparent 30%),
-    linear-gradient(145deg, #f8f5ee 0%, #f4f1e9 48%, #edf6f1 100%);
-  --color-surface: #fffdfa;
-  --color-surface-elevated: rgba(255, 253, 250, 0.88);
+    radial-gradient(circle at 10% -4%, rgba(13, 148, 136, 0.07), transparent 38%),
+    radial-gradient(circle at 94% 2%, rgba(56, 189, 248, 0.06), transparent 34%),
+    linear-gradient(180deg, #ffffff 0%, #f8fafc 52%, #f1f5f9 100%);
+  --color-surface: #ffffff;
+  --color-surface-elevated: rgba(255, 255, 255, 0.9);
 
   --color-sidebar: #092b27;
   --color-sidebar-hover: rgba(255, 255, 255, 0.07);
   --color-sidebar-active: rgba(45, 212, 191, 0.14);
   --color-sidebar-border: rgba(255, 255, 255, 0.08);
 
-  --color-text: #102a28;
-  --color-text-secondary: #526562;
-  --color-text-muted: #5f6f6b;
+  --color-text: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748b;
   --color-text-inverse: #f2fffb;
 
-  --color-border: rgba(16, 42, 40, 0.14);
-  --color-border-light: rgba(16, 42, 40, 0.075);
+  --color-border: rgba(15, 23, 42, 0.14);
+  --color-border-light: rgba(15, 23, 42, 0.08);
 
   --color-success: #0f9f7a;
   --color-danger: #d9534f;
   --color-info: #2b7a78;
 
-  --shadow-xs: 0 1px 2px rgba(16, 42, 40, 0.04);
-  --shadow-sm: 0 6px 20px -12px rgba(16, 42, 40, 0.18);
-  --shadow-md: 0 14px 34px -20px rgba(16, 42, 40, 0.24);
-  --shadow-lg: 0 24px 60px -34px rgba(16, 42, 40, 0.3);
-  --shadow-xl: 0 34px 90px -42px rgba(16, 42, 40, 0.36);
-  --shadow-glow: 0 18px 38px -20px rgba(13, 148, 136, 0.5);
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 6px 20px -14px rgba(15, 23, 42, 0.16);
+  --shadow-md: 0 16px 36px -22px rgba(15, 23, 42, 0.22);
+  --shadow-lg: 0 26px 64px -36px rgba(15, 23, 42, 0.28);
+  --shadow-xl: 0 36px 96px -44px rgba(15, 23, 42, 0.34);
+  --shadow-glow: 0 18px 38px -20px rgba(13, 148, 136, 0.45);
 
   --radius-sm: 12px;
   --radius-md: 16px;
@@ -103,29 +109,29 @@ html {
   --color-primary-dark: #99f6e4;
   --color-primary-glow: rgba(45, 212, 191, 0.16);
 
-  --color-accent: #e6bd74;
-  --color-accent-light: #f4d696;
+  --color-accent: #fbbf24;
+  --color-accent-light: #fcd34d;
 
-  --color-bg: #071412;
+  --color-bg: #060b14;
   --color-bg-gradient:
-    radial-gradient(circle at 12% 4%, rgba(45, 212, 191, 0.1), transparent 32%),
-    radial-gradient(circle at 88% 8%, rgba(230, 189, 116, 0.07), transparent 30%),
-    linear-gradient(145deg, #071412 0%, #081a17 48%, #0b211e 100%);
-  --color-surface: #0f2420;
-  --color-surface-elevated: rgba(17, 42, 38, 0.84);
+    radial-gradient(circle at 10% -4%, rgba(45, 212, 191, 0.1), transparent 38%),
+    radial-gradient(circle at 94% 2%, rgba(56, 189, 248, 0.08), transparent 34%),
+    linear-gradient(180deg, #070d18 0%, #0a1220 52%, #0b1526 100%);
+  --color-surface: #111a2b;
+  --color-surface-elevated: rgba(17, 26, 43, 0.86);
 
-  --color-sidebar: #050f0e;
+  --color-sidebar: #050a12;
   --color-sidebar-hover: rgba(255, 255, 255, 0.07);
   --color-sidebar-active: rgba(45, 212, 191, 0.14);
   --color-sidebar-border: rgba(255, 255, 255, 0.08);
 
-  --color-text: #edf7f3;
-  --color-text-secondary: #a7bfb9;
-  --color-text-muted: #7f9a93;
+  --color-text: #e8eef7;
+  --color-text-secondary: #9fb0c7;
+  --color-text-muted: #7b8ba3;
   --color-text-inverse: #f2fffb;
 
   --color-border: rgba(255, 255, 255, 0.14);
-  --color-border-light: rgba(255, 255, 255, 0.075);
+  --color-border-light: rgba(255, 255, 255, 0.08);
 
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
   --shadow-sm: 0 8px 24px -16px rgba(0, 0, 0, 0.65);
@@ -1141,7 +1147,7 @@ body:has(.global-audio-bar) .main-content {
   border: 1px solid var(--color-border-light);
   border-radius: 20px;
   background:
-    radial-gradient(circle at 0% 0%, rgba(192, 138, 53, 0.14), transparent 42%),
+    radial-gradient(circle at 0% 0%, rgba(245, 158, 11, 0.14), transparent 42%),
     var(--color-surface-elevated);
   box-shadow: 0 18px 40px -36px rgba(16, 42, 40, 0.45);
 }
@@ -1163,10 +1169,10 @@ body:has(.global-audio-bar) .main-content {
 
 .challenge-consistency-pill {
   padding: 0.3rem 0.65rem;
-  border: 1px solid rgba(192, 138, 53, 0.24);
+  border: 1px solid rgba(245, 158, 11, 0.24);
   border-radius: 999px;
-  background: rgba(192, 138, 53, 0.11);
-  color: #8a5f1f;
+  background: rgba(245, 158, 11, 0.11);
+  color: #92400e;
   font-size: 0.7rem;
   font-weight: 800;
   white-space: nowrap;
@@ -1175,7 +1181,7 @@ body:has(.global-audio-bar) .main-content {
 [data-theme="dark"] .challenge-consistency-pill {
   border-color: rgba(230, 189, 116, 0.24);
   background: rgba(230, 189, 116, 0.1);
-  color: #f4d696;
+  color: #fcd34d;
 }
 
 .challenge-consistency-body {
@@ -1193,7 +1199,7 @@ body:has(.global-audio-bar) .main-content {
   height: 48px;
   border: 1px solid rgba(245, 158, 11, 0.18);
   border-radius: 15px;
-  background: linear-gradient(145deg, rgba(245, 158, 11, 0.16), rgba(192, 138, 53, 0.08));
+  background: linear-gradient(145deg, rgba(245, 158, 11, 0.16), rgba(245, 158, 11, 0.08));
   color: #b45309;
   font-size: 1.65rem;
   font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
@@ -1397,13 +1403,13 @@ body:has(.global-audio-bar) .main-content {
   height: 52px;
   margin-bottom: 0.35rem;
   border-radius: 16px;
-  background: rgba(192, 138, 53, 0.1);
+  background: rgba(245, 158, 11, 0.1);
   color: #b45309;
   font-size: 1.7rem;
   font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
 }
 
-[data-theme="dark"] .challenge-empty-icon { color: #f4d696; }
+[data-theme="dark"] .challenge-empty-icon { color: #fcd34d; }
 
 .challenge-empty-state strong {
   color: var(--color-text);
@@ -3855,12 +3861,12 @@ hr {
    ============================================================ */
 
 .landing {
-  --landing-bg: #f6f3ec;
-  --landing-bg-soft: #edf6f1;
+  --landing-bg: #f8fafc;
+  --landing-bg-soft: #eef2f7;
   --landing-nav-bg: rgba(246, 243, 236, 0.84);
-  --landing-ink: #102a28;
-  --landing-body: #526562;
-  --landing-muted: #5f6f6b;
+  --landing-ink: #0f172a;
+  --landing-body: #475569;
+  --landing-muted: #64748b;
   --landing-card: rgba(255, 255, 255, 0.74);
   --landing-card-solid: #ffffff;
   --landing-line: rgba(16, 42, 40, 0.1);
@@ -3868,8 +3874,8 @@ hr {
   --landing-teal: #0d9488;
   --landing-teal-deep: #0b6b63;
   --landing-teal-soft: rgba(13, 148, 136, 0.1);
-  --landing-gold: #c08a35;
-  --landing-gold-soft: rgba(192, 138, 53, 0.14);
+  --landing-gold: #f59e0b;
+  --landing-gold-soft: rgba(245, 158, 11, 0.14);
   --landing-gold-ink: #946421;
   --landing-shadow: 0 30px 70px -34px rgba(16, 42, 40, 0.42);
   --landing-radius: 26px;
@@ -3883,22 +3889,22 @@ hr {
 }
 
 [data-theme="dark"] .landing {
-  --landing-bg: #071412;
-  --landing-bg-soft: #0b211e;
-  --landing-nav-bg: rgba(7, 20, 18, 0.84);
-  --landing-ink: #edf7f3;
-  --landing-body: #a7bfb9;
-  --landing-muted: #7f9a93;
-  --landing-card: rgba(17, 39, 36, 0.72);
-  --landing-card-solid: #102825;
+  --landing-bg: #060b14;
+  --landing-bg-soft: #0b1526;
+  --landing-nav-bg: rgba(6, 12, 22, 0.84);
+  --landing-ink: #e8eef7;
+  --landing-body: #9fb0c7;
+  --landing-muted: #7b8ba3;
+  --landing-card: rgba(17, 26, 43, 0.72);
+  --landing-card-solid: #111a2b;
   --landing-line: rgba(255, 255, 255, 0.1);
   --landing-line-strong: rgba(255, 255, 255, 0.18);
   --landing-teal: #2dd4bf;
   --landing-teal-deep: #99f6e4;
   --landing-teal-soft: rgba(45, 212, 191, 0.14);
-  --landing-gold: #e6bd74;
-  --landing-gold-soft: rgba(230, 189, 116, 0.14);
-  --landing-gold-ink: #e6bd74;
+  --landing-gold: #fbbf24;
+  --landing-gold-soft: rgba(56, 189, 248, 0.14);
+  --landing-gold-ink: #fbbf24;
   --landing-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.75);
 }
 
@@ -3953,7 +3959,7 @@ hr {
   height: 46vw;
   top: 24vw;
   left: -22vw;
-  background: radial-gradient(circle, rgba(192, 138, 53, 0.13), transparent 64%);
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.13), transparent 64%);
 }
 
 .landing-orb--three {
@@ -4224,7 +4230,7 @@ hr {
 .landing-headline-line { white-space: nowrap; }
 
 .landing-grad {
-  background: linear-gradient(100deg, var(--landing-teal) 0%, #34b3a6 48%, var(--landing-gold) 100%);
+  background: linear-gradient(100deg, var(--landing-teal) 0%, #34b3a6 48%, #38bdf8 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -5762,7 +5768,7 @@ body {
 .nav-link.active::before {
   width: 3px;
   height: 20px;
-  background: linear-gradient(180deg, #5eead4, #e6bd74);
+  background: linear-gradient(180deg, #5eead4, #38bdf8);
   border-radius: 999px;
 }
 
@@ -5822,7 +5828,7 @@ body {
   height: 3px;
   margin-top: 0.9rem;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+  background: linear-gradient(90deg, var(--color-primary), #38bdf8);
   opacity: 0.9;
 }
 
@@ -6057,11 +6063,11 @@ body {
 }
 
 .badge-accent {
-  background: rgba(192, 138, 53, 0.13);
-  color: #8a5f1f;
+  background: rgba(245, 158, 11, 0.13);
+  color: #92400e;
 }
 
-[data-theme="dark"] .badge-accent { color: #f4d696; }
+[data-theme="dark"] .badge-accent { color: #fcd34d; }
 
 /* ---- Calendar ---- */
 
@@ -6149,12 +6155,12 @@ body {
 }
 
 .streak-badge {
-  background: rgba(192, 138, 53, 0.13);
-  color: #8a5f1f;
+  background: rgba(245, 158, 11, 0.13);
+  color: #92400e;
   border-radius: 999px;
 }
 
-[data-theme="dark"] .streak-badge { color: #f4d696; }
+[data-theme="dark"] .streak-badge { color: #fcd34d; }
 
 .challenge-icon-btn-edit:hover,
 .challenge-icon-btn-edit:focus-visible {
@@ -6228,7 +6234,7 @@ body {
   height: 42px;
   border-radius: 14px;
   color: var(--color-primary-dark);
-  background: linear-gradient(135deg, rgba(13, 148, 136, 0.16), rgba(192, 138, 53, 0.08));
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.16), rgba(56, 189, 248, 0.1));
   border: 1px solid rgba(13, 148, 136, 0.18);
 }
 
@@ -6241,8 +6247,8 @@ body {
 
 .featured-surah {
   background:
-    radial-gradient(circle at 90% 10%, rgba(192, 138, 53, 0.12), transparent 34%),
-    linear-gradient(135deg, rgba(13, 148, 136, 0.12), rgba(237, 246, 241, 0.5));
+    radial-gradient(circle at 90% 8%, rgba(56, 189, 248, 0.1), transparent 36%),
+    linear-gradient(135deg, rgba(13, 148, 136, 0.1), rgba(241, 245, 249, 0.6));
   border: 1px solid rgba(13, 148, 136, 0.18);
   border-radius: 24px;
   padding: 1.75rem;
@@ -6250,8 +6256,8 @@ body {
 
 [data-theme="dark"] .featured-surah {
   background:
-    radial-gradient(circle at 90% 10%, rgba(230, 189, 116, 0.08), transparent 34%),
-    linear-gradient(135deg, rgba(45, 212, 191, 0.11), rgba(15, 36, 32, 0.4));
+    radial-gradient(circle at 90% 8%, rgba(56, 189, 248, 0.08), transparent 36%),
+    linear-gradient(135deg, rgba(45, 212, 191, 0.1), rgba(17, 26, 43, 0.4));
   border-color: rgba(45, 212, 191, 0.18);
 }
 
@@ -6345,7 +6351,7 @@ body {
 .post-author .material-symbols-rounded { color: var(--color-primary-dark); }
 
 .post-author-avatar {
-  background: linear-gradient(135deg, rgba(13, 148, 136, 0.18), rgba(192, 138, 53, 0.12));
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.18), rgba(56, 189, 248, 0.12));
   border: 1px solid rgba(13, 148, 136, 0.15);
 }
 
@@ -6382,11 +6388,11 @@ body {
 }
 
 .profile-badge {
-  color: #8a5f1f;
-  background: rgba(192, 138, 53, 0.13);
+  color: #92400e;
+  background: rgba(245, 158, 11, 0.13);
 }
 
-[data-theme="dark"] .profile-badge { color: #f4d696; }
+[data-theme="dark"] .profile-badge { color: #fcd34d; }
 
 .account-value {
   background: var(--color-bg);
@@ -6473,7 +6479,7 @@ body {
   width: 44px;
   height: 44px;
   border-radius: 14px;
-  background: linear-gradient(135deg, rgba(13, 148, 136, 0.16), rgba(192, 138, 53, 0.08));
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.16), rgba(56, 189, 248, 0.1));
   color: var(--color-primary-dark);
 }
 
@@ -6487,14 +6493,14 @@ body {
 
 .theme-picker-option.active {
   border-color: var(--color-primary);
-  background: linear-gradient(135deg, rgba(13, 148, 136, 0.12), rgba(192, 138, 53, 0.06));
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.12), rgba(56, 189, 248, 0.08));
   box-shadow: 0 0 0 4px var(--color-primary-glow);
   color: var(--color-primary-dark);
 }
 
 [data-theme="dark"] .theme-picker-option.active {
   color: var(--color-primary-light);
-  background: linear-gradient(135deg, rgba(45, 212, 191, 0.13), rgba(230, 189, 116, 0.05));
+  background: linear-gradient(135deg, rgba(45, 212, 191, 0.13), rgba(56, 189, 248, 0.06));
 }
 
 /* ---- Floating audio player ----
@@ -6848,7 +6854,7 @@ body {
   padding: 0.6rem 1.1rem;
   border-radius: 999px;
   background: var(--color-text);
-  color: var(--color-surface, #fffdfa);
+  color: var(--color-surface, #ffffff);
   font-size: 0.86rem;
   font-weight: 600;
   box-shadow: 0 12px 30px -12px rgba(10, 25, 24, 0.45);
@@ -7102,12 +7108,12 @@ body {
 }
 
 .stats-bar-good { background: linear-gradient(90deg, #12a99b, #0f9f7a); }
-.stats-bar-late { background: linear-gradient(90deg, #e6bd74, #c08a35); }
+.stats-bar-late { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
 .stats-bar-missed { background: linear-gradient(90deg, #fca5a5, #d9534f); }
 .stats-bar-other { background: linear-gradient(90deg, #94a3b8, #64748b); }
 .stats-bar-empty { width: 100%; background: var(--color-border-light); }
 .stats-bar-charity { background: linear-gradient(90deg, var(--color-primary-light), var(--color-primary)); }
-.stats-bar-challenge { background: linear-gradient(90deg, #e6bd74, #c08a35); }
+.stats-bar-challenge { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
 
 .stats-challenge-grid {
   display: grid;
@@ -7382,7 +7388,7 @@ input[type="datetime-local"] { color-scheme: light; }
 .form-range::-webkit-slider-runnable-track {
   height: 6px;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(13, 148, 136, 0.34), rgba(192, 138, 53, 0.24));
+  background: linear-gradient(90deg, rgba(13, 148, 136, 0.34), rgba(56, 189, 248, 0.3));
 }
 
 .form-range::-webkit-slider-thumb {
@@ -7400,7 +7406,7 @@ input[type="datetime-local"] { color-scheme: light; }
 .form-range::-moz-range-track {
   height: 6px;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(13, 148, 136, 0.34), rgba(192, 138, 53, 0.24));
+  background: linear-gradient(90deg, rgba(13, 148, 136, 0.34), rgba(56, 189, 248, 0.3));
 }
 
 .form-range::-moz-range-thumb {
@@ -7450,7 +7456,7 @@ input[type="datetime-local"] { color-scheme: light; }
 
 [data-theme="dark"] .form-range::-webkit-slider-runnable-track,
 [data-theme="dark"] .form-range::-moz-range-track {
-  background: linear-gradient(90deg, rgba(45, 212, 191, 0.36), rgba(230, 189, 116, 0.25));
+  background: linear-gradient(90deg, rgba(45, 212, 191, 0.36), rgba(56, 189, 248, 0.3));
 }
 
 .ayah-jump-row {
@@ -7493,7 +7499,7 @@ input[type="datetime-local"] { color-scheme: light; }
    instead of the heart's red, so the two actions read differently at a
    glance. */
 .fav-btn.bookmark-btn.is-active {
-  color: #e6bd74;
+  color: #fbbf24;
   background: rgba(230, 189, 116, 0.12);
 }
 
@@ -7856,12 +7862,12 @@ input[type="datetime-local"] { color-scheme: light; }
 [data-theme="dark"] .salah-status.is-ontime .salah-status-value { color: var(--color-primary-light); }
 
 .salah-status.is-late .salah-status-icon {
-  background: rgba(192, 138, 53, 0.13);
+  background: rgba(245, 158, 11, 0.13);
   color: #946421;
 }
-[data-theme="dark"] .salah-status.is-late .salah-status-icon { color: #f4d696; }
+[data-theme="dark"] .salah-status.is-late .salah-status-icon { color: #fcd34d; }
 .salah-status.is-late .salah-status-value { color: #946421; }
-[data-theme="dark"] .salah-status.is-late .salah-status-value { color: #f4d696; }
+[data-theme="dark"] .salah-status.is-late .salah-status-value { color: #fcd34d; }
 
 .salah-status.is-missed .salah-status-icon {
   background: rgba(217, 83, 79, 0.11);
@@ -9169,6 +9175,13 @@ body:has(.global-audio-bar) .main-content {
   --chrome-blur: blur(18px) saturate(1.25);
 }
 
+/* The chrome is brand green over the light page. In the dark theme it follows
+   the navy page instead, so the header does not read as a separate green slab
+   floating above a blue-black background. */
+[data-theme="dark"] {
+  --chrome-glass: rgba(6, 12, 22, 0.9);
+}
+
 .header-actions {
   display: none;
   align-items: center;
@@ -9403,7 +9416,7 @@ body:has(.global-audio-bar) .main-content {
 .tabbar-center-btn:active { transform: translateY(1px); }
 
 .tabbar-center-btn.is-active {
-  background: linear-gradient(135deg, #12a99b, #0f9f8a 55%, #e6bd74 130%);
+  background: linear-gradient(135deg, #12a99b, #0f9f8a 55%, #fbbf24 130%);
   color: #fff;
 }
 
@@ -9501,7 +9514,7 @@ body:has(.tabbar-sheet) .tabbar {
 .tabbar-sheet-item .material-symbols-rounded { font-size: 1.35rem; }
 
 .tabbar-sheet-item.is-active .tabbar-sheet-tile {
-  background: linear-gradient(135deg, #12a99b, #0f9f8a 55%, #e6bd74 130%);
+  background: linear-gradient(135deg, #12a99b, #0f9f8a 55%, #fbbf24 130%);
   color: #fff;
 }
 
@@ -9862,7 +9875,7 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 
 /* The letters re-level themselves in JSX so they always read upright while
    still riding the dial - except north, which stays the accent. */
-.qibla-cardinal.is-north { color: #e6bd74; }
+.qibla-cardinal.is-north { color: #fbbf24; }
 
 /* The Qibla pointer: a full-dial layer rotated to the bearing, drawing the
    needle from the hub to the Kaaba mark at its tip. */
@@ -9885,7 +9898,7 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 }
 
 .qibla-needle.is-aligned::before {
-  background: linear-gradient(180deg, #e6bd74, rgba(230, 189, 116, 0.3));
+  background: linear-gradient(180deg, #fbbf24, rgba(230, 189, 116, 0.3));
   box-shadow: 0 0 22px rgba(230, 189, 116, 0.75);
 }
 
@@ -9911,7 +9924,7 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   right: -1px;
   top: 38%;
   height: 5px;
-  background: linear-gradient(90deg, #b98a2e, #e6bd74 45%, #b98a2e);
+  background: linear-gradient(90deg, #b98a2e, #fbbf24 45%, #b98a2e);
 }
 
 .qibla-hub {
@@ -9922,7 +9935,7 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   height: 0.8rem;
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  background: radial-gradient(circle at 35% 30%, #f4d898, #c08a35);
+  background: radial-gradient(circle at 35% 30%, #f4d898, #f59e0b);
   box-shadow: 0 0 0 3px rgba(230, 189, 116, 0.25), 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
@@ -10018,29 +10031,21 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 }
 
 /* --- Content surfaces ------------------------------------------------------
-   Cards, panels and controls sit a shade darker than the page rather than on
-   a second bright layer. The flat pass made everything transparent, which
-   left only a 1px hairline to separate a panel from the page - at a glance
-   the padding and the edges stopped reading, and the layout looked misaligned.
-   A shallow tint (--color-surface-tint) plus a slightly heavier hairline
-   restores the inside/outside distinction without bringing back the white
-   cards. Overlays that must float - dropdown menus, dialogs, toasts, the
-   sticky reader bar, the docks - keep their own surface and are listed
-   nowhere here. */
+   The page is the white end of the scale and every content panel sits a few
+   percent darker, which is what separates a card from the page now that the
+   white-card-on-cream look is gone. The fill does the work, so the outline
+   stays a single hairline. Overlays that must float - dropdown menus,
+   dialogs, toasts, the sticky reader bar, the docks - keep their own
+   surface and are listed nowhere here. */
 :root {
-  /* ~3% ink over the cream page: enough to see the panel, far from white. */
-  --color-surface-tint: rgba(16, 42, 40, 0.035);
-  /* The hairline was 7.5% ink and one pixel wide, which disappeared on the
-     tinted panel; it needs both a little more width and a little more
-     colour, still far from a hard black outline. */
-  --color-border-light: rgba(16, 42, 40, 0.12);
-  --content-border-width: 2px;
+  /* A cool slate wash over white reads as light grey (#f2f4f7-ish). */
+  --color-surface-tint: rgba(15, 23, 42, 0.045);
+  --content-border-width: 1px;
 }
 
 [data-theme="dark"] {
-  /* On a dark page the tint has to lift instead of darken. */
-  --color-surface-tint: rgba(255, 255, 255, 0.045);
-  --color-border-light: rgba(255, 255, 255, 0.14);
+  /* On a dark page the tint lifts instead of darkening. */
+  --color-surface-tint: rgba(255, 255, 255, 0.05);
 }
 
 .container1,
@@ -10073,16 +10078,23 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 .hadith-chip,
 .calendar-table td,
 .table,
+[data-theme="dark"] .container1,
+[data-theme="dark"] .card,
+[data-theme="dark"] .surah-card {
+  background: var(--color-surface-tint);
+  border-width: var(--content-border-width);
+  box-shadow: none;
+}
+
+/* Fields sit one layer above the panel: a white control on the grey card is
+   the thing the eye should land on, and it reads as editable. */
 .custom-selector,
 .form-control,
 .app-field-control,
 .surah-search-input,
 .hadith-jump-input,
-.ayah-jump--settings,
-[data-theme="dark"] .container1,
-[data-theme="dark"] .card,
-[data-theme="dark"] .surah-card {
-  background: var(--color-surface-tint);
+.ayah-jump--settings {
+  background: var(--color-surface);
   border-width: var(--content-border-width);
   box-shadow: none;
 }
