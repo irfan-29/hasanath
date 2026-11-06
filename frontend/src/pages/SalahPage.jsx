@@ -45,11 +45,9 @@ function SalahRing({ completed, total }) {
     <div className="salah-ring" role="img" aria-label={`${completed} of ${total} prayers logged`}>
       <svg viewBox="0 0 120 120" aria-hidden="true">
         <defs>
-          {/* Teal into sky, rather than teal into gold: the ring reads as a
-              progress instrument instead of a decorative warm flourish. */}
           <linearGradient id="salah-ring-gradient" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#0d9488" />
-            <stop offset="1" stopColor="#38bdf8" />
+            <stop offset="0" stopColor="#12a99b" />
+            <stop offset="1" stopColor="#e6bd74" />
           </linearGradient>
         </defs>
         <circle className="salah-ring-track" cx="60" cy="60" r={radius} />
