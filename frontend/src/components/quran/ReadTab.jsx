@@ -79,12 +79,45 @@ export default function ReadTab({ surahs, ayahOfTheDay, lastReadSurahs, favorite
                 Back to Ayah of the Day
               </button>
             )}
+
+            {/* The actions sit on the label row rather than under the verse:
+                share, open in the reader and show another verse stay reachable
+                without reading to the bottom of a long ayah. */}
+            <div className="featured-ayah-actions">
+              <button
+                type="button"
+                className="fav-btn"
+                onClick={shareAyah}
+                title="Share this ayah"
+                aria-label="Share this ayah"
+              >
+                <span className="material-symbols-rounded">share</span>
+              </button>
+              <Link
+                className="fav-btn"
+                to={`/surah/${shown.surahNo}?ayah=${shown.ayahNo}`}
+                title="Open in the reader"
+                aria-label={`Open ${shown.surahName} ayah ${shown.ayahNo} in the reader`}
+              >
+                <span className="material-symbols-rounded">open_in_new</span>
+              </Link>
+              <button
+                type="button"
+                className="fav-btn"
+                onClick={loadRandomAyah}
+                disabled={randomLoading}
+                title="Show a random ayah"
+                aria-label="Show a random ayah"
+              >
+                <span className={`material-symbols-rounded${randomLoading ? ' is-spinning' : ''}`}>refresh</span>
+              </button>
+            </div>
           </div>
 
           {/* No link around the whole block any more: reading it should not
-              navigate away by accident. The three buttons underneath do the
-              things the card used to imply - share, open in the reader, and
-              show another verse. */}
+              navigate away by accident. The header buttons do the things the
+              card used to imply - share, open in the reader, and show another
+              verse. */}
           <div className="featured-surah">
             <div className="featured-ayah-ref">
               <p className="featured-ayah-cite">Surah {shown.surahNo} · Ayah {shown.ayahNo}</p>
@@ -115,36 +148,6 @@ export default function ReadTab({ surahs, ayahOfTheDay, lastReadSurahs, favorite
                 <p className="featured-ayah-translation">{shown.translationText}</p>
               </>
             )}
-
-            <div className="featured-ayah-actions">
-              <button
-                type="button"
-                className="fav-btn"
-                onClick={shareAyah}
-                title="Share this ayah"
-                aria-label="Share this ayah"
-              >
-                <span className="material-symbols-rounded">share</span>
-              </button>
-              <Link
-                className="fav-btn"
-                to={`/surah/${shown.surahNo}?ayah=${shown.ayahNo}`}
-                title="Open in the reader"
-                aria-label={`Open ${shown.surahName} ayah ${shown.ayahNo} in the reader`}
-              >
-                <span className="material-symbols-rounded">open_in_new</span>
-              </Link>
-              <button
-                type="button"
-                className="fav-btn"
-                onClick={loadRandomAyah}
-                disabled={randomLoading}
-                title="Show a random ayah"
-                aria-label="Show a random ayah"
-              >
-                <span className={`material-symbols-rounded${randomLoading ? ' is-spinning' : ''}`}>refresh</span>
-              </button>
-            </div>
           </div>
         </div>
       )}
