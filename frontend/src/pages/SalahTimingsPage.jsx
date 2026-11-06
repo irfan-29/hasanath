@@ -49,14 +49,24 @@ export default function SalahTimingsPage() {
 
   return (
     <>
-      {/*
-        The city is the selector, the same way the day is on the Salah tracker:
-        a heading-sized trigger with a drop arrow opens the app's own menu.
-        That replaces the separate "Change Location" card below, so there is
-        one obvious place to change where the times come from.
-      */}
       <div className="page-header">
         <h1>Salah Timings</h1>
+      </div>
+
+      {/*
+        The date and the city are one context block for the times below: the
+        date first when it is known, then the city trigger, both centred on the
+        same axis as the prayer cards. The city is still the selector - the
+        trailing arrow opens the app's own menu - but it now sits with the
+        date instead of off on the left edge.
+      */}
+      <div className="timings-context">
+        {state.details && (
+          <div className="prayer-meta">
+            <h2>{state.details.date}</h2>
+            <p>{state.details.hijriDate}</p>
+          </div>
+        )}
         <div className="timings-location">
           <span className="timings-location-kicker">Location</span>
           <FormSelect
@@ -73,22 +83,17 @@ export default function SalahTimingsPage() {
         </div>
       </div>
 
-      {state.loading ? <Loader variant="inline" label="Loading prayer times" /> : state.details ? (
-        <>
-          <div className="prayer-meta">
-            <h2>{state.details.date}</h2>
-            <p>{state.details.hijriDate}</p>
-          </div>
-
-          <div className="prayer-grid">
-            {state.details.prayerTimes.map((prayer, i) => (
-              <div className="prayer-card" key={`${prayer.timeType}-${i}`}>
-                <div className="prayer-name">{prayer.timeType}</div>
-                <div className="prayer-time">{prayer.time}</div>
-              </div>
-            ))}
-          </div>
-        </>
+      {state.loading && !state.details ? (
+        <Loader variant="inline" label="Loading prayer times" />
+      ) : state.details ? (
+        <div className="prayer-grid">
+          {state.details.prayerTimes.map((prayer, i) => (
+            <div className="prayer-card" key={`${prayer.timeType}-${i}`}>
+              <div className="prayer-name">{prayer.timeType}</div>
+              <div className="prayer-time">{prayer.time}</div>
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="container1"><p className="post-empty">{error || 'No prayer times available.'}</p></div>
       )}

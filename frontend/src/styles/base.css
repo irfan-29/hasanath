@@ -10251,11 +10251,23 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 
 /* --- Salah Timings location picker ----------------------------------------
    The city is the selector, the same way the day is on the Salah tracker: it
-   sits in the page header at heading size with a trailing drop arrow, and the
-   field chrome is stripped away. That replaces the separate "Change Location"
-   card, so there is one place to change where the times come from. */
+   sits under the date at heading size with a trailing drop arrow, and the
+   field chrome is stripped away. Date, city and prayer cards share one centre
+   line, so the page reads as a single centred column. */
+.timings-context {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+}
+
+.timings-context .prayer-meta {
+  margin-bottom: 0.35rem;
+}
+
 .timings-location {
-  margin-top: 0.6rem;
+  display: grid;
+  justify-items: center;
+  margin-bottom: 0.35rem;
 }
 
 .timings-location-kicker {
@@ -10272,13 +10284,13 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   color: var(--color-primary-light);
 }
 
-.page-header .timings-location-picker {
+.timings-context .timings-location-picker {
   width: auto;
   max-width: none;
   margin: 0;
 }
 
-.page-header .timings-location-picker .app-select-trigger {
+.timings-context .timings-location-picker .app-select-trigger {
   display: inline-flex;
   align-items: baseline;
   justify-content: flex-start;
@@ -10301,7 +10313,7 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   transition: color var(--transition);
 }
 
-.page-header .timings-location-picker .app-select-trigger .app-field-value {
+.timings-context .timings-location-picker .app-select-trigger .app-field-value {
   color: inherit;
   font: inherit;
   letter-spacing: inherit;
@@ -10312,7 +10324,7 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 
 /* The arrow stays inline at the end of the city name rather than pinned to a
    field edge, and turns over while the menu is open. */
-.page-header .timings-location-picker .app-select-trigger .app-field-icon {
+.timings-context .timings-location-picker .app-select-trigger .app-field-icon {
   position: static;
   width: auto;
   height: auto;
@@ -10325,41 +10337,41 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   pointer-events: none;
 }
 
-.page-header .timings-location-picker .app-select-trigger:hover,
-.page-header .timings-location-picker .app-select-trigger:hover .app-field-value {
+.timings-context .timings-location-picker .app-select-trigger:hover,
+.timings-context .timings-location-picker .app-select-trigger:hover .app-field-value {
   color: var(--color-primary-dark);
 }
 
-.page-header .timings-location-picker .app-select-trigger:hover .app-field-icon {
+.timings-context .timings-location-picker .app-select-trigger:hover .app-field-icon {
   color: var(--color-primary-dark);
   opacity: 1;
 }
 
-.page-header .timings-location-picker .app-select-trigger[aria-expanded="true"] .app-field-icon {
+.timings-context .timings-location-picker .app-select-trigger[aria-expanded="true"] .app-field-icon {
   color: var(--color-primary);
   opacity: 1;
   transform: rotate(180deg);
 }
 
-.page-header .timings-location-picker .app-select-trigger:focus-visible {
+.timings-context .timings-location-picker .app-select-trigger:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 3px;
   border-radius: 6px;
 }
 
 /* Loading keeps the current city readable instead of fading the whole label. */
-.page-header .timings-location-picker .app-select-trigger:disabled {
+.timings-context .timings-location-picker .app-select-trigger:disabled {
   cursor: default;
   opacity: 0.7;
 }
 
-[data-theme="dark"] .page-header .timings-location-picker .app-select-trigger:hover,
-[data-theme="dark"] .page-header .timings-location-picker .app-select-trigger:hover .app-field-value {
+[data-theme="dark"] .timings-context .timings-location-picker .app-select-trigger:hover,
+[data-theme="dark"] .timings-context .timings-location-picker .app-select-trigger:hover .app-field-value {
   color: var(--color-primary-light);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .page-header .timings-location-picker .app-select-trigger .app-field-icon {
+  .timings-context .timings-location-picker .app-select-trigger .app-field-icon {
     transition: none;
   }
 }
