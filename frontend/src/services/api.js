@@ -158,7 +158,12 @@ export const friendChallenges = {
   list: () => api.get('/friend-challenges'),
   create: (payload) => api.post('/friend-challenges', payload),
   respond: (id, action) => api.post(`/friend-challenges/${id}/respond`, { action }),
-  checkin: (id) => api.post(`/friend-challenges/${id}/checkin`, {}),
+  // Creator-only. `friends` adds new invitees; existing participants are left
+  // alone, so the caller only needs to send the newly picked usernames.
+  update: (id, payload) => api.request(`/friend-challenges/${id}`, { method: 'PATCH', body: payload }),
+  // `date` is optional: omitted means today, otherwise an ISO day inside the
+  // server's backfill window (it answers 400 outside it).
+  checkin: (id, date) => api.post(`/friend-challenges/${id}/checkin`, date ? { date } : {}),
   remove: (id) => api.request(`/friend-challenges/${id}`, { method: 'DELETE' }),
 };
 

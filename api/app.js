@@ -1906,6 +1906,26 @@ app.post("/api/friend-challenges/:id/respond", requireLogin, async function(req,
     }
 });
 
+// Creator-only: rename the challenge and/or invite friends who joined later.
+app.patch("/api/friend-challenges/:id", requireLogin, async function(req, res){
+    try {
+        const result = await friendChallengesService.updateChallenge(req.user, req.params.id, {
+            name: req.body.name,
+            friends: req.body.friends
+        });
+        if (result.error === "invalid-name") return res.status(400).json({ error: "invalid-name" });
+        if (result.error) return res.status(404).json({ error: result.error });
+        res.json({
+            ok: true,
+            challenge: result.challenge,
+            invited: result.invited
+        });
+    } catch (err) {
+        console.error("api/friend-challenges PATCH:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
 app.post("/api/friend-challenges/:id/checkin", requireLogin, async function(req, res){
     try {
         const result = await friendChallengesService.toggleCheckin(req.user, req.params.id, {

@@ -13,6 +13,10 @@ const notify = require("./notifications.js");
 
 const MAX_FRIENDS = 20;
 const MAX_HISTORY = 730;
+// A check-in can be logged for today or any of the six days before it. That is
+// long enough to recover a forgotten evening, short enough that a shared
+// leaderboard still measures the week everyone is actually living in.
+const BACKFILL_DAYS = 7;
 
 // The server's calendar day. The personal tracker already resolves "today" this
 // way, so both streak systems agree on when a day ends.
@@ -45,6 +49,40 @@ function computeStreak(history, today) {
     return count;
 }
 
+function laterDay(a, b) {
+    return a > b ? a : b;
+}
+
+function isRealDay(key) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return false;
+    const [y, m, d] = key.split("-").map(Number);
+    const date = new Date(y, m - 1, d, 12);
+    return date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d;
+}
+
+// The days a check-in may name: never before joining, never before the rolling
+// week, never the future.
+function checkinWindow(joinedOn, today) {
+    return {
+        start: laterDay(joinedOn, shiftDay(today, -(BACKFILL_DAYS - 1))),
+        end: today
+    };
+}
+
+// Yesterday through the start of the window, oldest first, for the client's
+// "missed a day" strip. Today has its own check-in button.
+function recentDays(participant, today) {
+    const history = new Set(participant.history || []);
+    const { start } = checkinWindow(participant.joinedOn, today);
+    const days = [];
+    let cursor = shiftDay(today, -1);
+    while (cursor >= start) {
+        days.push({ key: cursor, checked: history.has(cursor) });
+        cursor = shiftDay(cursor, -1);
+    }
+    return days.reverse();
+}
+
 function displayLabel(key) {
     const [y, m, d] = key.split("-").map(Number);
     return new Date(y, m - 1, d, 12).toLocaleDateString("en-US", {
@@ -61,6 +99,9 @@ function present(doc, viewerId) {
 
     const participants = (raw.participants || []).map((entry) => {
         const user = entry.user && entry.user._id ? entry.user : { _id: entry.user, username: "" };
+        const joinedOn = entry.respondedAt
+            ? isoDay(new Date(entry.respondedAt))
+            : isoDay(raw.createdAt ? new Date(raw.createdAt) : new Date());
         return {
             id: String(user._id),
             username: user.username || "",
@@ -69,6 +110,8 @@ function present(doc, viewerId) {
             maxStreak: Number(entry.maxStreak) || 0,
             checkedInToday: (entry.history || []).includes(today),
             lastUpdated: entry.lastUpdated || "",
+            joinedOn,
+            history: (entry.history || []).filter(Boolean),
             isYou: String(user._id) === viewer
         };
     });
@@ -98,10 +141,17 @@ function present(doc, viewerId) {
                 status: you.status,
                 currentStreak: you.currentStreak,
                 maxStreak: you.maxStreak,
-                checkedInToday: you.checkedInToday
+                checkedInToday: you.checkedInToday,
+                // Only your own history leaves the server; the leaderboard below
+                // strips it so nobody can read a friend's private days.
+                history: you.history,
+                recentDays: recentDays(you, today)
             }
             : null,
-        leaderboard: accepted.map((entry, index) => ({ ...entry, rank: index + 1 })),
+        leaderboard: accepted.map(({ history, joinedOn, ...entry }, index) => ({
+            ...entry,
+            rank: index + 1
+        })),
         invited: participants
             .filter((entry) => entry.status === "pending")
             .map((entry) => ({ id: entry.id, username: entry.username, isYou: entry.isYou })),
@@ -244,17 +294,24 @@ async function toggleCheckin(viewer, challengeId, { date } = {}) {
 
     const today = isoDay();
     const key = String(date || today);
-    // Today only. A shared leaderboard has to measure the same day for everyone,
-    // and a client clock must not be able to backfill a streak.
-    if (key !== today) return { error: "invalid-date" };
+    if (!isRealDay(key)) return { error: "invalid-date" };
 
     const participant = challenge.participants.find(
         (entry) => String(entry.user) === String(viewer._id)
     );
+    // Dates are validated against the server's day, so a client clock cannot
+    // open the future or rewrite an old week. Backfilling is allowed only back
+    // to the day this person joined and inside the rolling window.
+    const joinedOn = participant.respondedAt
+        ? isoDay(new Date(participant.respondedAt))
+        : isoDay(challenge.createdAt ? new Date(challenge.createdAt) : new Date());
+    const range = checkinWindow(joinedOn, today);
+    if (key < range.start || key > range.end) return { error: "invalid-date" };
+
     const history = Array.from(participant.history || []).filter(Boolean);
     const checkedIn = !history.includes(key);
     participant.history = checkedIn
-        ? [key, ...history.filter((entry) => entry !== key)].slice(0, MAX_HISTORY)
+        ? Array.from(new Set([key, ...history])).sort((a, b) => b.localeCompare(a)).slice(0, MAX_HISTORY)
         : history.filter((entry) => entry !== key);
 
     const streak = computeStreak(participant.history, today);
@@ -265,6 +322,89 @@ async function toggleCheckin(viewer, challengeId, { date } = {}) {
 
     const doc = await populated(challenge._id);
     return { ok: true, checkedIn, challenge: present(doc, viewer._id) };
+}
+
+// Only the creator edits a challenge. Adding a friend who accepted after the
+// challenge started is the main reason to edit: participants are copied into
+// the document at creation, so a new friendship does not join by itself.
+async function updateChallenge(viewer, challengeId, { name, friends } = {}) {
+    const challenge = await FriendChallenge.findOne({
+        _id: challengeId,
+        creator: viewer._id
+    });
+    if (!challenge) return { error: "not-found" };
+
+    if (name !== undefined) {
+        const cleanName = String(name || "").trim().slice(0, 80);
+        if (!cleanName) return { error: "invalid-name" };
+        challenge.name = cleanName;
+    }
+
+    const usernames = Array.from(new Set(
+        (Array.isArray(friends) ? friends : [])
+            .map((entry) => String(entry || "").trim().toLowerCase())
+            .filter(Boolean)
+    )).slice(0, MAX_FRIENDS);
+
+    // Only new people can be invited: re-sending an invitation to someone
+    // already in the challenge (including a decline) would duplicate the row or
+    // reopen an answer they already gave.
+    const existing = new Set(challenge.participants.map((entry) => String(entry.user)));
+    const remaining = Math.max(0, MAX_FRIENDS - challenge.participants.length);
+
+    const users = usernames.length
+        ? await User.find({ username: { $in: usernames } })
+            .select("username name telegram telegramChatId")
+            .lean()
+        : [];
+    const keys = users.map((user) => Friendship.keyFor(viewer._id, user._id));
+    const acceptedRows = keys.length
+        ? await Friendship.find({ status: "accepted", key: { $in: keys } }).select("key").lean()
+        : [];
+    const friendKeys = new Set(acceptedRows.map((row) => row.key));
+    const byUsername = new Map(users.map((user) => [user.username, user]));
+
+    const invited = [];
+    for (const username of usernames) {
+        if (invited.length >= remaining) break;
+        const user = byUsername.get(username);
+        if (!user) continue;
+        if (String(user._id) === String(viewer._id)) continue;
+        if (existing.has(String(user._id))) continue;
+        if (!friendKeys.has(Friendship.keyFor(viewer._id, user._id))) continue;
+        invited.push(user);
+        existing.add(String(user._id));
+    }
+
+    for (const user of invited) {
+        challenge.participants.push({ user: user._id, status: "pending" });
+    }
+    await challenge.save();
+
+    for (const user of invited) {
+        await appNotifications.push({
+            userId: user._id,
+            type: "challenge_invite",
+            actor: viewer,
+            title: "Challenge invitation",
+            body: `${viewer.username || "Someone"} invited you to "${challenge.name}".`,
+            link: "/challenges",
+            data: { challengeId: String(challenge._id), challengeName: challenge.name }
+        });
+
+        notify.safeDeliver(
+            user,
+            `<b>Hasanath</b> — Challenge invitation\n\n`
+            + `${notify.escapeHtml(viewer.username || "Someone")} invited you to `
+            + `<b>${notify.escapeHtml(challenge.name)}</b>.\nOpen Hasanath to accept.`
+        ).catch(() => {});
+    }
+
+    const doc = await populated(challenge._id);
+    return {
+        challenge: present(doc, viewer._id),
+        invited: invited.map((user) => user.username)
+    };
 }
 
 // The creator removes the whole challenge; anyone else just leaves it. Their
@@ -296,10 +436,13 @@ async function removeOrLeave(viewer, challengeId) {
 module.exports = {
     isoDay,
     computeStreak,
+    checkinWindow,
+    recentDays,
     present,
     listChallenges,
     createChallenge,
     respond,
+    updateChallenge,
     toggleCheckin,
     removeOrLeave
 };
