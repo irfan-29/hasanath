@@ -7979,6 +7979,10 @@ input[type="datetime-local"] { color-scheme: light; }
 
 [data-theme="dark"] .ayah-translation-label { color: var(--color-primary-light); }
 
+/* Bookmarks are plain ayah blocks, not panels. The reader's own typography
+   and translation band give them structure; a tinted card around them would
+   put the band inside a box and leave the header flush with the edge. This
+   class is deliberately absent from the content-surface tint list below. */
 .favourite-card {
   max-width: 820px;
   margin-left: auto;
@@ -10090,7 +10094,6 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 .challenge-consistency,
 .prayer-card,
 .surah-card,
-.favourite-card,
 .account-card,
 .auth-card,
 .profile-header,
