@@ -6,6 +6,7 @@ import Navbar from './components/Navbar';
 import Player from './components/Player';
 import TabBar from './components/TabBar';
 import { SessionProvider, THEME_STORAGE_KEY } from './hooks/useSession';
+import { NotificationProvider } from './hooks/useNotifications.jsx';
 import { ConfirmProvider } from './components/ConfirmProvider';
 import { ToastProvider } from './components/ToastProvider';
 import useShareHandler from './hooks/useShareHandler';
@@ -26,6 +27,7 @@ import CalendarPage from './pages/CalendarPage';
 import { LoginPage, RegisterPage, VerifyPage } from './pages/AuthPage';
 import LandingPage from './pages/LandingPage';
 import AccountPage from './pages/AccountPage';
+import NotificationsPage from './pages/NotificationsPage';
 import { PostsPage, PostPage, ProfilePage } from './pages/PostsPage';
 import SurahPage from './pages/SurahPage';
 import NotFound from './pages/NotFound';
@@ -218,6 +220,7 @@ function Shell() {
 
   return (
     <SessionProvider value={resolved}>
+      <NotificationProvider>
       <ToastProvider>
       <ConfirmProvider>
         <Navbar session={resolved} />
@@ -234,6 +237,7 @@ function Shell() {
           <Route path="/posts" element={<PostsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/account" element={<AccountPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/salah-timings" element={<SalahTimingsPage />} />
           <Route path="/qibla" element={<QiblaPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
@@ -250,6 +254,7 @@ function Shell() {
       <TabBar />
       </ConfirmProvider>
       </ToastProvider>
+      </NotificationProvider>
     </SessionProvider>
   );
 }

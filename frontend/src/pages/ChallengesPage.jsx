@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { challenges as api } from '../services/api';
+import {
+  challenges as api,
+  friendChallenges as sharedApi,
+  friends as friendsApi,
+} from '../services/api';
 import { useConfirm } from '../components/ConfirmProvider';
 import { useToast } from '../components/ToastProvider';
 import { useSession } from '../hooks/useSession.jsx';
@@ -9,7 +13,7 @@ import DateField from '../components/DateField';
 
 // Markup mirrors views/challenges.ejs so the shared stylesheet applies.
 export default function ChallengesPage() {
-  const { isLoggedIn } = useSession();
+  const { isLoggedIn, username } = useSession();
   const ask = useConfirm();
   const toast = useToast();
   const [list, setList] = useState([]);
@@ -21,6 +25,15 @@ export default function ChallengesPage() {
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  // Shared-with-friends state. Kept apart from the personal list because it is
+  // served by a different document and can fail without taking the page down.
+  const [friendList, setFriendList] = useState([]);
+  const [sharedChallenges, setSharedChallenges] = useState([]);
+  const [sharedBusy, setSharedBusy] = useState('');
+  const [sharedError, setSharedError] = useState('');
+  const [friendsMode, setFriendsMode] = useState(false);
+  const [selectedFriends, setSelectedFriends] = useState([]);
 
   const load = useCallback(async () => {
     try {
@@ -34,7 +47,25 @@ export default function ChallengesPage() {
     }
   }, []);
 
+  const loadShared = useCallback(async () => {
+    try {
+      const [friends, shared] = await Promise.all([
+        friendsApi.list(),
+        sharedApi.list(),
+      ]);
+      setFriendList(friends.friends || []);
+      setSharedChallenges(shared.challenges || []);
+    } catch (err) {
+      // The friends module is additive: a failure must not hide personal
+      // challenges that loaded fine.
+      setSharedError('Could not load your friends’ challenges.');
+    }
+  }, []);
+
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (isLoggedIn) loadShared();
+  }, [isLoggedIn, loadShared]);
 
   // isLoggedIn is null until /api/session resolves. Rendering the list during
   // that window showed signed-out visitors "No challenges yet" instead of the
@@ -112,15 +143,29 @@ export default function ChallengesPage() {
   async function create() {
     const name = draft.trim();
     if (!name) return;
+    const withFriends = friendsMode && selectedFriends.length > 0;
+    if (friendsMode && !withFriends) return;
+
     setSaving(true);
+    setError('');
+    setSharedError('');
     try {
-      await api.create(name);
+      if (withFriends) {
+        await sharedApi.create({ name, friends: selectedFriends });
+        toast(`Challenge sent to ${selectedFriends.length} ${selectedFriends.length === 1 ? 'friend' : 'friends'}`);
+      } else {
+        await api.create(name);
+        toast('Challenge added');
+      }
       setDraft('');
       setEditing(null);
+      setFriendsMode(false);
+      setSelectedFriends([]);
       await load();
-      toast('Challenge added');
+      if (withFriends) await loadShared();
     } catch (err) {
-      setError('Could not add that challenge.');
+      if (withFriends) setSharedError('Could not send that challenge.');
+      else setError('Could not add that challenge.');
     } finally {
       setSaving(false);
     }
@@ -163,9 +208,83 @@ export default function ChallengesPage() {
     }
   }
 
+  // ---- Shared challenges ---------------------------------------------------
+
+  async function respondShared(challenge, action) {
+    setSharedBusy(challenge.id);
+    setSharedError('');
+    try {
+      const result = await sharedApi.respond(challenge.id, action);
+      if (action === 'decline') {
+        setSharedChallenges((current) => current.filter((entry) => entry.id !== challenge.id));
+        toast('Invitation declined', { kind: 'delete' });
+      } else {
+        setSharedChallenges((current) => current.map((entry) => (
+          entry.id === challenge.id ? result.challenge : entry
+        )));
+        toast('Challenge joined');
+      }
+    } catch (err) {
+      setSharedError('Could not update that invitation.');
+    } finally {
+      setSharedBusy('');
+    }
+  }
+
+  async function checkinShared(challenge) {
+    setSharedBusy(challenge.id);
+    setSharedError('');
+    try {
+      const result = await sharedApi.checkin(challenge.id);
+      setSharedChallenges((current) => current.map((entry) => (
+        entry.id === challenge.id ? result.challenge : entry
+      )));
+      toast(result.checkedIn ? 'Checked in for today' : 'Check-in removed');
+    } catch (err) {
+      setSharedError('Could not save that check-in.');
+    } finally {
+      setSharedBusy('');
+    }
+  }
+
+  async function removeShared(challenge) {
+    const deleting = challenge.creator.username === username;
+    const ok = await ask({
+      title: deleting ? 'Delete this challenge?' : 'Leave this challenge?',
+      message: deleting
+        ? 'It disappears for everyone and its streaks go with it.'
+        : 'Your streak in this challenge goes with you.',
+      confirmLabel: deleting ? 'Delete' : 'Leave',
+      danger: true
+    });
+    if (!ok) return;
+
+    setSharedBusy(challenge.id);
+    setSharedError('');
+    try {
+      await sharedApi.remove(challenge.id);
+      setSharedChallenges((current) => current.filter((entry) => entry.id !== challenge.id));
+      toast(deleting ? 'Challenge deleted' : 'You left the challenge', { kind: 'delete' });
+    } catch (err) {
+      setSharedError('Could not update that challenge.');
+    } finally {
+      setSharedBusy('');
+    }
+  }
+
+  function toggleFriend(handle) {
+    setSelectedFriends((current) => (
+      current.includes(handle)
+        ? current.filter((entry) => entry !== handle)
+        : [...current, handle]
+    ));
+  }
+
   const bestCurrent = list.reduce((best, item) => Math.max(best, Number(item.currentStreak) || 0), 0);
   const bestEver = list.reduce((best, item) => Math.max(best, Number(item.maxStreak ?? item.currentStreak) || 0), 0);
   const activeCount = list.filter((item) => (Number(item.currentStreak) || 0) > 0).length;
+
+  const creating = editing === '__new__';
 
   return (
     <>
@@ -220,17 +339,65 @@ export default function ChallengesPage() {
               autoFocus
               placeholder="Read for 20 minutes"
               onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') editing === '__new__' ? create() : saveEdit(); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') creating ? create() : saveEdit(); }}
             />
             <label>Challenge</label>
           </div>
+
+          {/* A new challenge can be personal or shared. The friend picker is
+              hidden while renaming: the participants of an existing challenge
+              are not something an edit changes. */}
+          {creating && (
+            <div className="friend-picker">
+              <label className="friend-picker-toggle">
+                <input
+                  type="checkbox"
+                  checked={friendsMode}
+                  onChange={(e) => {
+                    setFriendsMode(e.target.checked);
+                    if (!e.target.checked) setSelectedFriends([]);
+                  }}
+                />
+                <span>Challenge your friends</span>
+              </label>
+
+              {friendsMode && (
+                friendList.length === 0 ? (
+                  <p className="friend-picker-empty">
+                    Add friends from the <Link to="/notifications">Notifications</Link> tab first.
+                  </p>
+                ) : (
+                  <div className="friend-picker-list">
+                    {friendList.map((friend) => (
+                      <label className="friend-picker-option" key={friend.id}>
+                        <input
+                          type="checkbox"
+                          checked={selectedFriends.includes(friend.username)}
+                          onChange={() => toggleFriend(friend.username)}
+                        />
+                        <span className="friend-avatar" aria-hidden="true">
+                          {friend.username.charAt(0).toUpperCase()}
+                        </span>
+                        <span className="friend-picker-name">{friend.username}</span>
+                      </label>
+                    ))}
+                  </div>
+                )
+              )}
+            </div>
+          )}
+
           <div className="new-task" style={{ marginTop: '0.75rem' }}>
-            <button type="button" className="btn btn-success" disabled={saving}
-              onClick={() => editing === '__new__' ? create() : saveEdit()}>
-              {editing === '__new__' ? 'Add' : 'Save'}
+            <button
+              type="button"
+              className="btn btn-success"
+              disabled={saving || (creating && friendsMode && selectedFriends.length === 0)}
+              onClick={() => (creating ? create() : saveEdit())}
+            >
+              {creating ? 'Add' : 'Save'}
             </button>
             <button type="button" className="btn btn-outline" style={{ marginLeft: '0.5rem' }}
-              onClick={() => { setEditing(null); setDraft(''); }}>
+              onClick={() => { setEditing(null); setDraft(''); setFriendsMode(false); setSelectedFriends([]); }}>
               Cancel
             </button>
           </div>
@@ -337,6 +504,154 @@ export default function ChallengesPage() {
           </div>
         )}
       </div>
+
+      {sharedError && (
+        <div className="auth-alert" role="alert">
+          <span className="material-symbols-rounded">error</span>
+          {sharedError}
+        </div>
+      )}
+
+      {sharedChallenges.length > 0 && (
+        <section className="friend-challenge-section">
+          <div className="friend-challenge-head">
+            <h2>Friends’ challenges</h2>
+            <p>Shared streaks. Check in daily and see where you stand.</p>
+          </div>
+
+          <div className="friend-challenge-list">
+            {sharedChallenges.map((challenge) => (
+              <FriendChallengeCard
+                key={challenge.id}
+                challenge={challenge}
+                busy={sharedBusy === challenge.id}
+                onCheckin={checkinShared}
+                onRespond={respondShared}
+                onRemove={removeShared}
+              />
+            ))}
+          </div>
+        </section>
+      )}
     </>
+  );
+}
+
+// One shared challenge: invitation controls while pending, streak + leaderboard
+// once accepted.
+function FriendChallengeCard({ challenge, busy, onCheckin, onRespond, onRemove }) {
+  const { username } = useSession();
+  const pending = Boolean(challenge.me && challenge.me.status === 'pending');
+  const mine = challenge.me || {};
+  const creatorIsYou = challenge.creator.username === username;
+
+  return (
+    <article className={`friend-challenge-card${pending ? ' is-pending' : ''}`}>
+      <div className="friend-challenge-top">
+        <div>
+          <span className="challenge-card-eyebrow">
+            {pending ? 'Invitation' : 'Friends’ challenge'}
+          </span>
+          <h3 className="friend-challenge-name">{challenge.name}</h3>
+          <p className="friend-challenge-creator">
+            Started by{' '}
+            {creatorIsYou ? (
+              'you'
+            ) : (
+              <Link to={`/u/${challenge.creator.username}`}>{challenge.creator.username}</Link>
+            )}
+            {' · '}
+            {challenge.participantCount} {challenge.participantCount === 1 ? 'member' : 'members'}
+          </p>
+        </div>
+        {!pending && (
+          <button
+            type="button"
+            className="challenge-icon-btn challenge-icon-btn-danger"
+            aria-label={creatorIsYou ? 'Delete challenge' : 'Leave challenge'}
+            title={creatorIsYou ? 'Delete' : 'Leave'}
+            disabled={busy}
+            onClick={() => onRemove(challenge)}
+          >
+            <span className="material-symbols-rounded" aria-hidden="true">
+              {creatorIsYou ? 'delete' : 'logout'}
+            </span>
+          </button>
+        )}
+      </div>
+
+      {pending ? (
+        <div className="friend-challenge-pending">
+          <p>Accept to join the leaderboard and start your streak.</p>
+          <div className="friend-challenge-actions">
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              disabled={busy}
+              onClick={() => onRespond(challenge, 'accept')}
+            >
+              Accept
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              disabled={busy}
+              onClick={() => onRespond(challenge, 'decline')}
+            >
+              Decline
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="friend-challenge-meta">
+            <span className="streak-badge">
+              <span className="material-symbols-rounded" aria-hidden="true">local_fire_department</span>
+              {mine.currentStreak || 0} day streak
+            </span>
+            <span className="challenge-best-badge">Best {mine.maxStreak || 0}</span>
+            <button
+              type="button"
+              className={`btn btn-sm ${mine.checkedInToday ? 'btn-outline' : 'btn-success'}`}
+              disabled={busy}
+              aria-pressed={Boolean(mine.checkedInToday)}
+              onClick={() => onCheckin(challenge)}
+            >
+              {mine.checkedInToday ? 'Checked in today' : 'Check in today'}
+            </button>
+          </div>
+
+          <div className="leaderboard">
+            <div className="leaderboard-head">
+              <span>Leaderboard</span>
+              <span>Streak</span>
+            </div>
+            {challenge.leaderboard.map((entry) => (
+              <div className={`leaderboard-row${entry.isYou ? ' is-you' : ''}`} key={entry.id}>
+                <span className="leaderboard-rank">{entry.rank}</span>
+                <span className="leaderboard-player">
+                  <span className="friend-avatar" aria-hidden="true">
+                    {entry.username.charAt(0).toUpperCase()}
+                  </span>
+                  <span className="leaderboard-name">
+                    {entry.username}
+                    {entry.isYou && <span className="leaderboard-you">You</span>}
+                  </span>
+                </span>
+                <span className="leaderboard-streak">
+                  {entry.currentStreak}<span className="leaderboard-unit">d</span>
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {challenge.invited.length > 0 && (
+            <p className="friend-challenge-invited">
+              Waiting on {challenge.invited.map((entry) => entry.username).join(', ')}.
+            </p>
+          )}
+        </>
+      )}
+    </article>
   );
 }

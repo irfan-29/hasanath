@@ -134,6 +134,34 @@ export const posts = {
   profile: (username) => api.get(`/u/${encodeURIComponent(username)}`),
 };
 
+// ---- Friends, notifications and shared challenges ----
+//
+export const friends = {
+  list: () => api.get('/friends'),
+  search: (q) => api.get(`/users/search?q=${encodeURIComponent(q)}`),
+  request: (username) => api.post('/friends/requests', { username }),
+  accept: (friendshipId) => api.post(`/friends/requests/${friendshipId}/accept`, {}),
+  decline: (friendshipId) => api.post(`/friends/requests/${friendshipId}/decline`, {}),
+  remove: (username) => api.request(`/friends/${encodeURIComponent(username)}`, { method: 'DELETE' }),
+  respondChallenge: (challengeId, action) =>
+    api.post(`/friend-challenges/${challengeId}/respond`, { action }),
+};
+
+export const notifications = {
+  list: () => api.get('/notifications'),
+  count: () => api.get('/notifications/count'),
+  read: (id) => api.post(`/notifications/${id}/read`, {}),
+  readAll: () => api.post('/notifications/read-all', {}),
+};
+
+export const friendChallenges = {
+  list: () => api.get('/friend-challenges'),
+  create: (payload) => api.post('/friend-challenges', payload),
+  respond: (id, action) => api.post(`/friend-challenges/${id}/respond`, { action }),
+  checkin: (id) => api.post(`/friend-challenges/${id}/checkin`, {}),
+  remove: (id) => api.request(`/friend-challenges/${id}`, { method: 'DELETE' }),
+};
+
 export const account = {
   me: () => api.get('/account'),
 };

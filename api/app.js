@@ -28,6 +28,11 @@ const passwordUtil = require("./utils/password.js");
 const favourites = require("./services/favourites.js");
 const statsService = require("./services/stats.js");
 const User = require("./models/User.js");
+const friendsService = require("./services/friends.js");
+const friendChallengesService = require("./services/friendChallenges.js");
+const appNotifications = require("./services/appNotifications.js");
+const Friendship = require("./models/Friendship.js");
+const FriendChallenge = require("./models/FriendChallenge.js");
 
 const app=express();
 
@@ -1695,14 +1700,233 @@ app.get("/api/u/:username", async function(req, res){
 
         const posts = await Posts.find({ author: author._id }).sort({ _id: -1 });
         const isOwner = Boolean(req.isAuthenticated() && req.user && String(req.user._id) === String(author._id));
+        const viewerId = req.isAuthenticated() && req.user ? req.user._id : null;
+
+        // The profile carries the viewer's relationship to this handle, which
+        // is what lets the page offer Add friend / Accept / Request sent without
+        // a second round trip. A signed-out visitor gets "none" and is sent to
+        // sign in by the client.
+        // The friend list travels with the profile because the profile owns the
+        // Friends tab now: one request answers posts, relationship and friends
+        // together instead of making the tab wait on a second round trip.
+        const [friendship, friendCount, friends] = await Promise.all([
+            friendsService.relationship(viewerId, author._id),
+            friendsService.friendCount(author._id),
+            friendsService.listFriends(author._id)
+        ]);
+
         res.json({
             owner: author,
             posts: posts.map((post) => presentPost(post, req)),
             permalinkBase: originOf(req),
-            isOwner
+            isOwner,
+            friendship,
+            friendCount,
+            friends
         });
     } catch (err) {
         console.error("api/u/:username:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+// ---- Friends ---------------------------------------------------------------
+//
+// Requests are addressed by username rather than by an id from the browser:
+// the public handle is the only identity a person can be expected to know, and
+// it keeps the routes shareable ("add me at /u/irfan").
+
+app.get("/api/friends", requireLogin, async function(req, res){
+    try {
+        const [friends, incoming, outgoing] = await Promise.all([
+            friendsService.listFriends(req.user._id),
+            friendsService.incomingRequests(req.user._id),
+            friendsService.outgoingRequests(req.user._id)
+        ]);
+        res.json({ friends, incoming, outgoing });
+    } catch (err) {
+        console.error("api/friends:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+// Username search for the find-friends field. Never searches email addresses.
+app.get("/api/users/search", requireLogin, async function(req, res){
+    try {
+        const users = await friendsService.search(req.user._id, req.query.q);
+        res.json({ users });
+    } catch (err) {
+        console.error("api/users/search:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.post("/api/friends/requests", requireLogin, async function(req, res){
+    try {
+        const result = await friendsService.sendRequest(req.user, req.body.username);
+        if (result.error) {
+            const status = result.error === "not-found" ? 404
+                : result.error === "already-friends" ? 409
+                : 400;
+            return res.status(status).json({
+                error: result.error,
+                friendshipId: result.friendshipId || null
+            });
+        }
+        res.status(201).json({ ok: true, friendshipId: String(result.friendship._id) });
+    } catch (err) {
+        console.error("api/friends/requests POST:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.post("/api/friends/requests/:id/accept", requireLogin, async function(req, res){
+    try {
+        const result = await friendsService.respond(req.user, req.params.id, "accept");
+        if (result.error) return res.status(404).json({ error: result.error });
+        res.json({ ok: true, friend: result.friend });
+    } catch (err) {
+        console.error("api/friends/requests accept:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.post("/api/friends/requests/:id/decline", requireLogin, async function(req, res){
+    try {
+        const result = await friendsService.respond(req.user, req.params.id, "decline");
+        if (result.error) return res.status(404).json({ error: result.error });
+        res.json({ ok: true });
+    } catch (err) {
+        console.error("api/friends/requests decline:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+// Also used to withdraw a pending request: the row is one relationship, and
+// removing it is the same act either way.
+app.delete("/api/friends/:username", requireLogin, async function(req, res){
+    try {
+        const result = await friendsService.removeFriend(req.user._id, req.params.username);
+        if (result.error) return res.status(404).json({ error: result.error });
+        res.json({ ok: true });
+    } catch (err) {
+        console.error("api/friends DELETE:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+// ---- In-app notifications --------------------------------------------------
+//
+// The badge polls only the count; the tab reads the list. Both are scoped to
+// req.user._id, so a client cannot read or clear someone else's centre.
+
+app.get("/api/notifications", requireLogin, async function(req, res){
+    try {
+        const [items, unread] = await Promise.all([
+            appNotifications.listFor(req.user._id),
+            appNotifications.unreadCount(req.user._id)
+        ]);
+        res.json({ items, unread });
+    } catch (err) {
+        console.error("api/notifications:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.get("/api/notifications/count", requireLogin, async function(req, res){
+    try {
+        res.json({ unread: await appNotifications.unreadCount(req.user._id) });
+    } catch (err) {
+        console.error("api/notifications/count:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.post("/api/notifications/read-all", requireLogin, async function(req, res){
+    try {
+        const changed = await appNotifications.markAllRead(req.user._id);
+        res.json({ ok: true, changed });
+    } catch (err) {
+        console.error("api/notifications/read-all:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.post("/api/notifications/:id/read", requireLogin, async function(req, res){
+    try {
+        await appNotifications.markRead(req.user._id, req.params.id);
+        res.json({ ok: true });
+    } catch (err) {
+        console.error("api/notifications/read:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+// ---- Friend challenges -----------------------------------------------------
+//
+// Personal challenges stay on the user document; a shared challenge is its own
+// document because its streak belongs to each participant and its leaderboard
+// has to be readable by every member.
+
+app.get("/api/friend-challenges", requireLogin, async function(req, res){
+    try {
+        const challenges = await friendChallengesService.listChallenges(req.user._id);
+        res.json({ challenges });
+    } catch (err) {
+        console.error("api/friend-challenges:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.post("/api/friend-challenges", requireLogin, async function(req, res){
+    try {
+        const result = await friendChallengesService.createChallenge(req.user, {
+            name: req.body.name,
+            friends: req.body.friends
+        });
+        if (result.error === "invalid-name") return res.status(400).json({ error: "invalid-name" });
+        if (result.error === "no-friends") return res.status(400).json({ error: "no-friends" });
+        res.status(201).json({ challenge: result.challenge });
+    } catch (err) {
+        console.error("api/friend-challenges POST:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.post("/api/friend-challenges/:id/respond", requireLogin, async function(req, res){
+    try {
+        const action = String(req.body.action || "");
+        const result = await friendChallengesService.respond(req.user, req.params.id, action);
+        if (result.error === "invalid-action") return res.status(400).json({ error: "invalid-action" });
+        if (result.error) return res.status(404).json({ error: result.error });
+        res.json({ ok: true, declined: Boolean(result.declined), challenge: result.challenge || null });
+    } catch (err) {
+        console.error("api/friend-challenges respond:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.post("/api/friend-challenges/:id/checkin", requireLogin, async function(req, res){
+    try {
+        const result = await friendChallengesService.toggleCheckin(req.user, req.params.id, {
+            date: req.body.date
+        });
+        if (result.error === "invalid-date") return res.status(400).json({ error: "invalid-date" });
+        if (result.error) return res.status(404).json({ error: result.error });
+        res.json({ ok: true, checkedIn: result.checkedIn, challenge: result.challenge });
+    } catch (err) {
+        console.error("api/friend-challenges checkin:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.delete("/api/friend-challenges/:id", requireLogin, async function(req, res){
+    try {
+        const result = await friendChallengesService.removeOrLeave(req.user, req.params.id);
+        if (result.error) return res.status(404).json({ error: result.error });
+        res.json({ ok: true, deleted: Boolean(result.deleted), left: Boolean(result.left) });
+    } catch (err) {
+        console.error("api/friend-challenges DELETE:", err.message);
         res.status(500).json({ error: "failed" });
     }
 });
@@ -1777,6 +2001,17 @@ app.delete("/api/account", requireLogin, async function(req, res){
         // Posts by others keep their like counts honest: remove this user from
         // every like list rather than deleting the posts.
         await Posts.updateMany({ likedBy: user._id }, { $pull: { likedBy: user._id } });
+
+        // Friendships, shared challenges and the notification centre all point
+        // at this account. Delete the rows nobody could act on afterwards, and
+        // pull this user out of challenges other people still share.
+        await Friendship.deleteMany({ $or: [{ requester: user._id }, { recipient: user._id }] });
+        await FriendChallenge.deleteMany({ creator: user._id });
+        await FriendChallenge.updateMany(
+            { "participants.user": user._id },
+            { $pull: { participants: { user: user._id } } }
+        );
+        await appNotifications.removeForUser(user._id);
 
         req.logout((err) => {
             const finish = () => {

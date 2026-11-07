@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { api } from '../services/api';
+import { useUnreadNotifications } from '../hooks/useNotifications.jsx';
 
 // Emits the same markup and class names as views/navbar.ejs, so the shared
 // stylesheet applies unchanged. The first React version defined a parallel set
@@ -21,6 +22,7 @@ const PRIMARY = [
 ];
 
 const ACCOUNT = [
+  { to: '/notifications', path: '/notifications', icon: 'notifications', label: 'Notifications' },
   { to: '/account', path: '/account', icon: 'account_circle', label: 'Account' },
   { to: '/settings', path: '/settings', icon: 'settings', label: 'Settings' },
 ];
@@ -39,8 +41,13 @@ export default function Navbar({ session }) {
   const [accountOpen, setAccountOpen] = useState(false);
   const accountBtnRef = useRef(null);
   const accountMenuRef = useRef(null);
+  const { unread } = useUnreadNotifications();
 
   const handle = session.username || '';
+  const badge = unread > 9 ? '9+' : String(unread);
+  // The identity in the chrome is also the way into your own profile. Accounts
+  // that predate usernames still have an Account page to land on.
+  const profilePath = handle ? `/u/${handle}` : '/account';
 
   const signOut = useCallback(async () => {
     try {
@@ -100,8 +107,13 @@ export default function Navbar({ session }) {
       <Link to={item.to} className={`nav-link${isActive(pathname, item.path) ? ' active' : ''}`} data-path={item.path}>
         <span className="nav-icon material-symbols-rounded">{item.icon}</span>
         <span className="nav-label">{item.label}</span>
+        {item.to === '/notifications' && unread > 0 && (
+          <span className="nav-badge" aria-label={`${unread} unread`}>{badge}</span>
+        )}
       </Link>
-      <span className="nav-tooltip">{item.label}</span>
+      <span className="nav-tooltip">
+        {item.label}{item.to === '/notifications' && unread > 0 ? ` (${unread})` : ''}
+      </span>
     </li>
   );
 
@@ -137,6 +149,14 @@ export default function Navbar({ session }) {
               <Link to="/salah-timings" className="header-action-btn" aria-label="Salah timings">
                 <span className="material-symbols-rounded" aria-hidden="true">schedule</span>
               </Link>
+              <Link
+                to="/notifications"
+                className="header-action-btn"
+                aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
+              >
+                <span className="material-symbols-rounded" aria-hidden="true">notifications</span>
+                {unread > 0 && <span className="header-action-badge" aria-hidden="true">{badge}</span>}
+              </Link>
 
               <div className="header-account" ref={accountBtnRef}>
               <button
@@ -152,10 +172,10 @@ export default function Navbar({ session }) {
 
               {accountOpen && createPortal(
                 <div className="header-account-menu" ref={accountMenuRef} role="dialog" aria-label="Account menu">
-                  <div className="header-account-head">
+                  <Link to={profilePath} className="header-account-head" aria-label="Open your profile">
                     <span className="nav-avatar" aria-hidden="true">{(handle || '?').charAt(0).toUpperCase()}</span>
                     <span className="header-account-title">{handle}</span>
-                  </div>
+                  </Link>
                   <Link to="/account" className="header-account-item">
                     <span className="material-symbols-rounded" aria-hidden="true">account_circle</span>
                     Account
@@ -194,10 +214,11 @@ export default function Navbar({ session }) {
           {session.isLoggedIn ? (
             <>
               <li className="nav-item nav-user-chip">
-                <div className="nav-user">
+                <Link to={profilePath} className="nav-user" title="Open your profile">
                   <span className="nav-avatar">{(handle || '?').charAt(0).toUpperCase()}</span>
                   <span className="nav-label nav-user-name">{handle}</span>
-                </div>
+                </Link>
+                <span className="nav-tooltip">My profile</span>
               </li>
               {/* Posts to /api/auth/logout, not /logout. The frontend only
                   forwards /api/* to the backend, so a plain form action would

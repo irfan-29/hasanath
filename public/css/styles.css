@@ -10655,3 +10655,835 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 }
 
 .accent-label { white-space: nowrap; }
+
+/* ==========================================================================
+   Friends, notifications and shared challenges
+   ========================================================================== */
+
+/* Unread counts: the phone header pill, the sidebar row and the account menu
+   all wear the same badge so the number reads as one thing. */
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.2rem;
+  height: 1.2rem;
+  margin-left: auto;
+  padding: 0 0.32rem;
+  border-radius: 999px;
+  background: var(--color-danger);
+  color: #fff;
+  font-size: 0.64rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
+.sidebar.collapsed .nav-link .nav-badge {
+  position: absolute;
+  top: 5px;
+  right: 7px;
+  min-width: 0.95rem;
+  height: 0.95rem;
+  margin-left: 0;
+  padding: 0 0.2rem;
+  font-size: 0.55rem;
+}
+
+.header-action-btn { position: relative; }
+
+.header-action-badge {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0.95rem;
+  height: 0.95rem;
+  padding: 0 0.22rem;
+  border-radius: 999px;
+  background: #f43f5e;
+  color: #fff;
+  font-size: 0.55rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 0 0 2px rgb(var(--accent-chrome-rgb) / 0.88);
+}
+
+/* ---- Notification centre ---- */
+
+.notif-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.notif-count-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.32rem 0.7rem;
+  border-radius: 999px;
+  background: var(--color-primary-glow);
+  color: var(--color-primary-dark);
+  font-size: 0.76rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .notif-count-pill { color: var(--color-primary-light); }
+
+.notif-list,
+.notif-empty {
+  max-width: 860px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.notif-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.notif-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--color-border-light);
+  border-radius: 18px;
+  background: var(--color-surface);
+  box-shadow: 0 14px 34px -30px rgba(16, 42, 40, 0.4);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.notif-item.is-unread {
+  border-color: rgb(var(--accent-rgb) / 0.32);
+  background:
+    linear-gradient(135deg, rgb(var(--accent-rgb) / 0.055), transparent 55%),
+    var(--color-surface);
+}
+
+.notif-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: 0 0 auto;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgb(var(--accent-rgb) / 0.16), rgba(56, 189, 248, 0.1));
+  color: var(--color-primary-dark);
+  font-size: 1.3rem;
+}
+
+[data-theme="dark"] .notif-icon { color: var(--color-primary-light); }
+
+.notif-body { flex: 1; min-width: 0; }
+
+.notif-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.notif-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--color-primary);
+}
+
+.notif-text {
+  margin-top: 0.2rem;
+  color: var(--color-text-secondary);
+  font-size: 0.86rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.notif-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.45rem;
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.notif-link {
+  color: var(--color-primary-dark);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+[data-theme="dark"] .notif-link { color: var(--color-primary-light); }
+
+.notif-link:hover { text-decoration: underline; }
+
+.notif-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.notif-empty {
+  padding: 2rem 1.25rem;
+  border: 1px dashed var(--color-border-light);
+  border-radius: 20px;
+  background: var(--color-surface);
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.notif-empty-icon {
+  display: block;
+  margin-bottom: 0.4rem;
+  color: var(--color-primary);
+  font-size: 2rem;
+}
+
+.notif-empty strong {
+  display: block;
+  color: var(--color-text);
+  font-size: 1rem;
+}
+
+.notif-empty p {
+  max-width: 420px;
+  margin: 0.4rem auto 0;
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
+/* ---- Friends card ---- */
+
+.friends-card {
+  max-width: 860px;
+  margin: 1.75rem auto 0;
+  padding: 1.35rem 1.5rem 1.5rem;
+  border: 1px solid var(--color-border-light);
+  border-radius: 22px;
+  background: var(--color-surface-elevated);
+  box-shadow: 0 22px 55px -46px rgba(16, 42, 40, 0.35);
+}
+
+.friends-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.friends-head h2 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+
+.friend-hint {
+  margin-top: 0.2rem;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.friend-search {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.friend-search .form-control {
+  border-radius: 12px;
+}
+
+.friend-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.friend-result-list,
+.friends-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 1rem;
+}
+
+.friend-result-list {
+  padding: 0.6rem;
+  border: 1px solid var(--color-border-light);
+  border-radius: 14px;
+  background: var(--color-bg);
+}
+
+.friend-row,
+.friend-result {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.6rem;
+  border-radius: 12px;
+}
+
+.friend-row:hover,
+.friend-result:hover { background: var(--color-primary-glow); }
+
+.friend-identity {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.friend-handle {
+  color: var(--color-text);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.friend-handle:hover { color: var(--color-primary-dark); text-decoration: underline; }
+
+.friend-since {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+}
+
+.friend-action { flex: 0 0 auto; }
+
+.friend-relation {
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.friend-empty {
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px dashed var(--color-border-light);
+  border-radius: 14px;
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
+  text-align: center;
+}
+
+.friend-inline-link {
+  margin-right: 0.4rem;
+  color: var(--color-primary-dark);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.friend-inline-link:hover { text-decoration: underline; }
+
+.friend-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color var(--transition), background var(--transition), border-color var(--transition);
+}
+
+.friend-remove .material-symbols-rounded { font-size: 1.05rem; }
+
+.friend-remove:hover {
+  border-color: rgba(244, 63, 94, 0.35);
+  background: rgba(244, 63, 94, 0.1);
+  color: #e11d48;
+}
+
+.friend-remove:disabled { opacity: 0.55; cursor: default; }
+
+/* ---- Profile friendship controls ---- */
+
+.icon-inline {
+  margin-right: 0.35rem;
+  font-size: 1.05rem;
+  vertical-align: -0.15em;
+}
+
+.profile-stat-sep {
+  margin: 0 0.4rem;
+  color: var(--color-text-muted);
+}
+
+.profile-friend-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.profile-friend-state {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 0.85rem;
+  border: 1px dashed var(--color-border);
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+/* ---- New challenge: friend picker ---- */
+
+.friend-picker {
+  margin-top: 0.9rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--color-border-light);
+  border-radius: 14px;
+  background: var(--color-bg);
+}
+
+.friend-picker-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--color-text);
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.friend-picker-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.friend-picker-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.8rem;
+}
+
+.friend-picker-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.32rem 0.7rem 0.32rem 0.45rem;
+  border: 1px solid var(--color-border-light);
+  border-radius: 999px;
+  background: var(--color-surface);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.friend-picker-option input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.friend-picker-option:hover { border-color: var(--color-primary); }
+
+.friend-picker-option .friend-avatar {
+  width: 1.45rem;
+  height: 1.45rem;
+  font-size: 0.62rem;
+}
+
+.friend-picker-name {
+  overflow: hidden;
+  color: var(--color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.friend-picker-empty {
+  margin-top: 0.6rem;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+}
+
+.friend-picker-empty a {
+  color: var(--color-primary-dark);
+  font-weight: 700;
+}
+
+/* ---- Shared challenge cards ---- */
+
+.friend-challenge-section {
+  max-width: 860px;
+  margin: 2rem auto 0;
+}
+
+.friend-challenge-head h2 {
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: var(--color-text);
+}
+
+.friend-challenge-head p {
+  margin-top: 0.2rem;
+  color: var(--color-text-secondary);
+  font-size: 0.86rem;
+}
+
+.friend-challenge-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.friend-challenge-card {
+  padding: 1.2rem 1.35rem;
+  border: 1px solid var(--color-border-light);
+  border-radius: 20px;
+  background: var(--color-surface);
+  box-shadow: 0 16px 38px -34px rgba(16, 42, 40, 0.4);
+}
+
+.friend-challenge-card.is-pending {
+  border-color: rgb(var(--accent-rgb) / 0.3);
+  background:
+    linear-gradient(135deg, rgb(var(--accent-rgb) / 0.06), transparent 60%),
+    var(--color-surface);
+}
+
+.friend-challenge-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.friend-challenge-name {
+  margin-top: 0.1rem;
+  color: var(--color-text);
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.friend-challenge-creator {
+  margin-top: 0.15rem;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+
+.friend-challenge-creator a {
+  color: var(--color-primary-dark);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.friend-challenge-creator a:hover { text-decoration: underline; }
+
+.friend-challenge-pending p {
+  margin-top: 0.7rem;
+  color: var(--color-text-secondary);
+  font-size: 0.86rem;
+}
+
+.friend-challenge-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+}
+
+.friend-challenge-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+
+.friend-challenge-meta .btn { margin-left: auto; }
+
+.friend-challenge-invited {
+  margin-top: 0.7rem;
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+}
+
+/* Leaderboard: rank, player, streak. "You" stays pinned to the viewer's row
+   with a tint rather than a reorder, so the standing is honest. */
+.leaderboard {
+  margin-top: 1rem;
+  border: 1px solid var(--color-border-light);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+.leaderboard-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  padding: 0.5rem 0.85rem;
+  border-bottom: 1px solid var(--color-border-light);
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: 1.4rem 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.85rem;
+  border-bottom: 1px solid var(--color-border-light);
+  font-size: 0.84rem;
+}
+
+.leaderboard-row:last-child { border-bottom: none; }
+
+.leaderboard-row.is-you { background: rgb(var(--accent-rgb) / 0.09); }
+
+.leaderboard-rank {
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.leaderboard-row:first-child .leaderboard-rank { color: #b45309; }
+
+.leaderboard-player {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.leaderboard-name {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  overflow: hidden;
+  color: var(--color-text);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leaderboard-you {
+  padding: 0.04rem 0.38rem;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.16);
+  color: #92400e;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+[data-theme="dark"] .leaderboard-you { color: #fcd34d; }
+
+.leaderboard-streak {
+  color: var(--color-text);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.leaderboard-unit {
+  margin-left: 0.05rem;
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .notif-item { padding: 0.9rem; border-radius: 16px; }
+  .notif-icon { width: 2.2rem; height: 2.2rem; font-size: 1.15rem; }
+  .friends-card { padding: 1.15rem 1.1rem 1.3rem; border-radius: 20px; }
+  .friend-search { flex-direction: column; }
+  .friend-search .btn { width: 100%; justify-content: center; }
+  .friend-challenge-card { padding: 1.05rem 1.1rem; border-radius: 18px; }
+  .friend-challenge-meta .btn { margin-left: 0; width: 100%; justify-content: center; }
+  .notif-toolbar { width: 100%; }
+  .notif-toolbar .btn { width: 100%; justify-content: center; }
+}
+
+/* ---- Profile: sections ---- */
+
+.profile-tabs {
+  display: flex;
+  gap: 0.3rem;
+  max-width: 980px;
+  margin: 0 auto 1.5rem;
+  padding: 0.3rem;
+  border: 1px solid var(--color-border-light);
+  border-radius: 999px;
+  background: rgba(16, 42, 40, 0.055);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+[data-theme="dark"] .profile-tabs { background: rgba(255, 255, 255, 0.045); }
+
+.profile-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  flex: 1;
+  padding: 0.68rem 0.9rem;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color var(--transition), background var(--transition), box-shadow var(--transition);
+}
+
+.profile-tab .material-symbols-rounded { font-size: 1.15rem; }
+.profile-tab:hover { color: var(--color-text); }
+
+.profile-tab.is-active {
+  color: var(--color-primary-dark);
+  background: var(--color-surface);
+  box-shadow: 0 8px 20px -14px rgba(16, 42, 40, 0.35);
+}
+
+[data-theme="dark"] .profile-tab.is-active { color: var(--color-primary-light); }
+
+.profile-tab:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.profile-tab-count {
+  min-width: 1.25rem;
+  padding: 0 0.3rem;
+  font-size: 0.6875rem;
+  line-height: 1.25rem;
+  text-align: center;
+  color: var(--color-text-secondary);
+  background: var(--color-border);
+  border-radius: 999px;
+}
+
+.profile-tab.is-active .profile-tab-count {
+  color: #fff;
+  background: var(--color-primary);
+}
+
+.profile-panel { max-width: 980px; margin: 0 auto; }
+
+.profile-friends-block { margin-bottom: 1.75rem; }
+
+.profile-friends-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+}
+
+.profile-friends .friend-search { margin-top: 0; margin-bottom: 1.25rem; }
+.profile-friends .friends-list { margin-top: 0; }
+
+.profile-friends .friend-row {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-light);
+}
+
+/* Your identity in the chrome opens your own profile. */
+.header-account-head {
+  text-decoration: none;
+  color: inherit;
+  border-radius: 10px;
+  transition: background var(--transition);
+}
+
+.header-account-head:hover { background: var(--color-primary-glow); }
+
+.nav-user { transition: background var(--transition); }
+.nav-user:hover { background: rgba(255, 255, 255, 0.1); }
+
+@media (max-width: 640px) {
+  .profile-tab { padding: 0.62rem 0.5rem; font-size: 0.82rem; }
+  .profile-tab .material-symbols-rounded { font-size: 1.05rem; }
+}
+
+/* Profile share: the same quiet corner icon used by posts, instead of a button
+   competing with the friend actions. */
+.profile-header {
+  position: relative;
+  padding-right: 3.5rem;
+}
+
+.profile-share-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: color var(--transition), background var(--transition);
+}
+
+.profile-share-btn .material-symbols-rounded { font-size: 1.2rem; }
+
+.profile-share-btn:hover {
+  color: var(--color-primary);
+  background: var(--color-primary-glow);
+}
+
+.profile-share-btn.is-copied,
+.profile-share-btn.is-shared {
+  color: var(--color-primary);
+  background: var(--color-primary-glow);
+}
+
+.profile-share-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
