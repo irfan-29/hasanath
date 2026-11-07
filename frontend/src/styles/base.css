@@ -86,10 +86,29 @@ html {
 :root {
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 
-  --color-primary: #0d9488;
-  --color-primary-light: #14b8a6;
-  --color-primary-dark: #0f766e;
-  --color-primary-glow: rgba(13, 148, 136, 0.1);
+  /* Accent palette. Every brand surface - buttons, links, progress bars,
+     rings, focus halos - reads these five values, and each colours the
+     next. The default is the app's original teal, so doing nothing changes
+     nothing. Settings writes data-accent on <html>; the blocks after the
+     dark theme re-point the palette without touching any component rule. */
+  --accent-1: #0d9488;
+  --accent-2: #14b8a6;
+  --accent-3: #0f766e;
+  --accent-bright: #5eead4;
+  --accent-brightest: #99f6e4;
+  --accent-rgb: 13 148 136;
+
+  /* Chrome: the sidebar, phone header, footer and audio dock. The light
+     theme keeps a dark brand slab; the dark theme sinks it to near-black. */
+  --accent-chrome: #092b27;
+  --accent-chrome-rgb: 9 43 39;
+  --accent-chrome-dark: #050a12;
+  --accent-chrome-dark-rgb: 6 12 22;
+
+  --color-primary: var(--accent-1);
+  --color-primary-light: var(--accent-2);
+  --color-primary-dark: var(--accent-3);
+  --color-primary-glow: rgb(var(--accent-rgb) / 0.1);
 
   /* Gold is a streak/celebration accent only. The old mustard (#f59e0b)
      tinted the whole app warm and made it read retro; amber keeps the warmth
@@ -102,15 +121,15 @@ html {
      what gives the UI its depth now that cards are no longer white. */
   --color-bg: #f8fafc;
   --color-bg-gradient:
-    radial-gradient(circle at 10% -4%, rgba(13, 148, 136, 0.07), transparent 38%),
+    radial-gradient(circle at 10% -4%, rgb(var(--accent-rgb) / 0.07), transparent 38%),
     radial-gradient(circle at 94% 2%, rgba(56, 189, 248, 0.06), transparent 34%),
     linear-gradient(180deg, #ffffff 0%, #f8fafc 52%, #f1f5f9 100%);
   --color-surface: #ffffff;
   --color-surface-elevated: rgba(255, 255, 255, 0.9);
 
-  --color-sidebar: #092b27;
+  --color-sidebar: var(--accent-chrome);
   --color-sidebar-hover: rgba(255, 255, 255, 0.07);
-  --color-sidebar-active: rgba(45, 212, 191, 0.14);
+  --color-sidebar-active: rgb(var(--accent-rgb) / 0.14);
   --color-sidebar-border: rgba(255, 255, 255, 0.08);
 
   --color-text: #0f172a;
@@ -130,7 +149,7 @@ html {
   --shadow-md: 0 16px 36px -22px rgba(15, 23, 42, 0.22);
   --shadow-lg: 0 26px 64px -36px rgba(15, 23, 42, 0.28);
   --shadow-xl: 0 36px 96px -44px rgba(15, 23, 42, 0.34);
-  --shadow-glow: 0 18px 38px -20px rgba(13, 148, 136, 0.45);
+  --shadow-glow: 0 18px 38px -20px rgb(var(--accent-rgb) / 0.45);
 
   --radius-sm: 12px;
   --radius-md: 16px;
@@ -148,25 +167,32 @@ html {
 
 /* --- Dark Mode --- */
 [data-theme="dark"] {
-  --color-primary: #2dd4bf;
-  --color-primary-light: #5eead4;
-  --color-primary-dark: #99f6e4;
-  --color-primary-glow: rgba(45, 212, 191, 0.16);
+  --accent-1: #2dd4bf;
+  --accent-2: #5eead4;
+  --accent-3: #99f6e4;
+  --accent-bright: #5eead4;
+  --accent-brightest: #99f6e4;
+  --accent-rgb: 45 212 191;
+
+  --color-primary: var(--accent-1);
+  --color-primary-light: var(--accent-2);
+  --color-primary-dark: var(--accent-3);
+  --color-primary-glow: rgb(var(--accent-rgb) / 0.16);
 
   --color-accent: #fbbf24;
   --color-accent-light: #fcd34d;
 
   --color-bg: #060b14;
   --color-bg-gradient:
-    radial-gradient(circle at 10% -4%, rgba(45, 212, 191, 0.1), transparent 38%),
+    radial-gradient(circle at 10% -4%, rgb(var(--accent-rgb) / 0.1), transparent 38%),
     radial-gradient(circle at 94% 2%, rgba(56, 189, 248, 0.08), transparent 34%),
     linear-gradient(180deg, #070d18 0%, #0a1220 52%, #0b1526 100%);
   --color-surface: #111a2b;
   --color-surface-elevated: rgba(17, 26, 43, 0.86);
 
-  --color-sidebar: #050a12;
+  --color-sidebar: var(--accent-chrome-dark);
   --color-sidebar-hover: rgba(255, 255, 255, 0.07);
-  --color-sidebar-active: rgba(45, 212, 191, 0.14);
+  --color-sidebar-active: rgb(var(--accent-rgb) / 0.14);
   --color-sidebar-border: rgba(255, 255, 255, 0.08);
 
   --color-text: #e8eef7;
@@ -182,7 +208,126 @@ html {
   --shadow-md: 0 16px 38px -22px rgba(0, 0, 0, 0.7);
   --shadow-lg: 0 28px 70px -36px rgba(0, 0, 0, 0.75);
   --shadow-xl: 0 38px 100px -44px rgba(0, 0, 0, 0.8);
-  --shadow-glow: 0 18px 42px -20px rgba(45, 212, 191, 0.28);
+  --shadow-glow: 0 18px 42px -20px rgb(var(--accent-rgb) / 0.28);
+}
+
+/* --- Accent themes ----------------------------------------------------------
+   Each block is the same five-stop scale the teal default uses, so the
+   gradients (135deg, accent-1 -> accent-2) keep their shape and only the
+   hue moves. "with black" choices sink the chrome to near-black; gold keeps
+   a warm charcoal so the header does not turn muddy brown.
+
+   The light pair comes first and the dark pair after it: when both
+   attributes are present the dark selector is more specific, so a dark page
+   always gets the lifted, readable stop rather than the light one. */
+[data-accent="blue"] {
+  --accent-1: #2563eb;
+  --accent-2: #3b82f6;
+  --accent-3: #1d4ed8;
+  --accent-bright: #60a5fa;
+  --accent-brightest: #93c5fd;
+  --accent-rgb: 37 99 235;
+  --accent-chrome: #05080f;
+  --accent-chrome-rgb: 5 8 15;
+  --accent-chrome-dark: #04070d;
+  --accent-chrome-dark-rgb: 4 7 13;
+}
+
+[data-theme="dark"][data-accent="blue"] {
+  --accent-1: #60a5fa;
+  --accent-2: #93c5fd;
+  --accent-3: #bfdbfe;
+  --accent-bright: #93c5fd;
+  --accent-brightest: #dbeafe;
+  --accent-rgb: 96 165 250;
+}
+
+[data-accent="violet"] {
+  --accent-1: #7c3aed;
+  --accent-2: #8b5cf6;
+  --accent-3: #6d28d9;
+  --accent-bright: #a78bfa;
+  --accent-brightest: #c4b5fd;
+  --accent-rgb: 124 58 237;
+  --accent-chrome: #08050f;
+  --accent-chrome-rgb: 8 5 15;
+  --accent-chrome-dark: #07040d;
+  --accent-chrome-dark-rgb: 7 4 13;
+}
+
+[data-theme="dark"][data-accent="violet"] {
+  --accent-1: #a78bfa;
+  --accent-2: #c4b5fd;
+  --accent-3: #ddd6fe;
+  --accent-bright: #c4b5fd;
+  --accent-brightest: #ede9fe;
+  --accent-rgb: 167 139 250;
+}
+
+[data-accent="gold"] {
+  --accent-1: #b45309;
+  --accent-2: #d97706;
+  --accent-3: #92400e;
+  --accent-bright: #fbbf24;
+  --accent-brightest: #fcd34d;
+  --accent-rgb: 180 83 9;
+  --accent-chrome: #171006;
+  --accent-chrome-rgb: 23 16 6;
+  --accent-chrome-dark: #0f0a03;
+  --accent-chrome-dark-rgb: 15 10 3;
+}
+
+[data-theme="dark"][data-accent="gold"] {
+  --accent-1: #fbbf24;
+  --accent-2: #fcd34d;
+  --accent-3: #fde68a;
+  --accent-bright: #fcd34d;
+  --accent-brightest: #fef3c7;
+  --accent-rgb: 251 191 36;
+}
+
+[data-accent="rose"] {
+  --accent-1: #be123c;
+  --accent-2: #e11d48;
+  --accent-3: #9f1239;
+  --accent-bright: #fb7185;
+  --accent-brightest: #fda4af;
+  --accent-rgb: 190 18 60;
+  --accent-chrome: #12050a;
+  --accent-chrome-rgb: 18 5 10;
+  --accent-chrome-dark: #0d0407;
+  --accent-chrome-dark-rgb: 13 4 7;
+}
+
+[data-theme="dark"][data-accent="rose"] {
+  --accent-1: #fb7185;
+  --accent-2: #fda4af;
+  --accent-3: #fecdd3;
+  --accent-bright: #fda4af;
+  --accent-brightest: #ffe4e6;
+  --accent-rgb: 251 113 133;
+}
+
+[data-accent="ocean"] {
+  --accent-1: #0e7490;
+  --accent-2: #0891b2;
+  --accent-3: #155e75;
+  --accent-bright: #22d3ee;
+  --accent-brightest: #a5f3fc;
+  --accent-rgb: 14 116 144;
+  --accent-chrome: #041016;
+  --accent-chrome-rgb: 4 16 22;
+  --accent-chrome-dark: #030b10;
+  --accent-chrome-dark-rgb: 3 11 16;
+}
+
+[data-theme="dark"][data-accent="ocean"] {
+  --accent-1: #22d3ee;
+  --accent-2: #67e8f9;
+  --accent-3: #a5f3fc;
+  --accent-bright: #67e8f9;
+  --accent-brightest: #cffafe;
+  --accent-rgb: 34 211 238;
 }
 
 [data-theme="dark"] .table-striped tbody tr:nth-child(even) {
@@ -229,8 +374,8 @@ html {
 }
 
 [data-theme="dark"] .featured-surah {
-  background: linear-gradient(135deg, rgba(20, 184, 166, 0.12), rgba(59, 130, 246, 0.08));
-  border-color: rgba(20, 184, 166, 0.2);
+  background: linear-gradient(135deg, rgb(var(--accent-rgb) / 0.12), rgba(59, 130, 246, 0.08));
+  border-color: rgb(var(--accent-rgb) / 0.2);
 }
 
 [data-theme="dark"] .page-header h1,
@@ -619,12 +764,12 @@ body:has(.global-audio-bar) .main-content {
 .add.btn-primary {
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
   color: white;
-  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.3);
+  box-shadow: 0 2px 8px rgb(var(--accent-rgb) / 0.3);
 }
 
 .btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(13, 148, 136, 0.4);
+  box-shadow: 0 4px 16px rgb(var(--accent-rgb) / 0.4);
 }
 
 .btn-success {
@@ -894,7 +1039,7 @@ body:has(.global-audio-bar) .main-content {
 .calendar-table {
   width: 100%;
   border-collapse: separate;
-  border-spacing: 4px;
+  border-spacing: 8px;
 }
 
 .calendar-table th {
@@ -913,7 +1058,7 @@ body:has(.global-audio-bar) .main-content {
   vertical-align: top;
   border: 1.5px solid var(--color-border-light);
   border-radius: var(--radius-md);
-  padding: 0.375rem;
+  padding: 0.5rem;
   background: var(--color-surface);
   transition: all var(--transition);
 }
@@ -1306,7 +1451,7 @@ body:has(.global-audio-bar) .main-content {
 }
 
 .challenge-card.is-done {
-  border-color: rgba(13, 148, 136, 0.28);
+  border-color: rgb(var(--accent-rgb) / 0.28);
   background:
     linear-gradient(135deg, var(--color-primary-glow), transparent 72%),
     var(--color-surface);
@@ -1585,7 +1730,7 @@ body:has(.global-audio-bar) .main-content {
   font-weight: 800;
   font-size: 0.875rem;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(13, 148, 136, 0.15);
+  border: 1px solid rgb(var(--accent-rgb) / 0.15);
 }
 
 .surah-card-content {
@@ -1622,7 +1767,7 @@ body:has(.global-audio-bar) .main-content {
 
 .featured-surah {
   background: linear-gradient(135deg, var(--color-primary-glow), rgba(59, 130, 246, 0.08));
-  border: 1px solid rgba(13, 148, 136, 0.15);
+  border: 1px solid rgb(var(--accent-rgb) / 0.15);
   border-radius: var(--radius-lg);
   padding: 1.5rem;
   text-align: left;
@@ -1632,7 +1777,7 @@ body:has(.global-audio-bar) .main-content {
 /* The card is not a link any more - the action row above it carries the
    navigation - so it should not lift under the pointer. */
 .featured-surah:hover {
-  border-color: rgba(13, 148, 136, 0.15);
+  border-color: rgb(var(--accent-rgb) / 0.15);
 }
 
 .featured-label {
@@ -1680,7 +1825,7 @@ body:has(.global-audio-bar) .main-content {
   text-transform: uppercase;
   color: var(--color-primary);
   background: var(--color-surface);
-  border: 1px solid rgba(13, 148, 136, 0.25);
+  border: 1px solid rgb(var(--accent-rgb) / 0.25);
   border-radius: var(--radius-full);
   padding: 0.2rem 0.625rem;
   margin: 0;
@@ -1737,7 +1882,7 @@ body:has(.global-audio-bar) .main-content {
   font-weight: 600;
   white-space: nowrap;
   transition: all var(--transition);
-  border: 1px solid rgba(13, 148, 136, 0.15);
+  border: 1px solid rgb(var(--accent-rgb) / 0.15);
 }
 
 .surah-pill:hover {
@@ -1987,7 +2132,7 @@ body:has(.global-audio-bar) .main-content {
 
 .edition-pill {
   background: var(--color-primary-glow);
-  border: 1px solid rgba(13, 148, 136, 0.15);
+  border: 1px solid rgb(var(--accent-rgb) / 0.15);
   border-radius: var(--radius-full);
   padding: 0.25rem 0.75rem;
   display: inline-flex;
@@ -2137,7 +2282,7 @@ body:has(.global-audio-bar) .main-content {
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 22px;
   background:
-    radial-gradient(circle at 6% 0%, rgba(45, 212, 191, 0.12), transparent 42%),
+    radial-gradient(circle at 6% 0%, rgb(var(--accent-rgb) / 0.12), transparent 42%),
     linear-gradient(155deg, #0c302b 0%, #082320 55%, #04100f 100%);
   color: #f2fffb;
   box-shadow:
@@ -2233,7 +2378,7 @@ body:has(.sidebar.collapsed) .global-audio-bar {
   height: 42px;
   background: var(--color-primary);
   color: white;
-  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.35);
+  box-shadow: 0 2px 8px rgb(var(--accent-rgb) / 0.35);
 }
 
 .audio-btn-play:hover:not(:disabled) {
@@ -2310,7 +2455,7 @@ body:has(.sidebar.collapsed) .global-audio-bar {
   border: 2px solid var(--color-surface);
   border-radius: 50%;
   background: var(--color-primary);
-  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.35);
+  box-shadow: 0 2px 8px rgb(var(--accent-rgb) / 0.35);
   pointer-events: none;
   transform: translate(-50%, -50%);
   transition: left 0.1s linear, transform var(--transition);
@@ -2511,7 +2656,7 @@ hr {
     /* The weekday headers' desktop padding forces ~45px columns; on a phone
        card that min-content width pushed the grid past the card edge and the
        whole page scrolled sideways. Compact cells keep seven columns inside. */
-    border-spacing: 3px;
+    border-spacing: 5px;
   }
 
   .calendar-table th {
@@ -3262,19 +3407,19 @@ hr {
 
 .post-filter-toggle:hover {
   color: var(--color-primary-dark);
-  border-color: rgba(13, 148, 136, 0.32);
+  border-color: rgb(var(--accent-rgb) / 0.32);
 }
 
 .post-filter-toggle.is-active {
   color: var(--color-primary-dark);
-  background: rgba(13, 148, 136, 0.1);
-  border-color: rgba(13, 148, 136, 0.28);
+  background: rgb(var(--accent-rgb) / 0.1);
+  border-color: rgb(var(--accent-rgb) / 0.28);
 }
 
 [data-theme="dark"] .post-filter-toggle.is-active {
   color: var(--color-primary-light);
-  background: rgba(45, 212, 191, 0.12);
-  border-color: rgba(45, 212, 191, 0.26);
+  background: rgb(var(--accent-rgb) / 0.12);
+  border-color: rgb(var(--accent-rgb) / 0.26);
 }
 
 .post-filter-toggle.is-active .material-symbols-rounded {
@@ -3915,9 +4060,9 @@ hr {
   --landing-card-solid: #ffffff;
   --landing-line: rgba(16, 42, 40, 0.1);
   --landing-line-strong: rgba(16, 42, 40, 0.17);
-  --landing-teal: #0d9488;
+  --landing-teal: var(--accent-1);
   --landing-teal-deep: #0b6b63;
-  --landing-teal-soft: rgba(13, 148, 136, 0.1);
+  --landing-teal-soft: rgb(var(--accent-rgb) / 0.1);
   --landing-gold: #f59e0b;
   --landing-gold-soft: rgba(245, 158, 11, 0.14);
   --landing-gold-ink: #946421;
@@ -3943,9 +4088,9 @@ hr {
   --landing-card-solid: #111a2b;
   --landing-line: rgba(255, 255, 255, 0.1);
   --landing-line-strong: rgba(255, 255, 255, 0.18);
-  --landing-teal: #2dd4bf;
-  --landing-teal-deep: #99f6e4;
-  --landing-teal-soft: rgba(45, 212, 191, 0.14);
+  --landing-teal: var(--accent-2);
+  --landing-teal-deep: var(--accent-brightest);
+  --landing-teal-soft: rgb(var(--accent-rgb) / 0.14);
   --landing-gold: #fbbf24;
   --landing-gold-soft: rgba(56, 189, 248, 0.14);
   --landing-gold-ink: #fbbf24;
@@ -3995,7 +4140,7 @@ hr {
   height: 64vw;
   top: -30vw;
   right: -16vw;
-  background: radial-gradient(circle, rgba(13, 148, 136, 0.2), transparent 64%);
+  background: radial-gradient(circle, rgb(var(--accent-rgb) / 0.2), transparent 64%);
 }
 
 .landing-orb--two {
@@ -4011,7 +4156,7 @@ hr {
   height: 52vw;
   bottom: -30vw;
   right: 4vw;
-  background: radial-gradient(circle, rgba(13, 148, 136, 0.12), transparent 66%);
+  background: radial-gradient(circle, rgb(var(--accent-rgb) / 0.12), transparent 66%);
 }
 
 .landing-grid {
@@ -4079,10 +4224,10 @@ hr {
   width: 38px;
   height: 38px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #12a99b, #0b7c72);
+  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
   color: #fff;
   font-size: 1.35rem;
-  box-shadow: 0 10px 22px -10px rgba(13, 148, 136, 0.75);
+  box-shadow: 0 10px 22px -10px rgb(var(--accent-rgb) / 0.75);
 }
 
 .landing-links {
@@ -4198,14 +4343,14 @@ hr {
 .landing .btn .material-symbols-rounded { font-size: 1.15rem; }
 
 .landing .btn-primary {
-  background: linear-gradient(135deg, #109e91, #0b7c72);
+  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
   color: #fff;
-  box-shadow: 0 16px 30px -16px rgba(13, 148, 136, 0.8);
+  box-shadow: 0 16px 30px -16px rgb(var(--accent-rgb) / 0.8);
 }
 
 .landing .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 20px 38px -16px rgba(13, 148, 136, 0.9);
+  box-shadow: 0 20px 38px -16px rgb(var(--accent-rgb) / 0.9);
 }
 
 .landing .btn-outline {
@@ -4274,7 +4419,7 @@ hr {
 .landing-headline-line { white-space: nowrap; }
 
 .landing-grad {
-  background: linear-gradient(100deg, var(--landing-teal) 0%, #34b3a6 48%, #38bdf8 100%);
+  background: linear-gradient(100deg, var(--landing-teal) 0%, var(--accent-bright) 48%, #38bdf8 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -4618,7 +4763,7 @@ hr {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #12a99b, #34b3a6);
+  background: linear-gradient(135deg, var(--accent-2), var(--accent-bright));
   color: #fff;
   font-size: 0.78rem;
   font-weight: 800;
@@ -5154,7 +5299,7 @@ hr {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--landing-teal), #34b3a6);
+  background: linear-gradient(90deg, var(--landing-teal), var(--accent-bright));
 }
 
 /* ---- Split sections ---- */
@@ -5375,10 +5520,10 @@ hr {
   overflow: hidden;
   padding: clamp(2.5rem, 6vw, 5rem);
   border-radius: 32px;
-  background: linear-gradient(135deg, #0b7c72 0%, #0d9488 48%, #0a655d 100%);
+  background: linear-gradient(135deg, var(--accent-3) 0%, var(--accent-1) 48%, var(--accent-3) 100%);
   color: #f2fffb;
   text-align: center;
-  box-shadow: 0 30px 70px -30px rgba(11, 124, 114, 0.65);
+  box-shadow: 0 30px 70px -30px rgb(var(--accent-rgb) / 0.65);
 }
 
 .landing-final::before {
@@ -5713,7 +5858,7 @@ hr {
    ============================================================ */
 
 ::selection {
-  background: rgba(13, 148, 136, 0.22);
+  background: rgb(var(--accent-rgb) / 0.22);
   color: var(--color-text);
 }
 
@@ -5729,7 +5874,7 @@ body {
 
 .sidebar {
   background:
-    radial-gradient(circle at 18% 0%, rgba(45, 212, 191, 0.12), transparent 32%),
+    radial-gradient(circle at 18% 0%, rgb(var(--accent-rgb) / 0.12), transparent 32%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 34%),
     var(--color-sidebar);
   border-right: 1px solid var(--color-sidebar-border);
@@ -5747,8 +5892,8 @@ body {
   width: 2.4rem;
   height: 2.4rem;
   border-radius: 0.8rem;
-  background: linear-gradient(135deg, #12a99b, #0b7c72);
-  box-shadow: 0 14px 30px -14px rgba(13, 148, 136, 0.8);
+  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
+  box-shadow: 0 14px 30px -14px rgb(var(--accent-rgb) / 0.8);
 }
 
 .logo-icon .material-symbols-rounded { font-size: 1.25rem; }
@@ -5805,18 +5950,18 @@ body {
 
 .nav-link.active {
   background: var(--color-sidebar-active);
-  color: #99f6e4;
-  box-shadow: inset 0 0 0 1px rgba(45, 212, 191, 0.08);
+  color: var(--accent-brightest);
+  box-shadow: inset 0 0 0 1px rgb(var(--accent-rgb) / 0.08);
 }
 
 .nav-link.active::before {
   width: 3px;
   height: 20px;
-  background: linear-gradient(180deg, #5eead4, #38bdf8);
+  background: linear-gradient(180deg, var(--accent-bright), #38bdf8);
   border-radius: 999px;
 }
 
-.nav-link.active .nav-icon { color: #99f6e4; }
+.nav-link.active .nav-icon { color: var(--accent-brightest); }
 
 .nav-icon { font-size: 1.2rem; }
 
@@ -5839,8 +5984,8 @@ body {
 .nav-avatar {
   width: 1.65rem;
   height: 1.65rem;
-  background: linear-gradient(135deg, #12a99b, #0b7c72);
-  box-shadow: 0 8px 18px -10px rgba(13, 148, 136, 0.8);
+  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
+  box-shadow: 0 8px 18px -10px rgb(var(--accent-rgb) / 0.8);
 }
 
 .nav-user-name { color: rgba(237, 247, 243, 0.82); }
@@ -5905,7 +6050,7 @@ body {
 
 .container1:hover,
 .card:hover {
-  border-color: rgba(13, 148, 136, 0.16);
+  border-color: rgb(var(--accent-rgb) / 0.16);
   box-shadow: 0 26px 62px -40px rgba(16, 42, 40, 0.32);
 }
 
@@ -5917,7 +6062,7 @@ body {
 
 [data-theme="dark"] .container1:hover,
 [data-theme="dark"] .card:hover {
-  border-color: rgba(45, 212, 191, 0.2);
+  border-color: rgb(var(--accent-rgb) / 0.2);
   box-shadow: 0 28px 70px -38px rgba(0, 0, 0, 0.86);
 }
 
@@ -5950,10 +6095,10 @@ body {
 
 .btn-primary,
 .add.btn-primary {
-  background: linear-gradient(135deg, #12a99b, #0b7c72);
+  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
   color: #fff;
   border-color: transparent;
-  box-shadow: 0 16px 30px -18px rgba(13, 148, 136, 0.8);
+  box-shadow: 0 16px 30px -18px rgb(var(--accent-rgb) / 0.8);
 }
 
 .btn-primary:hover,
@@ -5961,12 +6106,12 @@ body {
   background: linear-gradient(135deg, #17b7a8, #0d877c);
   color: #fff;
   transform: translateY(-2px);
-  box-shadow: 0 20px 38px -16px rgba(13, 148, 136, 0.9);
+  box-shadow: 0 20px 38px -16px rgb(var(--accent-rgb) / 0.9);
 }
 
 [data-theme="dark"] .btn-primary,
 [data-theme="dark"] .add.btn-primary {
-  background: linear-gradient(135deg, #12a99b, #0b7c72);
+  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
   color: #fff;
 }
 
@@ -6064,7 +6209,7 @@ body {
 .table thead th,
 .table-light thead th,
 .table-dark thead th {
-  background: rgba(13, 148, 136, 0.08);
+  background: rgb(var(--accent-rgb) / 0.08);
   color: var(--color-text);
   border-bottom: 1px solid var(--color-border);
   font-size: 0.7rem;
@@ -6075,7 +6220,7 @@ body {
 [data-theme="dark"] .table thead th,
 [data-theme="dark"] .table-light thead th,
 [data-theme="dark"] .table-dark thead th {
-  background: rgba(45, 212, 191, 0.1);
+  background: rgb(var(--accent-rgb) / 0.1);
   color: var(--color-text);
 }
 
@@ -6097,13 +6242,13 @@ body {
 }
 
 .badge-primary {
-  background: rgba(13, 148, 136, 0.11);
+  background: rgb(var(--accent-rgb) / 0.11);
   color: var(--color-primary-dark);
 }
 
 [data-theme="dark"] .badge-primary {
-  background: rgba(45, 212, 191, 0.14);
-  color: #99f6e4;
+  background: rgb(var(--accent-rgb) / 0.14);
+  color: var(--accent-brightest);
 }
 
 .badge-accent {
@@ -6139,13 +6284,13 @@ body {
 }
 
 .calendar-table td:hover {
-  border-color: rgba(13, 148, 136, 0.45);
+  border-color: rgb(var(--accent-rgb) / 0.45);
   box-shadow: var(--shadow-sm);
 }
 
 .calendar-table td.today {
   border-color: var(--color-primary);
-  background: rgba(13, 148, 136, 0.11);
+  background: rgb(var(--accent-rgb) / 0.11);
 }
 
 .date-box .hijri { color: var(--color-primary-dark); }
@@ -6164,7 +6309,7 @@ body {
 }
 
 .prayer-card:hover {
-  border-color: rgba(13, 148, 136, 0.3);
+  border-color: rgb(var(--accent-rgb) / 0.3);
   box-shadow: var(--shadow-md);
 }
 
@@ -6194,7 +6339,7 @@ body {
 }
 
 .challenge-card:hover {
-  border-color: rgba(13, 148, 136, 0.22);
+  border-color: rgb(var(--accent-rgb) / 0.22);
   box-shadow: var(--shadow-md);
 }
 
@@ -6208,17 +6353,17 @@ body {
 
 .challenge-icon-btn-edit:hover,
 .challenge-icon-btn-edit:focus-visible {
-  background: rgba(13, 148, 136, 0.12);
-  border-color: rgba(13, 148, 136, 0.32);
+  background: rgb(var(--accent-rgb) / 0.12);
+  border-color: rgb(var(--accent-rgb) / 0.32);
   color: var(--color-primary-dark);
   box-shadow: none;
 }
 
 [data-theme="dark"] .challenge-icon-btn-edit:hover,
 [data-theme="dark"] .challenge-icon-btn-edit:focus-visible {
-  background: rgba(45, 212, 191, 0.16);
-  border-color: rgba(45, 212, 191, 0.4);
-  color: #99f6e4;
+  background: rgb(var(--accent-rgb) / 0.16);
+  border-color: rgb(var(--accent-rgb) / 0.4);
+  color: var(--accent-brightest);
 }
 
 /* ---- Quran ---- */
@@ -6253,7 +6398,7 @@ body {
 
 .quran-tab.is-active .quran-tab-count {
   color: #fff;
-  background: #0b7c72;
+  background: var(--accent-3);
 }
 
 .surah-grid { gap: 1rem; }
@@ -6268,7 +6413,7 @@ body {
 
 .surah-card:hover {
   background: var(--color-surface);
-  border-color: rgba(13, 148, 136, 0.3);
+  border-color: rgb(var(--accent-rgb) / 0.3);
   box-shadow: var(--shadow-md);
   transform: translateY(-3px);
 }
@@ -6278,11 +6423,11 @@ body {
   height: 42px;
   border-radius: 14px;
   color: var(--color-primary-dark);
-  background: linear-gradient(135deg, rgba(13, 148, 136, 0.16), rgba(56, 189, 248, 0.1));
-  border: 1px solid rgba(13, 148, 136, 0.18);
+  background: linear-gradient(135deg, rgb(var(--accent-rgb) / 0.16), rgba(56, 189, 248, 0.1));
+  border: 1px solid rgb(var(--accent-rgb) / 0.18);
 }
 
-[data-theme="dark"] .surah-card-number { color: #99f6e4; }
+[data-theme="dark"] .surah-card-number { color: var(--accent-brightest); }
 
 .surah-card-arrow { color: var(--color-text-muted); }
 .surah-card:hover .surah-card-arrow { color: var(--color-primary); }
@@ -6292,8 +6437,8 @@ body {
 .featured-surah {
   background:
     radial-gradient(circle at 90% 8%, rgba(56, 189, 248, 0.1), transparent 36%),
-    linear-gradient(135deg, rgba(13, 148, 136, 0.1), rgba(241, 245, 249, 0.6));
-  border: 1px solid rgba(13, 148, 136, 0.18);
+    linear-gradient(135deg, rgb(var(--accent-rgb) / 0.1), rgba(241, 245, 249, 0.6));
+  border: 1px solid rgb(var(--accent-rgb) / 0.18);
   border-radius: 24px;
   padding: 1.75rem;
 }
@@ -6301,8 +6446,8 @@ body {
 [data-theme="dark"] .featured-surah {
   background:
     radial-gradient(circle at 90% 8%, rgba(56, 189, 248, 0.08), transparent 36%),
-    linear-gradient(135deg, rgba(45, 212, 191, 0.1), rgba(17, 26, 43, 0.4));
-  border-color: rgba(45, 212, 191, 0.18);
+    linear-gradient(135deg, rgb(var(--accent-rgb) / 0.1), rgba(17, 26, 43, 0.4));
+  border-color: rgb(var(--accent-rgb) / 0.18);
 }
 
 .featured-ayah-cite,
@@ -6314,7 +6459,7 @@ body {
 
 .featured-ayah-num {
   background: var(--color-surface);
-  border-color: rgba(13, 148, 136, 0.22);
+  border-color: rgb(var(--accent-rgb) / 0.22);
 }
 
 .featured-label {
@@ -6353,7 +6498,7 @@ body {
   align-items: center;
   padding: 0.25rem 0.7rem;
   border-radius: 999px;
-  background: rgba(13, 148, 136, 0.09);
+  background: rgb(var(--accent-rgb) / 0.09);
   color: var(--color-primary-dark);
   font-size: 0.72rem;
   font-weight: 800;
@@ -6395,8 +6540,8 @@ body {
 .post-author .material-symbols-rounded { color: var(--color-primary-dark); }
 
 .post-author-avatar {
-  background: linear-gradient(135deg, rgba(13, 148, 136, 0.18), rgba(56, 189, 248, 0.12));
-  border: 1px solid rgba(13, 148, 136, 0.15);
+  background: linear-gradient(135deg, rgb(var(--accent-rgb) / 0.18), rgba(56, 189, 248, 0.12));
+  border: 1px solid rgb(var(--accent-rgb) / 0.15);
 }
 
 [data-theme="dark"] .post-author-avatar { color: var(--color-primary-light); }
@@ -6409,8 +6554,8 @@ body {
 
 .post-share[data-copied="true"] {
   color: #fff;
-  background: #0b7c72;
-  border-color: #0b7c72;
+  background: var(--accent-3);
+  border-color: var(--accent-3);
 }
 
 .profile-header,
@@ -6426,9 +6571,9 @@ body {
 
 .profile-avatar,
 .account-avatar {
-  background: linear-gradient(135deg, #12a99b, #0b7c72);
+  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
   color: #fff;
-  box-shadow: 0 14px 30px -18px rgba(13, 148, 136, 0.8);
+  box-shadow: 0 14px 30px -18px rgb(var(--accent-rgb) / 0.8);
 }
 
 .profile-badge {
@@ -6445,7 +6590,7 @@ body {
 }
 
 .username-row code {
-  background: rgba(13, 148, 136, 0.1);
+  background: rgb(var(--accent-rgb) / 0.1);
   border-radius: 6px;
 }
 
@@ -6499,8 +6644,8 @@ body {
   width: 58px;
   height: 58px;
   border-radius: 18px;
-  background: linear-gradient(135deg, #12a99b, #0b7c72);
-  box-shadow: 0 16px 32px -16px rgba(13, 148, 136, 0.8);
+  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
+  box-shadow: 0 16px 32px -16px rgb(var(--accent-rgb) / 0.8);
 }
 
 .auth-title { font-size: 1.65rem; letter-spacing: -0.045em; }
@@ -6514,7 +6659,7 @@ body {
   border-left: 3px solid var(--color-primary);
   border-radius: 20px;
   background:
-    radial-gradient(circle at 6% 10%, rgba(13, 148, 136, 0.09), transparent 38%),
+    radial-gradient(circle at 6% 10%, rgb(var(--accent-rgb) / 0.09), transparent 38%),
     var(--color-surface);
   box-shadow: none;
 }
@@ -6523,7 +6668,7 @@ body {
   width: 44px;
   height: 44px;
   border-radius: 14px;
-  background: linear-gradient(135deg, rgba(13, 148, 136, 0.16), rgba(56, 189, 248, 0.1));
+  background: linear-gradient(135deg, rgb(var(--accent-rgb) / 0.16), rgba(56, 189, 248, 0.1));
   color: var(--color-primary-dark);
 }
 
@@ -6537,14 +6682,14 @@ body {
 
 .theme-picker-option.active {
   border-color: var(--color-primary);
-  background: linear-gradient(135deg, rgba(13, 148, 136, 0.12), rgba(56, 189, 248, 0.08));
+  background: linear-gradient(135deg, rgb(var(--accent-rgb) / 0.12), rgba(56, 189, 248, 0.08));
   box-shadow: 0 0 0 4px var(--color-primary-glow);
   color: var(--color-primary-dark);
 }
 
 [data-theme="dark"] .theme-picker-option.active {
   color: var(--color-primary-light);
-  background: linear-gradient(135deg, rgba(45, 212, 191, 0.13), rgba(56, 189, 248, 0.06));
+  background: linear-gradient(135deg, rgb(var(--accent-rgb) / 0.13), rgba(56, 189, 248, 0.06));
 }
 
 /* ---- Floating audio player ----
@@ -6555,13 +6700,13 @@ body {
 .audio-bar-track-info .surah-title { color: #f2fffb; }
 .audio-bar-track-info .reciter-name { color: rgba(167, 191, 185, 0.8); }
 .audio-btn { color: rgba(237, 247, 243, 0.78); }
-.audio-btn:hover:not(:disabled) { background: rgba(45, 212, 191, 0.14); color: #99f6e4; }
+.audio-btn:hover:not(:disabled) { background: rgb(var(--accent-rgb) / 0.14); color: var(--accent-brightest); }
 .audio-btn-play {
-  background: linear-gradient(135deg, #2dd4bf, #0d9488);
+  background: linear-gradient(135deg, var(--accent-2), var(--accent-1));
   color: #062a26;
-  box-shadow: 0 8px 20px -10px rgba(45, 212, 191, 0.6);
+  box-shadow: 0 8px 20px -10px rgb(var(--accent-rgb) / 0.6);
 }
-.audio-btn-play:hover:not(:disabled) { background: linear-gradient(135deg, #5eead4, #14b8a6); color: #062a26; }
+.audio-btn-play:hover:not(:disabled) { background: linear-gradient(135deg, var(--accent-bright), var(--accent-2)); color: #062a26; }
 .audio-time { color: rgba(237, 247, 243, 0.58); }
 .audio-close-btn { color: rgba(237, 247, 243, 0.62); }
 .audio-close-btn:hover { background: rgba(239, 68, 68, 0.16); color: #fca5a5; }
@@ -6569,7 +6714,7 @@ body {
 /* ---- Misc surfaces ---- */
 
 #myBtn {
-  background: linear-gradient(135deg, #12a99b, #0b7c72);
+  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
   color: #fff;
   box-shadow: var(--shadow-lg);
 }
@@ -6712,7 +6857,7 @@ body {
 }
 
 .charity-progress-fill.is-complete {
-  background: linear-gradient(90deg, #0f9f7a, #12a99b);
+  background: linear-gradient(90deg, #0f9f7a, var(--accent-2));
 }
 
 .charity-progress-value {
@@ -6978,7 +7123,7 @@ body {
   cursor: pointer;
   transition: border-color var(--transition), color var(--transition);
 }
-.stats-module-filter-btn:hover { color: var(--color-primary-dark); border-color: rgba(13, 148, 136, 0.35); }
+.stats-module-filter-btn:hover { color: var(--color-primary-dark); border-color: rgb(var(--accent-rgb) / 0.35); }
 .stats-module-filter-btn .material-symbols-rounded { font-size: 1.05rem; opacity: 0.65; }
 .stats-module-filter-btn.is-busy { color: var(--color-text-muted); opacity: 0.7; }
 
@@ -7051,9 +7196,9 @@ body {
 }
 .stats-range-chip.is-active {
   color: var(--color-primary);
-  border-color: rgba(13, 148, 136, 0.3);
+  border-color: rgb(var(--accent-rgb) / 0.3);
   background: var(--color-primary-glow);
-  box-shadow: 0 6px 18px -12px rgba(13, 148, 136, 0.45);
+  box-shadow: 0 6px 18px -12px rgb(var(--accent-rgb) / 0.45);
 }
 
 .stats-tile-grid {
@@ -7151,7 +7296,7 @@ body {
   min-width: 2px;
 }
 
-.stats-bar-good { background: linear-gradient(90deg, #12a99b, #0f9f7a); }
+.stats-bar-good { background: linear-gradient(90deg, var(--accent-2), #0f9f7a); }
 .stats-bar-late { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
 .stats-bar-missed { background: linear-gradient(90deg, #fca5a5, #d9534f); }
 .stats-bar-other { background: linear-gradient(90deg, #94a3b8, #64748b); }
@@ -7262,7 +7407,7 @@ body {
 @media (max-width: 1024px) {
   .sidebar {
     background:
-      radial-gradient(circle at 12% 0%, rgba(45, 212, 191, 0.12), transparent 36%),
+      radial-gradient(circle at 12% 0%, rgb(var(--accent-rgb) / 0.12), transparent 36%),
       var(--color-sidebar);
     border-bottom: 1px solid var(--color-sidebar-border);
     box-shadow: 0 14px 34px -26px rgba(0, 0, 0, 0.65);
@@ -7338,7 +7483,7 @@ body {
 }
 
 [data-theme="dark"] .calendar-table td:hover {
-  border-color: rgba(45, 212, 191, 0.45);
+  border-color: rgb(var(--accent-rgb) / 0.45);
   box-shadow: var(--shadow-sm);
 }
 
@@ -7349,7 +7494,7 @@ body {
 
 [data-theme="dark"] .surah-card:hover {
   background: var(--color-surface);
-  border-color: rgba(45, 212, 191, 0.34);
+  border-color: rgb(var(--accent-rgb) / 0.34);
 }
 
 [data-theme="dark"] .surah-audio-card { background: var(--color-surface); }
@@ -7432,7 +7577,7 @@ input[type="datetime-local"] { color-scheme: light; }
 .form-range::-webkit-slider-runnable-track {
   height: 6px;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(13, 148, 136, 0.34), rgba(56, 189, 248, 0.3));
+  background: linear-gradient(90deg, rgb(var(--accent-rgb) / 0.34), rgba(56, 189, 248, 0.3));
 }
 
 .form-range::-webkit-slider-thumb {
@@ -7443,14 +7588,14 @@ input[type="datetime-local"] { color-scheme: light; }
   margin-top: -7px;
   border: 3px solid var(--color-surface);
   border-radius: 50%;
-  background: linear-gradient(135deg, #12a99b, #0b7c72);
-  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.45);
+  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
+  box-shadow: 0 4px 14px rgb(var(--accent-rgb) / 0.45);
 }
 
 .form-range::-moz-range-track {
   height: 6px;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(13, 148, 136, 0.34), rgba(56, 189, 248, 0.3));
+  background: linear-gradient(90deg, rgb(var(--accent-rgb) / 0.34), rgba(56, 189, 248, 0.3));
 }
 
 .form-range::-moz-range-thumb {
@@ -7458,8 +7603,8 @@ input[type="datetime-local"] { color-scheme: light; }
   height: 16px;
   border: 3px solid var(--color-surface);
   border-radius: 50%;
-  background: linear-gradient(135deg, #12a99b, #0b7c72);
-  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.45);
+  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
+  box-shadow: 0 4px 14px rgb(var(--accent-rgb) / 0.45);
 }
 
 /* Reused for the Settings text-size pickers: same widget, slightly narrower
@@ -7500,7 +7645,7 @@ input[type="datetime-local"] { color-scheme: light; }
 
 [data-theme="dark"] .form-range::-webkit-slider-runnable-track,
 [data-theme="dark"] .form-range::-moz-range-track {
-  background: linear-gradient(90deg, rgba(45, 212, 191, 0.36), rgba(56, 189, 248, 0.3));
+  background: linear-gradient(90deg, rgb(var(--accent-rgb) / 0.36), rgba(56, 189, 248, 0.3));
 }
 
 .ayah-jump-row {
@@ -7646,7 +7791,7 @@ input[type="datetime-local"] { color-scheme: light; }
 
 .surah-back:hover {
   color: var(--color-primary-dark);
-  border-color: rgba(13, 148, 136, 0.32);
+  border-color: rgb(var(--accent-rgb) / 0.32);
   background: var(--color-surface);
   transform: translateX(-2px);
 }
@@ -7766,7 +7911,7 @@ input[type="datetime-local"] { color-scheme: light; }
 .salah-overview-badge {
   flex-shrink: 0;
   padding: 0.35rem 0.7rem;
-  border: 1px solid rgba(13, 148, 136, 0.16);
+  border: 1px solid rgb(var(--accent-rgb) / 0.16);
   border-radius: 999px;
   background: var(--color-primary-glow);
   color: var(--color-primary-dark);
@@ -7777,7 +7922,7 @@ input[type="datetime-local"] { color-scheme: light; }
 
 [data-theme="dark"] .salah-overview-badge {
   color: var(--color-primary-light);
-  border-color: rgba(45, 212, 191, 0.2);
+  border-color: rgb(var(--accent-rgb) / 0.2);
 }
 
 .salah-overview-body {
@@ -7891,7 +8036,7 @@ input[type="datetime-local"] { color-scheme: light; }
 
 .salah-status.is-jamah .salah-status-icon,
 .salah-status.is-ontime .salah-status-icon {
-  background: rgba(13, 148, 136, 0.12);
+  background: rgb(var(--accent-rgb) / 0.12);
   color: var(--color-primary-dark);
 }
 
@@ -8039,7 +8184,7 @@ input[type="datetime-local"] { color-scheme: light; }
 }
 
 .surah-pager-link:hover {
-  border-color: rgba(13, 148, 136, 0.3);
+  border-color: rgb(var(--accent-rgb) / 0.3);
   background: var(--color-surface);
   transform: translateY(-1px);
 }
@@ -8080,14 +8225,14 @@ input[type="datetime-local"] { color-scheme: light; }
   height: 1.35rem;
   padding: 0 0.28rem;
   border-radius: 999px;
-  background: rgba(13, 148, 136, 0.1);
+  background: rgb(var(--accent-rgb) / 0.1);
   color: var(--color-primary-dark);
   font-size: 0.68rem;
   font-variant-numeric: tabular-nums;
 }
 
 [data-theme="dark"] .surah-pager-no {
-  background: rgba(45, 212, 191, 0.13);
+  background: rgb(var(--accent-rgb) / 0.13);
   color: var(--color-primary-light);
 }
 
@@ -8581,7 +8726,7 @@ select.form-control option,
 .app-date-day.is-selected {
   background: var(--color-primary);
   color: #fff;
-  box-shadow: 0 4px 14px -6px rgba(13, 148, 136, 0.55);
+  box-shadow: 0 4px 14px -6px rgb(var(--accent-rgb) / 0.55);
 }
 
 .app-date-day:disabled {
@@ -8687,7 +8832,7 @@ select.form-control option,
   width: 3px;
   height: 52%;
   border-radius: 999px;
-  background: linear-gradient(180deg, #99f6e4, #2dd4bf 60%, #0d9488);
+  background: linear-gradient(180deg, var(--accent-brightest), var(--accent-2) 60%, var(--accent-1));
   opacity: 0.6;
   transform-origin: bottom;
 }
@@ -8752,8 +8897,8 @@ select.form-control option,
   top: 50%;
   height: 6px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #0d9488, #2dd4bf 68%, #99f6e4);
-  box-shadow: 0 0 12px -3px rgba(45, 212, 191, 0.5);
+  background: linear-gradient(90deg, var(--accent-1), var(--accent-2) 68%, var(--accent-brightest));
+  box-shadow: 0 0 12px -3px rgb(var(--accent-rgb) / 0.5);
   transform: translateY(-50%);
   transition: height 0.16s ease-out, width 0.1s linear, box-shadow var(--transition);
 }
@@ -8762,7 +8907,7 @@ select.form-control option,
 .audio-progress-track.is-scrubbing .audio-progress-fill,
 .audio-progress-track:focus-within .audio-progress-fill {
   height: 8px;
-  box-shadow: 0 0 16px -2px rgba(45, 212, 191, 0.75);
+  box-shadow: 0 0 16px -2px rgb(var(--accent-rgb) / 0.75);
 }
 
 .audio-progress-thumb {
@@ -8770,7 +8915,7 @@ select.form-control option,
   height: 12px;
   border: none;
   background: #f0fdfa;
-  box-shadow: 0 0 0 3px rgba(94, 234, 212, 0.28), 0 0 14px rgba(45, 212, 191, 0.6);
+  box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 0.28), 0 0 14px rgb(var(--accent-rgb) / 0.6);
   transform: translate(-50%, -50%) scale(0.7);
   opacity: 0;
   transition: left 0.1s linear, transform var(--transition), opacity var(--transition), box-shadow var(--transition);
@@ -8786,7 +8931,7 @@ select.form-control option,
 .audio-progress-track:focus-within .audio-progress-thumb {
   opacity: 1;
   transform: translate(-50%, -50%) scale(1.1);
-  box-shadow: 0 0 0 4px rgba(94, 234, 212, 0.35), 0 2px 10px rgba(2, 20, 18, 0.55);
+  box-shadow: 0 0 0 4px rgb(var(--accent-rgb) / 0.35), 0 2px 10px rgba(2, 20, 18, 0.55);
 }
 
 /* Keyboard focus gets its own marker: the knob glows with a separated ring,
@@ -8794,8 +8939,8 @@ select.form-control option,
 .audio-progress-track:focus-within .audio-progress-thumb {
   box-shadow:
     0 0 0 3px rgba(4, 24, 22, 0.9),
-    0 0 0 6px rgba(94, 234, 212, 0.55),
-    0 0 16px rgba(45, 212, 191, 0.7);
+    0 0 0 6px rgb(var(--accent-rgb) / 0.55),
+    0 0 16px rgb(var(--accent-rgb) / 0.7);
 }
 
 .audio-progress-input:focus-visible {
@@ -8847,7 +8992,7 @@ select.form-control option,
 /* Armed: the glyph itself tints, no chip background — the badge is the
    indicator now. */
 .audio-loop-btn.is-on {
-  color: #99f6e4;
+  color: var(--accent-brightest);
 }
 
 .audio-loop-badge {
@@ -8861,7 +9006,7 @@ select.form-control option,
   padding: 0 0.14rem;
   border-radius: 999px;
   background: #f0fdfa;
-  color: #0f766e;
+  color: var(--accent-3);
   font-size: 0.56rem;
   font-weight: 800;
   line-height: 0.9rem;
@@ -8878,7 +9023,7 @@ select.form-control option,
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 16px;
   background:
-    radial-gradient(circle at 8% 0%, rgba(45, 212, 191, 0.1), transparent 40%),
+    radial-gradient(circle at 8% 0%, rgb(var(--accent-rgb) / 0.1), transparent 40%),
     linear-gradient(155deg, #0d302b 0%, #082320 55%, #051311 100%);
   box-shadow:
     0 22px 46px -22px rgba(2, 12, 11, 0.6),
@@ -8906,7 +9051,7 @@ select.form-control option,
 .audio-sleep-head .material-symbols-rounded {
   flex: 0 0 auto;
   font-size: 1.05rem;
-  color: #2dd4bf;
+  color: var(--accent-2);
 }
 
 .audio-sleep-option {
@@ -8931,18 +9076,18 @@ select.form-control option,
 
 .audio-sleep-option:hover,
 .audio-sleep-option.is-active {
-  background: rgba(45, 212, 191, 0.12);
-  color: #99f6e4;
+  background: rgb(var(--accent-rgb) / 0.12);
+  color: var(--accent-brightest);
 }
 
 .audio-sleep-option.is-selected {
-  color: #99f6e4;
+  color: var(--accent-brightest);
 }
 
 .audio-sleep-option .material-symbols-rounded {
   flex: 0 0 auto;
   font-size: 1rem;
-  color: #5eead4;
+  color: var(--accent-bright);
 }
 
 @keyframes audio-menu-in {
@@ -9215,10 +9360,10 @@ body:has(.global-audio-bar) .main-content {
    material (--chrome-glass / --chrome-border), so stacked they read as one
    chrome system rather than mismatched boxes. */
 :root {
-  /* The solid chrome colour the app started with (#092b27), kept translucent:
+  /* The solid chrome colour the app started with (var(--accent-chrome)), kept translucent:
      a high alpha so the bars read solid and hold their weight, with the blur
      letting a hint of the page through. No gradient. */
-  --chrome-glass: rgba(9, 43, 39, 0.88);
+  --chrome-glass: rgb(var(--accent-chrome-rgb) / 0.88);
   --chrome-border: rgba(255, 255, 255, 0.09);
   --chrome-blur: blur(18px) saturate(1.25);
 }
@@ -9227,7 +9372,7 @@ body:has(.global-audio-bar) .main-content {
    the navy page instead, so the header does not read as a separate green slab
    floating above a blue-black background. */
 [data-theme="dark"] {
-  --chrome-glass: rgba(6, 12, 22, 0.9);
+  --chrome-glass: rgb(var(--accent-chrome-dark-rgb) / 0.9);
 }
 
 .header-actions {
@@ -9424,11 +9569,11 @@ body:has(.global-audio-bar) .main-content {
   white-space: nowrap;
 }
 
-.tabbar-item.is-active { color: #2dd4bf; }
+.tabbar-item.is-active { color: var(--accent-2); }
 
 .tabbar-item.is-active .tabbar-icon {
-  background: rgba(45, 212, 191, 0.16);
-  color: #2dd4bf;
+  background: rgb(var(--accent-rgb) / 0.16);
+  color: var(--accent-2);
 }
 
 .tabbar-item:active { transform: translateY(1px); }
@@ -9464,12 +9609,12 @@ body:has(.global-audio-bar) .main-content {
 .tabbar-center-btn:active { transform: translateY(1px); }
 
 .tabbar-center-btn.is-active {
-  background: linear-gradient(135deg, #12a99b, #0f9f8a 55%, #fbbf24 130%);
+  background: linear-gradient(135deg, var(--accent-2), #0f9f8a 55%, #fbbf24 130%);
   color: #fff;
 }
 
 .tabbar-center .tabbar-label { color: rgba(237, 247, 243, 0.62); }
-.tabbar-center .tabbar-label.is-active { color: #2dd4bf; }
+.tabbar-center .tabbar-label.is-active { color: var(--accent-2); }
 
 /* The More sheet: every module that did not earn a footer slot. Full-width
    and attached to the footer's top edge, so it opens as the next layer of
@@ -9546,7 +9691,7 @@ body:has(.tabbar-sheet) .tabbar {
   transition: background var(--transition);
 }
 
-.tabbar-sheet-item:active { background: rgba(45, 212, 191, 0.14); }
+.tabbar-sheet-item:active { background: rgb(var(--accent-rgb) / 0.14); }
 
 .tabbar-sheet-tile {
   display: flex;
@@ -9555,14 +9700,14 @@ body:has(.tabbar-sheet) .tabbar {
   width: 3rem;
   height: 3rem;
   border-radius: 14px;
-  background: rgba(45, 212, 191, 0.14);
-  color: #2dd4bf;
+  background: rgb(var(--accent-rgb) / 0.14);
+  color: var(--accent-2);
 }
 
 .tabbar-sheet-item .material-symbols-rounded { font-size: 1.35rem; }
 
 .tabbar-sheet-item.is-active .tabbar-sheet-tile {
-  background: linear-gradient(135deg, #12a99b, #0f9f8a 55%, #fbbf24 130%);
+  background: linear-gradient(135deg, var(--accent-2), #0f9f8a 55%, #fbbf24 130%);
   color: #fff;
 }
 
@@ -9621,7 +9766,7 @@ body:has(.tabbar-sheet) .tabbar {
 
 .hadith-chip.is-active {
   border-color: var(--color-primary);
-  background: rgba(13, 148, 136, 0.12);
+  background: rgb(var(--accent-rgb) / 0.12);
   color: var(--color-primary-dark);
 }
 
@@ -9844,12 +9989,14 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   max-width: 420px;
   margin: 0 auto 1.5rem;
   padding: 2rem 1.5rem;
-  border: 1px solid var(--color-border-light);
-  border-radius: 26px;
-  background: var(--color-surface-elevated);
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 22px 55px -44px rgba(16, 42, 40, 0.35);
+  /* The compass is the object, not the box around it: no panel fill, no
+     outline, no shadow - the page's own background shows through. */
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
 }
 
 .qibla-compass {
@@ -9877,9 +10024,9 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 /* The whole dial glows when the phone is pointed straight at the Kaaba. */
 .qibla-dial.is-aligned {
   box-shadow:
-    0 0 0 3px rgba(45, 212, 191, 0.7),
+    0 0 0 3px rgb(var(--accent-rgb) / 0.7),
     0 22px 44px -20px rgba(3, 22, 20, 0.75),
-    0 0 44px rgba(45, 212, 191, 0.6);
+    0 0 44px rgb(var(--accent-rgb) / 0.6);
 }
 
 /* Ticks are full-dial layers rotated around the centre; the visible line
@@ -9940,8 +10087,8 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   width: 6px;
   height: 38%;
   border-radius: 3px;
-  background: linear-gradient(180deg, rgba(45, 212, 191, 0.95), rgba(45, 212, 191, 0.25));
-  box-shadow: 0 0 14px rgba(45, 212, 191, 0.45);
+  background: linear-gradient(180deg, rgb(var(--accent-rgb) / 0.95), rgb(var(--accent-rgb) / 0.25));
+  box-shadow: 0 0 14px rgb(var(--accent-rgb) / 0.45);
   transition: box-shadow var(--transition);
 }
 
@@ -10025,14 +10172,14 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   margin-top: 0.25rem;
   /* The bare .btn base reads as plain text on this card - outline it as the
      action it is: teal border, light teal fill, clear press state. */
-  border: 1.5px solid rgba(13, 148, 136, 0.55);
-  background: rgba(13, 148, 136, 0.1);
+  border: 1.5px solid rgb(var(--accent-rgb) / 0.55);
+  background: rgb(var(--accent-rgb) / 0.1);
   color: var(--color-primary);
 }
 
 .qibla-compass-btn:hover {
   border-color: var(--color-primary);
-  background: rgba(13, 148, 136, 0.18);
+  background: rgb(var(--accent-rgb) / 0.18);
 }
 
 .qibla-note {
@@ -10081,10 +10228,11 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 /* --- Content surfaces ------------------------------------------------------
    The page is the white end of the scale and every content panel sits a few
    percent darker, which is what separates a card from the page now that the
-   white-card-on-cream look is gone. The fill does the work, so the outline
-   stays a single hairline. Overlays that must float - dropdown menus,
-   dialogs, toasts, the sticky reader bar, the docks - keep their own
-   surface and are listed nowhere here. */
+   white-card-on-cream look is gone. The fill does the work on its own, so
+   these surfaces carry no outline: a border on every card was noise on top
+   of a colour difference that already reads. Overlays that must float -
+   dropdown menus, dialogs, toasts, the sticky reader bar, the docks - keep
+   their own surface and are listed nowhere here. */
 :root {
   /* A cool slate wash over white reads as light grey (#f2f4f7-ish). */
   --color-surface-tint: rgba(15, 23, 42, 0.045);
@@ -10109,7 +10257,6 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 .gate-notice,
 .error-card,
 .settings-panel,
-.qibla-card,
 .surah-pager-link,
 .surah-audio-card,
 .salah-status,
@@ -10129,7 +10276,7 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 [data-theme="dark"] .card,
 [data-theme="dark"] .surah-card {
   background: var(--color-surface-tint);
-  border-width: var(--content-border-width);
+  border-width: 0;
   box-shadow: none;
 }
 
@@ -10384,3 +10531,131 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
     transition: none;
   }
 }
+
+/* --- Flat sections ---------------------------------------------------------
+   A section that only introduces a list of surfaces does not need a surface
+   of its own: the heading and the spacing are enough, and the items inside
+   carry the colour. Painting the wrapper too produced the panel-inside-panel
+   look on the Qur'an list, the audio list, challenges, stats, the calendar
+   and the reader's "Continue Reading" strip. The max-width is left alone on
+   purpose, so each section keeps the measure it already had; only the box is
+   removed. */
+.container1.is-flat,
+.card.is-flat {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  /* The page-rise animation leaves a transform on the container. With
+     `overflow: hidden` and no padding, that layer clipped the left edge of
+     the first glyph ("Selected day" lost its S). Flat sections have no
+     rounded surface to clip, so let their children paint normally. */
+  overflow: visible;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.container1.is-flat:hover,
+.card.is-flat:hover,
+[data-theme="dark"] .container1.is-flat,
+[data-theme="dark"] .card.is-flat,
+[data-theme="dark"] .container1.is-flat:hover,
+[data-theme="dark"] .card.is-flat:hover {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* The hero ayah and the tiles now separate from the page by fill alone. */
+.featured-surah { border: 0; }
+
+/* With the wrapper gone the header needs no rule under it either; spacing
+   separates it from the list. */
+.container1.is-flat > .card-header {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+/* Blank calendar cells are spacing, not days: they should not paint a tile. */
+.calendar-table td.is-empty { background: transparent; }
+
+/* Data tables separate rows by the striped fill, not by a rule on every row. */
+.table tbody td { border-bottom: 0; }
+
+/* Stats is a long report: each module gets a full-width rule and a clear
+   breath of space above it, so Salah, Challenges and Charity read as three
+   sections instead of one continuous wall of tiles. The last module closes
+   the page without a trailing line. */
+.container1.is-flat.stats-section + .container1.is-flat.stats-section {
+  margin-top: 1.75rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--color-border-light);
+}
+
+/* The calendar's day grid and its special-days table are separate readings:
+   leave a gap before the events list instead of letting it touch the cells. */
+.calendar-events { margin-top: 2.25rem; }
+
+/* --- Accent picker (Settings) ----------------------------------------------
+   A row of pills rather than radio dots: each one shows both halves of the
+   palette it selects - the accent gradient and that palette's chrome - so
+   the header/footer colour is visible before the choice is made. */
+.accent-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1.6rem;
+}
+
+.accent-option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.5rem 0.85rem 0.5rem 0.5rem;
+  border: 1px solid var(--color-border-light);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition), color var(--transition), box-shadow var(--transition);
+}
+
+.accent-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.accent-swatch {
+  width: 1.4rem;
+  height: 1.4rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+    0 2px 6px -2px rgba(15, 23, 42, 0.35);
+}
+
+.accent-option:hover {
+  border-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+.accent-option.is-active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-glow);
+  color: var(--color-text);
+  box-shadow: 0 0 0 3px var(--color-primary-glow);
+}
+
+.accent-option:focus-within {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.accent-label { white-space: nowrap; }

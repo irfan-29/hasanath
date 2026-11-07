@@ -48,7 +48,7 @@ export default function AudioTab({ surahs, reciters, reciter, onReciterChange, o
         {status && <p className="tg-hint">{status}</p>}
       </div>
 
-      <div className="container1">
+      <div className="container1 is-flat">
         <div className="card-header">
           <h3>Play</h3>
           <span className="badge badge-primary">114 Surahs</span>

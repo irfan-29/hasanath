@@ -37,7 +37,7 @@ export default function CalendarPage() {
 
       {state.loading && !d ? <Loader variant="inline" label="Loading calendar" /> : d ? (
         <>
-          <div className="container1 calendar-wrapper">
+          <div className="container1 calendar-wrapper is-flat">
             <div className="calendar-header">
               <div className="gregorian-title">{d.gregorianMonth} {d.gregorianYear}</div>
               <div className="hijri-title">{d.hijriMonth} {d.hijriYear} AH</div>
@@ -74,7 +74,7 @@ export default function CalendarPage() {
                 {d.weeks.map((week, wi) => (
                   <tr key={wi}>
                     {week.map((day, di) => (
-                      <td key={di}>
+                      <td key={di} className={day ? undefined : 'is-empty'}>
                         {day ? (
                           <div className="date-box">
                             <div className="greg">{day.gregorian}</div>
@@ -94,7 +94,7 @@ export default function CalendarPage() {
           {/* Table markup copied from views/calendar.ejs so the existing
               .badge-info / table styles apply. My first pass invented
               .special-day classes the stylesheet has never heard of. */}
-          <div className="container1">
+          <div className="container1 is-flat calendar-events">
             <table className="table table-striped">
               <thead>
                 <tr><th>Date</th><th>Event</th><th>Hijri Date</th></tr>

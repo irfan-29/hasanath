@@ -55,6 +55,10 @@ const settingsSchema = new mongoose.Schema({
     favoriteEdition: [String],
     primaryTranslation: String,
     theme: { type: String, default: "light" },
+    // Accent palette id (green/blue/violet/gold/rose/ocean). Stored as an id,
+    // never as a colour, so the palette lives in the stylesheet and a future
+    // tweak reaches every account that picked it.
+    accent: { type: String, default: "green" },
     // Interface typography (App Font / App Text Size / Quran Text Size).
     // Explicit so Mongoose strict mode does not silently discard the fields
     // on user.settings writes the way it does unknown keys.

@@ -57,7 +57,7 @@ export default function HadithPage() {
       </div>
 
       {tab === 'collections' && (
-        <div className="container1">
+        <div className="container1 is-flat">
           <div className="card-header">
             <h3>Collections</h3>
             <span className="badge badge-primary">{collections.length} Books</span>

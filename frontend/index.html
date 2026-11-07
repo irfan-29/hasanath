@@ -76,6 +76,14 @@
           if (stored === 'dark' || stored === 'light') {
             document.documentElement.setAttribute('data-theme', stored);
           }
+          // Accent palette: same replay so a reload does not flash the default
+          // teal before /api/app/meta answers. The ids are duplicated with
+          // ACCENT_IDS in services/accent.js; green is the :root default and
+          // therefore needs no attribute.
+          var accent = localStorage.getItem('salah-accent');
+          if (['blue', 'violet', 'gold', 'rose', 'ocean'].indexOf(accent) !== -1) {
+            document.documentElement.setAttribute('data-accent', accent);
+          }
           // Typography preferences replay the same trick: the app font id and
           // the two text-size percents are mirrored by the shell when they
           // arrive from /api/app/meta, and replayed here before the stylesheet

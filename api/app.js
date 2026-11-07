@@ -1185,6 +1185,9 @@ app.get("/api/app/meta", async function(req, res){
             username: (isLoggedIn && req.user.username) || null
         },
         theme: settings.theme === "dark" ? "dark" : "light",
+        // Accent palette id. The shell writes it to <html data-accent>; an
+        // unknown/absent value is the stylesheet's default teal.
+        accent: settings.accent || "green",
         defaultHome,
         homePath: HOME_PATHS[defaultHome] || "/quran",
         // Interface typography, mirrored into localStorage by the shell so the
@@ -1822,6 +1825,7 @@ app.get("/api/settings", async function(req, res){
                 favoriteEdition: getFavoriteEditions(settings),
                 primaryTranslation: getPrimaryEdition(settings) || "",
                 theme: settings.theme || "light",
+                accent: settings.accent || "green",
                 // Interface typography: absent values resolve to the same
                 // defaults the meta endpoint reports, so the Settings page and
                 // the shell agree even when the stored record predates these
@@ -1882,6 +1886,9 @@ app.post("/api/settings", async function(req, res){
     const patch = {};
 
     if (body.theme !== undefined) patch.theme = String(body.theme);
+    // Accent is validated against the stylesheet's palette ids in userData;
+    // this route only forwards the name.
+    if (body.accent !== undefined) patch.accent = String(body.accent);
     if (body.defaultHome !== undefined) patch.defaultHome = String(body.defaultHome);
     if (body.font !== undefined) patch.favoriteFont = String(body.font);
     if (body.location !== undefined) patch.location = String(body.location);

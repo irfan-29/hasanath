@@ -11,6 +11,7 @@ import { ToastProvider } from './components/ToastProvider';
 import useShareHandler from './hooks/useShareHandler';
 import { api } from './services/api';
 import * as typography from './services/typography';
+import { applyAccent } from './services/accent';
 import QuranPage from './pages/QuranPage';
 import HadithPage from './pages/HadithPage';
 import HadithBookPage from './pages/HadithBookPage';
@@ -132,6 +133,22 @@ function Shell() {
     if (metaTheme) setTheme(metaTheme);
   }, [metaTheme, setTheme]);
 
+  // Apply an accent and remember it for the next first paint, the same
+  // contract setTheme has. The palette lives in CSS; only the id is written.
+  const setAccent = useCallback((value) => {
+    const next = applyAccent(value);
+    setMeta((current) => {
+      if (!current || current.accent === next) return current;
+      return { ...current, accent: next };
+    });
+    return next;
+  }, []);
+
+  const metaAccent = meta ? meta.accent : null;
+  useEffect(() => {
+    if (metaAccent) applyAccent(metaAccent);
+  }, [metaAccent]);
+
   // Apply the three reader-typography settings and mirror them into storage
   // for the pre-paint script, the same contract setTheme has. The applier
   // lives in services/typography.js so the Settings page can reuse it for
@@ -158,8 +175,10 @@ function Shell() {
     homePath: meta ? meta.homePath : null,
     theme: meta ? meta.theme : null,
     setTheme,
+    accent: meta ? meta.accent : null,
+    setAccent,
     refresh,
-  }), [meta, setTheme, refresh]);
+  }), [meta, setTheme, setAccent, refresh]);
 
   // Auth routes render their own standalone cards and do not need the shell's
   // metadata (or its navbar). They do still get the theme, because setTheme

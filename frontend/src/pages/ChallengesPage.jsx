@@ -239,7 +239,7 @@ export default function ChallengesPage() {
 
       {error && <div className="auth-alert" role="alert"><span className="material-symbols-rounded">error</span>{error}</div>}
 
-      <div className="container1 challenge-panel">
+      <div className="container1 challenge-panel is-flat">
         {canManage && (
           <DateField
             id="challenge-date"

@@ -304,7 +304,7 @@ export default function CharityPage() {
     return (
       <>
         <div className="page-header"><h1>Charity</h1><p>Set goals and track your giving</p></div>
-        <div className="container1">
+        <div className="container1 is-flat">
           <div className="gate-notice">
             <span className="gate-icon material-symbols-rounded" aria-hidden="true">lock</span>
             <div className="gate-body">

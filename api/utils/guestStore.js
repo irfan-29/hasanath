@@ -70,6 +70,11 @@ function sanitize(raw) {
         : undefined,
       primaryTranslation: s.primaryTranslation ? String(s.primaryTranslation).slice(0, 120) : undefined,
       theme: s.theme === "dark" ? "dark" : s.theme === "light" ? "light" : undefined,
+      // Accent is one of the stylesheet's palette ids; anything else is
+      // discarded so the cookie cannot point the app at a missing palette.
+      accent: ["green", "blue", "violet", "gold", "rose", "ocean"].includes(s.accent)
+        ? s.accent
+        : undefined,
       // Interface typography, same whitelist treatment: the font id is length
       // bounded only (it is translated to a known stack on the client), while
       // the two text scales are clamped so a hand-edited cookie cannot shrink

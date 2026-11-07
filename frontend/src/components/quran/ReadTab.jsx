@@ -71,7 +71,7 @@ export default function ReadTab({ surahs, ayahOfTheDay, lastReadSurahs, favorite
   return (
     <div className="quran-tab-panel" data-tab-panel="read">
       {shown && (
-        <div className="container1">
+        <div className="container1 is-flat">
           <div className="featured-head">
             <div className="featured-label">{isRandom ? 'Random Ayah' : 'Ayah of the Day'}</div>
             {isRandom && (
@@ -153,7 +153,7 @@ export default function ReadTab({ surahs, ayahOfTheDay, lastReadSurahs, favorite
       )}
 
       {lastReadSurahs && lastReadSurahs.length > 0 && (
-        <div className="container1">
+        <div className="container1 is-flat">
           <div className="card-header"><h3>Continue Reading</h3></div>
           <div className="scrollable-container">
             {lastReadSurahs.map((no) => (
@@ -165,7 +165,7 @@ export default function ReadTab({ surahs, ayahOfTheDay, lastReadSurahs, favorite
         </div>
       )}
 
-      <div className="container1">
+      <div className="container1 is-flat">
         <div className="card-header">
           <h3>Find a Surah</h3>
         </div>
@@ -180,7 +180,7 @@ export default function ReadTab({ surahs, ayahOfTheDay, lastReadSurahs, favorite
         </div>
       </div>
 
-      <div className="container1">
+      <div className="container1 is-flat">
         <div className="card-header">
           <h3>All Surahs</h3>
           <span className="badge badge-primary">114 Surahs</span>

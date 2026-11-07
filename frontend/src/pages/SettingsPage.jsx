@@ -25,6 +25,20 @@ const APP_FONTS = [
   { value: 'lora', label: 'Lora' },
 ];
 
+// Accent palettes. The ids and colour stops mirror the html[data-accent]
+// blocks in styles.css; these values only paint the swatch. Each swatch is
+// split diagonally - the accent gradient on one half, that palette's chrome
+// (the header/footer base) on the other - so "blue with black" reads as both
+// colours before it is picked.
+const APP_ACCENTS = [
+  { value: 'green', label: 'Emerald', from: '#0f766e', to: '#2dd4bf', chrome: '#092b27' },
+  { value: 'blue', label: 'Blue · Black', from: '#2563eb', to: '#60a5fa', chrome: '#05080f' },
+  { value: 'violet', label: 'Violet · Black', from: '#7c3aed', to: '#a78bfa', chrome: '#08050f' },
+  { value: 'gold', label: 'Gold', from: '#b45309', to: '#fbbf24', chrome: '#171006' },
+  { value: 'rose', label: 'Rose · Black', from: '#be123c', to: '#fb7185', chrome: '#12050a' },
+  { value: 'ocean', label: 'Ocean', from: '#0e7490', to: '#22d3ee', chrome: '#041016' },
+];
+
 // Text-size picker built to match the reader's "Go to Ayah" navigator
 // (`.ayah-jump`): one slider, a caption, the saved value and a Set button.
 // Deliberately NOT live: dragging only moves the thumb; the label shows the
@@ -142,7 +156,7 @@ export default function SettingsPage() {
   // setTheme keeps the shell's boot metadata in step with the choice, and writes
   // the value the pre-paint script reads; refresh re-reads the rest of the meta
   // (default home) so a save does not need a page reload.
-  const { isLoggedIn, setTheme, refresh } = useSession();
+  const { isLoggedIn, setTheme, setAccent, refresh } = useSession();
   const toast = useToast();
   const [data, setData] = useState(null);
   const [loadError, setLoadError] = useState('');
@@ -230,6 +244,7 @@ export default function SettingsPage() {
   if (!data) return <Loader variant="page" label="Loading settings" />;
 
   const s = data.settings;
+  const currentAccent = s.accent || 'green';
   const savingError = (section) => (
     section.error ? <div className="auth-alert" role="alert"><span className="material-symbols-rounded">error</span>{section.error}</div> : null
   );
@@ -355,6 +370,43 @@ export default function SettingsPage() {
         ))}
       </div>
       {savingError(theme)}
+
+      {/* Accent palette. Painted immediately through the shell's setter, then
+          saved; a failed save rolls the paint back to the stored choice. */}
+      <div className="form-section-title">Accent Color</div>
+      <p className="form-section-hint">
+        Recolours buttons, links, progress bars and the header/footer. The gradient shape stays the same.
+      </p>
+      <div className="accent-picker" role="radiogroup" aria-label="Accent color">
+        {APP_ACCENTS.map((opt) => {
+          const active = currentAccent === opt.value;
+          return (
+            <label key={opt.value} className={`accent-option${active ? ' is-active' : ''}`}>
+              <input
+                type="radio" name="accent" value={opt.value}
+                checked={active}
+                onChange={async () => {
+                  if (active) return;
+                  setAccent(opt.value);
+                  if (await theme.save({ accent: opt.value })) {
+                    setData({ ...data, settings: { ...s, accent: opt.value } });
+                    // Keep the shell's meta copy in step; no reload needed.
+                    refresh();
+                  } else {
+                    setAccent(currentAccent);
+                  }
+                }}
+              />
+              <span
+                className="accent-swatch"
+                style={{ background: `linear-gradient(135deg, ${opt.from} 0 46%, ${opt.chrome} 46% 100%)` }}
+                aria-hidden="true"
+              />
+              <span className="accent-label">{opt.label}</span>
+            </label>
+          );
+        })}
+      </div>
 
       {/* Typography - applies via the shell when the refreshed meta arrives:
           App.jsx writes data-app-font plus the two scale custom properties and

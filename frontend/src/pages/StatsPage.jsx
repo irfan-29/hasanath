@@ -225,7 +225,7 @@ export default function StatsPage() {
     return (
       <>
         <div className="page-header"><h1>Stats</h1><p>See where your practice is heading</p></div>
-        <div className="container1">
+        <div className="container1 is-flat">
           <div className="gate-notice">
             <span className="gate-icon material-symbols-rounded" aria-hidden="true">lock</span>
             <div className="gate-body">
@@ -277,7 +277,7 @@ export default function StatsPage() {
       ) : (
         <>
           {/* --- Salah --- */}
-          <section className={`container1 stats-section${busySection === 'salah' ? ' is-reloading' : ''}`}>
+          <section className={`container1 stats-section is-flat${busySection === 'salah' ? ' is-reloading' : ''}`}>
             <div className="stats-section-head">
               <h2>Salah</h2>
               <ModuleFilter
@@ -313,7 +313,7 @@ export default function StatsPage() {
           </section>
 
           {/* --- Challenges --- */}
-          <section className={`container1 stats-section${busySection === 'challenges' ? ' is-reloading' : ''}`}>
+          <section className={`container1 stats-section is-flat${busySection === 'challenges' ? ' is-reloading' : ''}`}>
             <div className="stats-section-head">
               <h2>Challenges</h2>
               <ModuleFilter
@@ -341,7 +341,7 @@ export default function StatsPage() {
           </section>
 
           {/* --- Charity --- */}
-          <section className={`container1 stats-section${busySection === 'charityMonths' ? ' is-reloading' : ''}`}>
+          <section className={`container1 stats-section is-flat${busySection === 'charityMonths' ? ' is-reloading' : ''}`}>
             <div className="stats-section-head">
               <h2>Charity</h2>
               <ModuleFilter

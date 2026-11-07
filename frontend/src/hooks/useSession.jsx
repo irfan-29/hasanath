@@ -24,9 +24,11 @@ const FALLBACK = {
   username: null,
   homePath: null,
   theme: null,
+  accent: null,
   // No-ops so a component used outside the provider (or on an auth route, which
   // renders before the provider) cannot crash by calling these.
   setTheme: () => {},
+  setAccent: () => {},
   refresh: () => Promise.resolve(null),
 };
 

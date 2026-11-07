@@ -23,6 +23,7 @@ const SETTINGS_FIELDS = [
   "favoriteEdition",
   "primaryTranslation",
   "theme",
+  "accent",
   "audioProgress",
   // Interface typography: the app-wide font family plus a scale for regular
   // (Latin and translated) text and a separate scale for the Arabic mushaf
@@ -36,6 +37,11 @@ const SETTINGS_FIELDS = [
 // account) still gets a readable translation instead of a blank page.
 const DEFAULT_EDITION = "eng-abdullahyusufal:English:Abdullah Yusuf Ali";
 
+// The accent palettes the stylesheet defines. Stored as an id so the stored
+// preference is a name, not a colour: changing a palette later updates every
+// account wearing it, and an unknown id simply falls back to the default.
+const ACCENT_IDS = ["green", "blue", "violet", "gold", "rose", "ocean"];
+
 function defaults() {
   return {
     defaultHome: "quran",
@@ -43,6 +49,7 @@ function defaults() {
     favoriteReciter: 1,
     favoriteFont: "QPC-Hafs",
     theme: "light",
+    accent: "green",
     favoriteEdition: [DEFAULT_EDITION],
     primaryTranslation: DEFAULT_EDITION,
     appFont: "default",
@@ -79,6 +86,12 @@ async function updateSettings(req, patch) {
     }
   }
   if (clean.appFont !== undefined) clean.appFont = String(clean.appFont).slice(0, 24);
+  // Accent is an id from a closed set, not free text: an unknown value is
+  // dropped rather than written, so a hand-built request cannot leave the
+  // account pointing at a palette that does not exist.
+  if (clean.accent !== undefined && !ACCENT_IDS.includes(String(clean.accent))) {
+    delete clean.accent;
+  }
 
   if (!Object.keys(clean).length) return getSettings(req);
 
