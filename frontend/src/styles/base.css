@@ -21,13 +21,18 @@
    These base rules live at the top on purpose: a component that sizes or
    centres an icon (auth-logo, salah-status-icon, the consistency flame)
    must be able to override `font-size` and `display`, and an equal-
-   specificity rule at the end of the file used to win instead. */
+   specificity rule at the end of the file used to win instead.
+
+   The subset only contains the icons listed in scripts/icon-names.txt. A
+   name that is missing from it is painted as text ("play_circle", "menu"),
+   so add the name there and run `node scripts/build-icon-font.js` after
+   introducing a new icon. */
 @font-face {
   font-family: 'Material Symbols Rounded';
   font-style: normal;
   font-weight: 100 700;
   font-display: block;
-  src: url('/fonts/material-symbols-rounded.woff2') format('woff2');
+  src: url('/fonts/material-symbols-rounded-v2.woff2') format('woff2');
 }
 
 .material-symbols-rounded {
