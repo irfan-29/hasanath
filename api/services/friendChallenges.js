@@ -15,7 +15,9 @@ const MAX_FRIENDS = 20;
 const MAX_HISTORY = 730;
 // A check-in can be logged for today or any of the six days before it. That is
 // long enough to recover a forgotten evening, short enough that a shared
-// leaderboard still measures the week everyone is actually living in.
+// leaderboard still measures the week everyone is actually living in. The
+// window is deliberately not tied to the join date: a person who starts using
+// the challenge today still needs to repair the week they just lived.
 const BACKFILL_DAYS = 7;
 
 // The server's calendar day. The personal tracker already resolves "today" this
@@ -49,8 +51,25 @@ function computeStreak(history, today) {
     return count;
 }
 
-function laterDay(a, b) {
-    return a > b ? a : b;
+/**
+ * bestRunFrom(hist): continuous run (best, start, end) inside `hist`.
+ */
+function bestRunFrom(hist) {
+    const days = new Set((hist || []).filter(Boolean));
+    let best = 0, start = null, end = null;
+    for (const startD of Array.from(days).sort()) {
+        let run = 0, cur = new Date(startD);
+        let k = isoDay(cur), first = k, last = k;
+        while (days.has(k)) {
+            run++;
+            last = k;
+            cur = new Date(cur);
+            cur.setDate(cur.getDate() + 1);
+            k = isoDay(cur);
+        }
+        if (run > best) { best = run; start = first; end = last; }
+    }
+    return { best, start, end };
 }
 
 function isRealDay(key) {
@@ -60,11 +79,11 @@ function isRealDay(key) {
     return date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d;
 }
 
-// The days a check-in may name: never before joining, never before the rolling
-// week, never the future.
-function checkinWindow(joinedOn, today) {
+// The days a check-in may name: never before the rolling week, never the
+// future.
+function checkinWindow(today) {
     return {
-        start: laterDay(joinedOn, shiftDay(today, -(BACKFILL_DAYS - 1))),
+        start: shiftDay(today, -(BACKFILL_DAYS - 1)),
         end: today
     };
 }
@@ -73,7 +92,7 @@ function checkinWindow(joinedOn, today) {
 // "missed a day" strip. Today has its own check-in button.
 function recentDays(participant, today) {
     const history = new Set(participant.history || []);
-    const { start } = checkinWindow(participant.joinedOn, today);
+    const { start } = checkinWindow(today);
     const days = [];
     let cursor = shiftDay(today, -1);
     while (cursor >= start) {
@@ -99,9 +118,6 @@ function present(doc, viewerId) {
 
     const participants = (raw.participants || []).map((entry) => {
         const user = entry.user && entry.user._id ? entry.user : { _id: entry.user, username: "" };
-        const joinedOn = entry.respondedAt
-            ? isoDay(new Date(entry.respondedAt))
-            : isoDay(raw.createdAt ? new Date(raw.createdAt) : new Date());
         return {
             id: String(user._id),
             username: user.username || "",
@@ -110,7 +126,6 @@ function present(doc, viewerId) {
             maxStreak: Number(entry.maxStreak) || 0,
             checkedInToday: (entry.history || []).includes(today),
             lastUpdated: entry.lastUpdated || "",
-            joinedOn,
             history: (entry.history || []).filter(Boolean),
             isYou: String(user._id) === viewer
         };
@@ -148,7 +163,7 @@ function present(doc, viewerId) {
                 recentDays: recentDays(you, today)
             }
             : null,
-        leaderboard: accepted.map(({ history, joinedOn, ...entry }, index) => ({
+        leaderboard: accepted.map(({ history, ...entry }, index) => ({
             ...entry,
             rank: index + 1
         })),
@@ -300,12 +315,8 @@ async function toggleCheckin(viewer, challengeId, { date } = {}) {
         (entry) => String(entry.user) === String(viewer._id)
     );
     // Dates are validated against the server's day, so a client clock cannot
-    // open the future or rewrite an old week. Backfilling is allowed only back
-    // to the day this person joined and inside the rolling window.
-    const joinedOn = participant.respondedAt
-        ? isoDay(new Date(participant.respondedAt))
-        : isoDay(challenge.createdAt ? new Date(challenge.createdAt) : new Date());
-    const range = checkinWindow(joinedOn, today);
+    // open the future or rewrite an old week.
+    const range = checkinWindow(today);
     if (key < range.start || key > range.end) return { error: "invalid-date" };
 
     const history = Array.from(participant.history || []).filter(Boolean);
@@ -316,7 +327,10 @@ async function toggleCheckin(viewer, challengeId, { date } = {}) {
 
     const streak = computeStreak(participant.history, today);
     participant.currentStreak = streak;
-    participant.maxStreak = Math.max(Number(participant.maxStreak) || 0, streak);
+    const best = bestRunFrom(participant.history);
+    participant.maxStreak = best.best;
+    participant.bestStart = best.start || "";
+    participant.bestEnd = best.end || "";
     participant.lastUpdated = displayLabel(key);
     await challenge.save();
 
@@ -436,6 +450,7 @@ async function removeOrLeave(viewer, challengeId) {
 module.exports = {
     isoDay,
     computeStreak,
+    bestRunFrom,
     checkinWindow,
     recentDays,
     present,
