@@ -1,0 +1,8 @@
+{
+  "versionCode": 6,
+  "versionName": "1.5",
+  "apkUrl": "https://hasanath.vercel.app/android/Hasanath-1.5.apk",
+  "sha256": "f817f210470bc04bcbc0000448515e65a82d9a1604096ad3e783d340f62163f4",
+  "notes": "Launch screen: logo and name now centred together\nUpdates install from inside the app",
+  "minSupportedVersionCode": 1
+}
