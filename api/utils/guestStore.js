@@ -40,10 +40,14 @@ function sanitize(raw) {
       .filter((c) => c && typeof c === "object" && typeof c.challenge === "string" && c.challenge.trim())
       .slice(0, MAX_CHALLENGES)
       .map((c) => ({
+        _id: c._id ? String(c._id).slice(0, 40) : undefined,
         challenge: String(c.challenge).slice(0, 120),
         currentStreak: Number(c.currentStreak) || 0,
         maxStreak: Number(c.maxStreak) || 0,
-        lastUpdated: c.lastUpdated ? String(c.lastUpdated).slice(0, 40) : undefined
+        lastUpdated: c.lastUpdated ? String(c.lastUpdated).slice(0, 40) : undefined,
+        oneTime: Boolean(c.oneTime),
+        completed: Boolean(c.completed),
+        history: Array.isArray(c.history) ? c.history.slice(0, 40).map((d) => String(d).slice(0, 40)) : undefined
       }));
   }
 

@@ -215,14 +215,15 @@ async function listChallenges(req) {
   return readGuest(req).challenges || [];
 }
 
-async function addChallenge(req, challenge) {
+async function addChallenge(req, challenge, opts = {}) {
+  const oneTime = Boolean(opts.oneTime);
   if (req.isAuthenticated && req.isAuthenticated()) {
-    req.user.challenges.push({ challenge, currentStreak: 0, maxStreak: 0 });
+    req.user.challenges.push({ challenge, currentStreak: 0, maxStreak: 0, oneTime, completed: false });
     await req.user.save();
     return req.user.challenges;
   }
   const guest = readGuest(req);
-  guest.challenges.push({ challenge, currentStreak: 0, maxStreak: 0 });
+  guest.challenges.push({ challenge, currentStreak: 0, maxStreak: 0, oneTime, completed: false });
   writeGuest(req, res_of(req), guest);
   return guest.challenges;
 }
@@ -275,12 +276,30 @@ function mergeChallengeHistory(challenge, completed, dateKey) {
 // `historyDate` (ISO YYYY-MM-DD, optional) records the completion on the
 // challenge itself, so the stats page can plot actual days later without
 // having to infer them from a streak number.
-async function applyStreakUpdate(req, { completedIds, lastUpdated, historyDate }) {
-  const ids = completedIds.map(String);
+async function applyStreakUpdate(req, { completedIds, lastUpdated, historyDate, reopenId }) {
+  const ids = (completedIds || []).map(String);
+  const reopen = reopenId ? String(reopenId) : null;
 
   if (req.isAuthenticated && req.isAuthenticated()) {
     for (const challenge of req.user.challenges) {
-      const done = ids.includes(String(challenge._id));
+      const cid = String(challenge._id);
+      if (challenge.oneTime) {
+        if (reopen && reopen === cid) {
+          challenge.completed = false;
+          challenge.lastUpdated = lastUpdated;
+          mergeChallengeHistory(challenge, false, historyDate);
+          continue;
+        }
+        if (ids.includes(cid)) {
+          challenge.completed = true;
+          challenge.lastUpdated = lastUpdated;
+          mergeChallengeHistory(challenge, true, historyDate);
+        }
+        challenge.currentStreak = 0;
+        challenge.maxStreak = 0;
+        continue;
+      }
+      const done = ids.includes(cid);
       if (done) {
         challenge.currentStreak = (challenge.currentStreak || 0) + 1;
         if (challenge.currentStreak > (challenge.maxStreak || 0)) {
@@ -298,7 +317,24 @@ async function applyStreakUpdate(req, { completedIds, lastUpdated, historyDate }
 
   const guest = readGuest(req);
   for (const challenge of guest.challenges) {
-    const done = ids.includes(String(challenge._id));
+    const cid = String(challenge._id);
+    if (challenge.oneTime) {
+      if (reopen && reopen === cid) {
+        challenge.completed = false;
+        challenge.lastUpdated = lastUpdated;
+        mergeChallengeHistory(challenge, false, historyDate);
+        continue;
+      }
+      if (ids.includes(cid)) {
+        challenge.completed = true;
+        challenge.lastUpdated = lastUpdated;
+        mergeChallengeHistory(challenge, true, historyDate);
+      }
+      challenge.currentStreak = 0;
+      challenge.maxStreak = 0;
+      continue;
+    }
+    const done = ids.includes(cid);
     if (done) {
       challenge.currentStreak = (challenge.currentStreak || 0) + 1;
       if (challenge.currentStreak > (challenge.maxStreak || 0)) {
@@ -313,7 +349,6 @@ async function applyStreakUpdate(req, { completedIds, lastUpdated, historyDate }
   writeGuest(req, res_of(req), guest);
   return guest.challenges;
 }
-
 // --- Charity ---------------------------------------------------------------
 //
 // A charity has a recurring target and a list of dated donations. The target

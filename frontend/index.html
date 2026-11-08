@@ -7,7 +7,7 @@
     <meta name="description" content="Hasanath helps you track salah, read Qur'an, and build daily good deeds." />
     <meta name="application-name" content="Hasanath" />
     <meta name="apple-mobile-web-app-title" content="Hasanath" />
-    <meta name="theme-color" content="#0d9488" />
+    <meta name="theme-color" content="#092b27" />
     <!-- The app logo as the favicon so the browser tab wears the same teal
          mosque mark as the sidebar. SVG keeps it crisp at every size. -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -183,9 +183,25 @@
       #boot-loader circle { fill: none; stroke-width: 6; stroke-linecap: round; }
       #boot-loader .track { stroke: #e2e8f0; }
       #boot-loader .fill {
-        stroke: #0d9488;
+        /* Follows the accent palette once the app stylesheet is in. Before
+           that the fallback keeps the loader green, exactly as it shipped. */
+        stroke: var(--accent-1, #0d9488);
         animation: boot-fill 1.1s linear infinite;
       }
+      /* The bundle's stylesheet cannot style the first paint, so the palette's
+         leading stop is repeated here for each accent. Values match the
+         --accent-1 stops (light first, dark pair after). */
+      [data-accent="blue"] #boot-loader .fill { stroke: #2563eb; }
+      [data-accent="violet"] #boot-loader .fill { stroke: #7c3aed; }
+      [data-accent="gold"] #boot-loader .fill { stroke: #b45309; }
+      [data-accent="rose"] #boot-loader .fill { stroke: #be123c; }
+      [data-accent="ocean"] #boot-loader .fill { stroke: #0e7490; }
+      [data-theme="dark"] #boot-loader .fill { stroke: #2dd4bf; }
+      [data-theme="dark"][data-accent="blue"] #boot-loader .fill { stroke: #60a5fa; }
+      [data-theme="dark"][data-accent="violet"] #boot-loader .fill { stroke: #a78bfa; }
+      [data-theme="dark"][data-accent="gold"] #boot-loader .fill { stroke: #fbbf24; }
+      [data-theme="dark"][data-accent="rose"] #boot-loader .fill { stroke: #fb7185; }
+      [data-theme="dark"][data-accent="ocean"] #boot-loader .fill { stroke: #22d3ee; }
       #boot-loader .logo {
         /* The brand glyph is an SVG, not an icon-font ligature: the loader is
            the first thing painted, and it must not wait for (or depend on) a

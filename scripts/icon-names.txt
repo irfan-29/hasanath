@@ -85,3 +85,5 @@ trending_up
 verified
 videocam
 volunteer_activism
+undo
+expand_less

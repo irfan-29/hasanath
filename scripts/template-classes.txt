@@ -154,6 +154,12 @@ nav-user-name
 new-task
 option-item
 option-item-custom
+edition-row
+edition-row-author
+edition-row-main
+edition-row-preview
+edition-lang-preview
+help-text
 options-list
 p-2
 page-header

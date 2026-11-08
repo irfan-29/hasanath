@@ -44,7 +44,11 @@ const challengeSchema = new mongoose.Schema({
     // ISO dates the challenge was checked in on. Streak counts are enough for
     // the tracker list, but the stats report needs actual days to plot, so
     // every future check-in records its date here.
-    history: [String]
+    history: [String],
+    // A one-time task is a single checkbox, not a streak. When completed it
+    // leaves the active list and sits under Completed on the challenges page.
+    oneTime: { type: Boolean, default: false },
+    completed: { type: Boolean, default: false }
 }, { _id: true });
 
 const settingsSchema = new mongoose.Schema({

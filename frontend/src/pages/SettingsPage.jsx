@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, settings as settingsApi } from '../services/api';
 import { useSession } from '../hooks/useSession.jsx';
 import { useToast } from '../components/ToastProvider';
@@ -38,6 +38,114 @@ const APP_ACCENTS = [
   { value: 'rose', label: 'Rose · Black', from: '#be123c', to: '#fb7185', chrome: '#12050a' },
   { value: 'ocean', label: 'Ocean', from: '#0e7490', to: '#22d3ee', chrome: '#041016' },
 ];
+
+// Native-script names shown at the right of edition rows so a language is
+// recognisable even if the English label is not. Keys match the Quran API
+// `language` field exactly.
+const LANGUAGE_PREVIEW = {
+  Achinese: 'Bahsa Acèh',
+  Afar: 'Qafaraf',
+  Afrikaans: 'Afrikaans',
+  Albanian: 'Shqip',
+  Amharic: 'አማርኛ',
+  Arabic: 'العربية',
+  Assamese: 'অসমীয়া',
+  Azerbaijani: 'Azərbaycan',
+  Bambara: 'Bamanankan',
+  Bengali: 'বাংলা',
+  Berber: 'Tamaziɣt',
+  Bosnian: 'Bosanski',
+  Bulgarian: 'Български',
+  Burmese: 'မြန်မာ',
+  Catalan: 'Català',
+  Chichewa: 'Chichewa',
+  'Chinese(simplified)': '简体中文',
+  'Chinese(traditional)': '繁體中文',
+  Croatian: 'Hrvatski',
+  Czech: 'Čeština',
+  Dagbani: 'Dagbanli',
+  Danish: 'Dansk',
+  Dari: 'دری',
+  Divehi: 'ދިވެހި',
+  Dutch: 'Nederlands',
+  English: 'English',
+  Esperanto: 'Esperanto',
+  Filipino: 'Filipino',
+  Finnish: 'Suomi',
+  French: 'Français',
+  Fulah: 'Pulaar',
+  Ganda: 'Luganda',
+  German: 'Deutsch',
+  Gujarati: 'ગુજરાતી',
+  Hausa: 'Hausa',
+  Hebrew: 'עברית',
+  Hindi: 'हिन्दी',
+  Hungarian: 'Magyar',
+  Indonesian: 'Bahasa Indonesia',
+  Iranun: 'Iranun',
+  Italian: 'Italiano',
+  Japanese: '日本語',
+  Javanese: 'Basa Jawa',
+  Kannada: 'ಕನ್ನಡ',
+  Kazakh: 'Қазақша',
+  Kendayan: 'Kendayan',
+  Khmer: 'ខ្មែរ',
+  Kinyarwanda: 'Ikinyarwanda',
+  Kirghiz: 'Кыргызча',
+  Korean: '한국어',
+  Kurdish: 'کوردی',
+  Kurmanji: 'Kurmancî',
+  Latin: 'Latina',
+  Lingala: 'Lingála',
+  Luyia: 'Luhya',
+  Macedonian: 'Македонски',
+  Malay: 'Bahasa Melayu',
+  Malayalam: 'മലയാളം',
+  Maltese: 'Malti',
+  Maranao: 'Meranaw',
+  Marathi: 'मराठी',
+  Nepali: 'नेपाली',
+  Norwegian: 'Norsk',
+  Oromo: 'Afaan Oromoo',
+  Panjabi: 'ਪੰਜਾਬੀ',
+  Persian: 'فارسی',
+  Polish: 'Polski',
+  Portuguese: 'Português',
+  Pushto: 'پښتو',
+  Romanian: 'Română',
+  Rundi: 'Ikirundi',
+  Russian: 'Русский',
+  Serbian: 'Српски',
+  Shona: 'ChiShona',
+  Sindhi: 'سنڌي',
+  Sinhala: 'සිංහල',
+  Slovak: 'Slovenčina',
+  Somali: 'Soomaali',
+  Sotho: 'Sesotho',
+  Spanish: 'Español',
+  Swahili: 'Kiswahili',
+  Swedish: 'Svenska',
+  Tajik: 'Тоҷикӣ',
+  Tamil: 'தமிழ்',
+  Tatar: 'Татарча',
+  Telugu: 'తెలుగు',
+  Thai: 'ไทย',
+  Turkish: 'Türkçe',
+  Twi: 'Twi',
+  Uighur: 'ئۇيغۇرچە',
+  Ukrainian: 'Українська',
+  Urdu: 'اردو',
+  Uzbek: 'Oʻzbekcha',
+  Vietnamese: 'Tiếng Việt',
+  Xhosa: 'isiXhosa',
+  Yau: 'Yau',
+  Yoruba: 'Yorùbá',
+  Zulu: 'isiZulu',
+};
+
+const RTL_LANGUAGES = new Set([
+  'Arabic', 'Dari', 'Divehi', 'Hebrew', 'Kurdish', 'Persian', 'Pushto', 'Sindhi', 'Uighur', 'Urdu',
+]);
 
 // Text-size picker built to match the reader's "Go to Ayah" navigator
 // (`.ayah-jump`): one slider, a caption, the saved value and a Set button.
@@ -169,6 +277,11 @@ export default function SettingsPage() {
   const [tgError, setTgError] = useState('');
   const [setupCode, setSetupCode] = useState('');
   const [busy, setBusy] = useState('');
+  const [editionPreviews, setEditionPreviews] = useState({});
+  // Mirror of editionPreviews for the loader loop below: it asks for the rows
+  // that are not in here yet, and state alone would be a stale snapshot by the
+  // time a later chunk comes back.
+  const editionPreviewsRef = useRef({});
 
   useEffect(() => {
     let cancelled = false;
@@ -196,46 +309,92 @@ export default function SettingsPage() {
     if (data && data.settings.theme) setTheme(data.settings.theme);
   }, [data, setTheme]);
 
-  // Editions are no longer in the settings payload - they are fetched when the
-  // dropdown opens, and searched on the server. The whole catalogue is 98
-  // languages and ~32KB, which was most of the settings response.
+  // Editions stay off the settings payload (~32KB). The full language list is
+  // loaded the first time the dropdown opens so every language is visible,
+  // then filtered locally as the user types.
   const [editionOpen, setEditionOpen] = useState(false);
-  const [editionRows, setEditionRows] = useState([]);
-
-  const loadEditions = useCallback(async (params) => {
-    try {
-      const query = params ? `?${params}` : '';
-      const result = await api.get(`/editions${query}`);
-      setEditionRows(result.editions || []);
-    } catch (err) {
-      setEditionRows([]);
-    }
-  }, []);
-
-  // Open: show one language, not 98 collapsed groups. The first language
-  // alphabetically is "Achinese" with a single edition, so the default is the
-  // language the user already has selected, falling back to English.
-  const defaultEditionLanguage = useMemo(() => {
-    const fromSelection = editions
-      .map((e) => String(e).split(':')[1])
-      .find(Boolean);
-    if (fromSelection) return fromSelection;
-    if (primary) { const p = String(primary).split(':')[1]; if (p) return p; }
-    return 'English';
-  }, [editions, primary]);
+  const [editionGroups, setEditionGroups] = useState(null);
+  const [editionLoading, setEditionLoading] = useState(false);
 
   useEffect(() => {
-    if (!editionOpen) return;
-    loadEditions(`lang=${encodeURIComponent(defaultEditionLanguage)}`);
-  }, [editionOpen, defaultEditionLanguage, loadEditions]);
+    if (!editionOpen || editionGroups) return undefined;
+    let cancelled = false;
+    setEditionLoading(true);
+    api.get('/editions')
+      .then((result) => {
+        if (cancelled) return;
+        // Previews memoised on the server ride along with the list, so a
+        // second visit to the picker needs no preview requests at all.
+        if (result.previews) mergeEditionPreviews(result.previews);
+        setEditionGroups(result.groups || {});
+      })
+      .catch(() => {
+        if (!cancelled) setEditionGroups({});
+      })
+      .finally(() => {
+        if (!cancelled) setEditionLoading(false);
+      });
+    return () => { cancelled = true };
+  }, [editionOpen, editionGroups]);
 
-  // Search: debounced so typing does not fire a request per keystroke.
+
+  // Previews load behind the list rather than in front of it: the rows draw as
+  // soon as /editions answers, then each chunk of first-ayah text slots in as
+  // it arrives. The request is one batched server call per chunk instead of one
+  // browser call per edition to jsdelivr.
+  const visibleEditionGroups = useMemo(() => {
+    if (!editionGroups) return [];
+    const q = editionSearch.trim().toLowerCase();
+    return Object.keys(editionGroups).sort((a, b) => a.localeCompare(b)).map((lang) => {
+      const rows = editionGroups[lang] || [];
+      if (!q) return { lang, rows };
+      const preview = (LANGUAGE_PREVIEW[lang] || '').toLowerCase();
+      const langHit = lang.toLowerCase().includes(q) || preview.includes(q);
+      const filtered = langHit
+        ? rows
+        : rows.filter((e) => `${e.author || ''} ${e.name || ''}`.toLowerCase().includes(q));
+      return { lang, rows: filtered };
+    }).filter((g) => g.rows.length > 0);
+  }, [editionGroups, editionSearch]);
+
   useEffect(() => {
-    const q = editionSearch.trim();
-    if (!editionOpen || !q) return undefined;
-    const timer = setTimeout(() => loadEditions(`q=${encodeURIComponent(q)}`), 250);
-    return () => clearTimeout(timer);
-  }, [editionSearch, editionOpen, loadEditions]);
+    if (!editionOpen || !editionGroups) return undefined;
+    let cancelled = false;
+
+    // Only what is on screen right now: a search for one language should not
+    // spend requests on the other 97.
+    const pending = visibleEditionGroups
+      .flatMap(({ rows }) => rows.map((e) => e.name))
+      .filter((name) => !(name in editionPreviewsRef.current));
+    if (!pending.length) return undefined;
+
+    const chunks = [];
+    for (let i = 0; i < pending.length; i += 25) chunks.push(pending.slice(i, i + 25));
+
+    // Three streams over the chunks, in order: the rows at the top of the list
+    // get their preview first, and the tail fills in three times faster than a
+    // single sequential pass. Each stream still sends one request at a time.
+    let cursor = 0;
+    const pull = async () => {
+      while (!cancelled && cursor < chunks.length) {
+        const chunk = chunks[cursor++];
+        const query = chunk.map((name) => encodeURIComponent(name)).join(',');
+        let previews = {};
+        try {
+          const result = await api.get(`/editions/previews?names=${query}`);
+          previews = result.previews || {};
+        } catch {
+          // Mark the chunk as answered so a failure does not loop forever; the
+          // rows simply keep the author name alone.
+        }
+        if (cancelled) return;
+        mergeEditionPreviews(Object.fromEntries(chunk.map((name) => [name, previews[name] || ''])));
+      }
+    };
+    for (let i = 0; i < Math.min(3, chunks.length); i += 1) pull();
+
+    return () => { cancelled = true };
+  }, [editionOpen, editionGroups, visibleEditionGroups]);
 
   if (loadError) {
     return <><div className="page-header"><h1>Settings</h1></div>
@@ -262,6 +421,11 @@ export default function SettingsPage() {
     } finally {
       setBusy('');
     }
+  }
+
+  function mergeEditionPreviews(patch) {
+    editionPreviewsRef.current = { ...editionPreviewsRef.current, ...patch };
+    setEditionPreviews(editionPreviewsRef.current);
   }
 
   function toggleEdition(value, on) {
@@ -469,7 +633,7 @@ export default function SettingsPage() {
         }}
         renderLabel={(v) => (data.reciters || []).find((r) => r.id === v)?.name || 'Choose a reciter'} />
 
-      {/* Editions - fetched on demand. See loadEditions above. */}
+      {/* Editions - fetched on demand when the dropdown opens. */}
       <div className="form-section-title">Translation Editions</div>
       <div className="custom-select-wrapper">
         <div className="custom-selector form-control d-flex flex-wrap align-items-center gap-2"
@@ -500,32 +664,27 @@ export default function SettingsPage() {
             <input type="text" className="dropdown-search-custom" placeholder="Search language or author..."
                    value={editionSearch} onChange={(e) => setEditionSearch(e.target.value)} />
             <div id="editionOptions">
-              {editionSearch.trim() ? (
-                <div className="language-group">
-                  <div className="p-2 bg-light small text-muted language-label">
-                    {editionRows.length} match{editionRows.length === 1 ? '' : 'es'}
-                  </div>
-                  {editionRows.map((e) => (
-                    <EditionRow key={`${e.language}-${e.name}`} e={e} language={e.language}
-                                selected={editions} onToggle={toggleEdition} />
-                  ))}
-                </div>
-              ) : (
-                <div className="language-group">
-                  <div className="p-2 bg-light small text-muted language-label">
-                    {defaultEditionLanguage}
-                  </div>
-                  {editionRows.map((e) => (
-                    <EditionRow key={e.name} e={e} language={defaultEditionLanguage}
-                                selected={editions} onToggle={toggleEdition} />
-                  ))}
-                  <div className="p-2 small text-muted" style={{ borderTop: '1px solid var(--color-border-light)' }}>
-                    {editionRows.length === 0
-                      ? 'No editions listed for this language - search above for another.'
-                      : `${editionRows.length} in this language. Search above to reach the other ${Math.max(0, (data.editionLanguages?.length || 1) - 1)}.`}
-                  </div>
+              {editionLoading && (
+                <div className="p-2 small text-muted">Loading all languages…</div>
+              )}
+              {!editionLoading && visibleEditionGroups.length === 0 && (
+                <div className="p-2 small text-muted">
+                  {editionSearch.trim() ? 'No editions match that search.' : 'Could not load editions.'}
                 </div>
               )}
+              {visibleEditionGroups.map(({ lang, rows }) => (
+                <div key={lang} className="language-group">
+                  <div className="language-label">
+                    <span>{lang}</span>
+                    <LanguagePreview language={lang} />
+                  </div>
+                  {rows.map((e) => (
+                    <EditionRow key={`${lang}-${e.name}`} e={e} language={lang}
+                                preview={editionPreviews[e.name] || ''}
+                                selected={editions} onToggle={toggleEdition} />
+                  ))}
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -680,15 +839,35 @@ export default function SettingsPage() {
   );
 }
 
-function EditionRow({ e, language, selected, onToggle }) {
+function LanguagePreview({ language }) {
+  const preview = LANGUAGE_PREVIEW[language];
+  if (!preview) return null;
+  return (
+    <span
+      className="edition-lang-preview"
+      dir={RTL_LANGUAGES.has(language) ? 'rtl' : 'ltr'}
+    >
+      {preview}
+    </span>
+  );
+}
+
+function EditionRow({ e, language, preview, selected, onToggle }) {
   // Same combined "id:language:author" shape the rest of the app stores, so
   // getFavoriteEditions and the reader keep working unchanged.
   const value = `${e.name}:${language}:${e.author}`;
   const on = selected.includes(value);
   return (
-    <div className={`option-item-custom option-item${on ? ' selected' : ''}`}
-         onClick={() => onToggle(value, on)}>
-      {e.author}
+    <div className={`option-item-custom option-item${on ? ' selected' : ''} edition-row`}
+         onClick={() => onToggle(value, on)}
+         role="option"
+         aria-selected={on}>
+      <strong className="edition-row-author">{e.author}</strong>
+      {preview && (
+        <span className="edition-row-preview" dir={e.direction === 'rtl' ? 'rtl' : 'ltr'}>
+          {preview}
+        </span>
+      )}
     </div>
   );
 }

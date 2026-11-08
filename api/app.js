@@ -561,9 +561,86 @@ function groupEditionsByLanguage(editionsJson) {
         const edition = editionsJson[key];
         const lang = edition.language || "Unknown";
         if (!grouped[lang]) grouped[lang] = [];
-        grouped[lang].push({ name: edition.name, author: edition.author });
+        grouped[lang].push({
+            name: edition.name,
+            author: edition.author,
+            // Upstream tells us the script direction per edition; the picker
+            // needs it to render Urdu/Arabic/Hebrew previews the right way.
+            direction: edition.direction === "rtl" ? "rtl" : "ltr"
+        });
     }
     return grouped;
+}
+
+// Preview line for one translation edition: the first ayah of Al-Fatihah, so a
+// reader can tell 492 similarly named editions apart before adding one.
+//
+// Never fetched in one blocking pass - the picker asks for the rows it is about
+// to draw, in chunks. Successful reads are memoised for the life of the isolate
+// because the upstream file is immutable; a miss is retried after a while so a
+// single network blip does not hide a preview for the whole session.
+const EDITION_PREVIEW_CHARS = 160;
+const EDITION_PREVIEW_MISS_TTL = 10 * 60 * 1000;
+const editionPreviews = new Map();
+
+function cachedEditionPreview(name) {
+    const entry = editionPreviews.get(name);
+    if (!entry) return null;
+    if (entry.text) return entry.text;
+    return Date.now() - entry.at < EDITION_PREVIEW_MISS_TTL ? "" : null;
+}
+
+async function loadEditionPreview(name) {
+    const cached = cachedEditionPreview(name);
+    if (cached !== null) return cached;
+
+    let text = "";
+    try {
+        const response = await fetch(
+            `https://cdn.jsdelivr.net/gh/fawazahmed0/quran-api@1/editions/${encodeURIComponent(name)}/1.json`
+        );
+        if (response.ok) {
+            const data = await response.json();
+            const verse = data && Array.isArray(data.chapter) ? data.chapter[0] : null;
+            if (verse && verse.text) {
+                text = String(verse.text).replace(/\s+/g, " ").trim().slice(0, EDITION_PREVIEW_CHARS);
+            }
+        }
+    } catch (err) {
+        // A missing preview must never break the picker - the row just keeps
+        // its author name alone.
+    }
+    editionPreviews.set(name, { text, at: Date.now() });
+    return text;
+}
+
+// Fills the memo in the background so the *second* visit to the picker is
+// instant. One pass per isolate: the whole catalogue is ~492 small immutable
+// files, so this is a one-off, not a loop.
+let previewWarmup = null;
+function warmEditionPreviews(names) {
+    if (previewWarmup) return previewWarmup;
+    const missing = names.filter((name) => cachedEditionPreview(name) === null);
+    if (!missing.length) return Promise.resolve();
+    previewWarmup = mapWithConcurrency(missing, 6, loadEditionPreview)
+        .catch(() => {})
+        .finally(() => { previewWarmup = null; });
+    return previewWarmup;
+}
+
+// Small worker pool: the picker can ask for 40 editions at once and jsdelivr
+// happily serves that, but not 400 of them in parallel from one isolate.
+async function mapWithConcurrency(items, limit, worker) {
+    const results = new Array(items.length);
+    let next = 0;
+    const runners = new Array(Math.min(limit, items.length)).fill(0).map(async () => {
+        while (next < items.length) {
+            const index = next++;
+            results[index] = await worker(items[index], index);
+        }
+    });
+    await Promise.all(runners);
+    return results;
 }
 
 // Option catalogues for the settings page. Hoisted out of the route so the EJS
@@ -1296,10 +1373,7 @@ app.post("/api/challenges", requireLogin, async function(req, res){
     const challenge = String(req.body.challenge || "").trim();
     if (!challenge) return res.status(400).json({ error: "invalid" });
     try {
-        // addChallenge expects the name itself. Passing the whole body object
-        // made Mongoose try to cast `{ challenge: ... }` to a string, which
-        // returned 500 from the Add new challenge button.
-        const challenges = await userData.addChallenge(req, challenge);
+        const challenges = await userData.addChallenge(req, challenge, { oneTime: Boolean(req.body.oneTime) });
         res.status(201).json({ challenges });
     } catch (err) {
         console.error("api/challenges POST:", err.message);
@@ -1325,9 +1399,8 @@ app.post("/api/challenges/streaks", requireLogin, async function(req, res){
         const allChallenges = await userData.applyStreakUpdate(req, {
             completedIds: completed,
             lastUpdated: formattedDate,
-            // ISO key, not the display label: the stats report needs an unambiguous
-            // day to plot, and the same-service helper stores exactly that.
-            historyDate: userData.normaliseSalahDate(req.body.date)
+            historyDate: userData.normaliseSalahDate(req.body.date),
+            reopenId: req.body.reopenId ? String(req.body.reopenId) : undefined
         });
         const updatedChallenges = allChallenges.map((c) => ({
             id: String(c._id),
@@ -2397,8 +2470,8 @@ app.get("/api/calendar", async function(req, res){
 });
 
 // Editions catalogue, fetched on demand rather than shipped with every settings
-// response. ?lang= returns one language, ?q= searches across all of them - which
-// is what the settings page does when the user types into the edition search.
+// response. No query returns the full grouped list; ?lang= returns one language;
+// ?q= searches across all of them.
 //
 // The upstream read is already cached, so this is cheap; what it avoids is
 // serialising 32KB on every settings load.
@@ -2422,13 +2495,51 @@ app.get("/api/editions", async function(req, res){
                     if (`${e.author} ${language}`.toLowerCase().includes(q)) hits.push({ ...e, language });
                 }
             }
-            // Capped so a one-character search cannot return hundreds of rows.
             return res.json({ editions: hits.slice(0, 50), truncated: hits.length > 50 });
         }
 
-        res.json({ editions: [], languages: Object.keys(grouped).sort() });
+        // Whatever is already memoised ships with the list, so opening the
+        // picker a second time needs no preview requests at all.
+        const previews = {};
+        const allEditionNames = [];
+        for (const list of Object.values(grouped)) {
+            for (const edition of list) {
+                allEditionNames.push(edition.name);
+                const text = cachedEditionPreview(edition.name);
+                if (text) previews[edition.name] = text;
+            }
+        }
+
+        // Started, not awaited: the list answers immediately and the picker's
+        // own chunk requests still take priority for anything on screen.
+        warmEditionPreviews(allEditionNames);
+
+        res.json({ groups: grouped, languages: Object.keys(grouped).sort(), previews });
     } catch (err) {
         console.error("api/editions:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+// Batch of first-ayah previews: ?names=a,b,c. The picker calls this as it
+// renders rows, so the list is usable immediately and previews fill in behind
+// it instead of holding the whole dropdown on 492 upstream reads.
+app.get("/api/editions/previews", async function(req, res){
+    const names = [...new Set(
+        String(req.query.names || req.query.name || "")
+            .split(",")
+            .map((n) => n.trim())
+            .filter(Boolean)
+    )].slice(0, 40);
+    if (!names.length) return res.status(400).json({ error: "invalid" });
+
+    try {
+        const texts = await mapWithConcurrency(names, 10, loadEditionPreview);
+        const previews = {};
+        names.forEach((name, index) => { previews[name] = texts[index]; });
+        res.json({ previews });
+    } catch (err) {
+        console.error("api/editions/previews:", err.message);
         res.status(500).json({ error: "failed" });
     }
 });

@@ -25,6 +25,24 @@ const NAV_LINKS = [
   { href: '#community', label: 'Community' },
 ];
 
+// Same six ids and names the Settings picker uses. The swatch is split
+// diagonally - the accent gradient on one half, that palette's chrome on the
+// other - so the round button and the menu preview both colours before the
+// visitor chooses. Kept local because this is the only place outside Settings
+// that needs the labels.
+const ACCENT_OPTIONS = [
+  { value: 'green', label: 'Emerald', from: '#0f766e', to: '#2dd4bf', chrome: '#092b27' },
+  { value: 'blue', label: 'Blue · Black', from: '#2563eb', to: '#60a5fa', chrome: '#05080f' },
+  { value: 'violet', label: 'Violet · Black', from: '#7c3aed', to: '#a78bfa', chrome: '#08050f' },
+  { value: 'gold', label: 'Gold', from: '#b45309', to: '#fbbf24', chrome: '#171006' },
+  { value: 'rose', label: 'Rose · Black', from: '#be123c', to: '#fb7185', chrome: '#12050a' },
+  { value: 'ocean', label: 'Ocean', from: '#0e7490', to: '#22d3ee', chrome: '#041016' },
+];
+
+function accentSwatch(option) {
+  return `linear-gradient(135deg, ${option.from} 0 46%, ${option.chrome} 46% 100%)`;
+}
+
 const FEATURES = [
   {
     id: 'salah',
@@ -264,7 +282,7 @@ const PREVIEWS = {
 };
 
 export default function LandingPage() {
-  const { homePath, setTheme, theme } = useSession();
+  const { homePath, setTheme, theme, accent, setAccent } = useSession();
   const appHref = homePath || '/quran';
 
   // The salah card is a real little demo, not a screenshot: tapping a prayer
@@ -272,13 +290,20 @@ export default function LandingPage() {
   const [done, setDone] = useState([true, true, true, false, false]);
   const [activeFeature, setActiveFeature] = useState('salah');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [accentOpen, setAccentOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [ayah, setAyah] = useState(FALLBACK_AYAH);
   const [liveAyah, setLiveAyah] = useState(false);
   const [dark, setDark] = useState(
     () => document.documentElement.getAttribute('data-theme') === 'dark'
   );
+  const [selectedAccent, setSelectedAccent] = useState(
+    () => document.documentElement.getAttribute('data-accent') || 'green'
+  );
   const artRef = useRef(null);
+  const accentRef = useRef(null);
+
+  const currentAccent = ACCENT_OPTIONS.find((option) => option.value === selectedAccent) || ACCENT_OPTIONS[0];
 
   const doneCount = done.filter(Boolean).length;
   const active = FEATURES.find((feature) => feature.id === activeFeature) || FEATURES[0];
@@ -289,6 +314,32 @@ export default function LandingPage() {
   useEffect(() => {
     if (theme === 'dark' || theme === 'light') setDark(theme === 'dark');
   }, [theme]);
+
+  // Same idea for the accent: the session value wins once it is known, and
+  // falling back to the attribute covers the first paint before meta arrives.
+  useEffect(() => {
+    if (typeof accent === 'string' && ACCENT_OPTIONS.some((option) => option.value === accent)) {
+      setSelectedAccent(accent);
+    }
+  }, [accent]);
+
+  useEffect(() => {
+    if (!accentOpen) return undefined;
+    const onKey = (event) => {
+      if (event.key === 'Escape') setAccentOpen(false);
+    };
+    const onPointerDown = (event) => {
+      if (accentRef.current && !accentRef.current.contains(event.target)) {
+        setAccentOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [accentOpen]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -384,6 +435,15 @@ export default function LandingPage() {
     api.post('/settings', { theme: next }).catch(() => {});
   }
 
+  function chooseAccent(value) {
+    setSelectedAccent(value);
+    setAccent(value);
+    setAccentOpen(false);
+    // Same guest-store write as the theme toggle, so the palette survives a
+    // reload before the visitor has an account.
+    api.post('/settings', { accent: value }).catch(() => {});
+  }
+
   function handleTabKey(event) {
     if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
     event.preventDefault();
@@ -426,6 +486,49 @@ export default function LandingPage() {
           </nav>
 
           <div className="landing-nav-actions">
+            <div className="landing-accent" ref={accentRef}>
+              <button
+                type="button"
+                className="landing-accent-btn"
+                onClick={() => setAccentOpen((open) => !open)}
+                aria-haspopup="menu"
+                aria-expanded={accentOpen}
+                aria-label={`Accent colour: ${currentAccent.label}`}
+                title={`Accent colour: ${currentAccent.label}`}
+              >
+                <span
+                  className="landing-accent-dot"
+                  style={{ '--swatch': accentSwatch(currentAccent) }}
+                  aria-hidden="true"
+                />
+              </button>
+              {accentOpen && (
+                <div className="landing-accent-menu" role="menu" aria-label="Accent colour">
+                  {ACCENT_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={option.value === selectedAccent}
+                      className={`landing-accent-option${option.value === selectedAccent ? ' is-active' : ''}`}
+                      onClick={() => chooseAccent(option.value)}
+                    >
+                      <span
+                        className="landing-accent-swatch"
+                        style={{ '--swatch': accentSwatch(option) }}
+                        aria-hidden="true"
+                      />
+                      <span className="landing-accent-name">{option.label}</span>
+                      {option.value === selectedAccent && (
+                        <span className="material-symbols-rounded landing-accent-check" aria-hidden="true">
+                          check
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button
               type="button"
               className="landing-theme"

@@ -94,12 +94,42 @@ html {
   --accent-brightest: #99f6e4;
   --accent-rgb: 13 148 136;
 
+  /* Fill stops stay at the saturated light-theme values in both themes.
+     The dark theme lifts --accent-1/2/3 so links and icons stay readable on
+     a near-black page; reusing those lifted values for filled surfaces put
+     white text on pastel. Anything that paints a button, logo, avatar or CTA
+     panel reads these instead, so dark mode keeps the light-mode shading.
+     Each palette re-points them below and the dark blocks deliberately do
+     not override them. */
+  --accent-fill-1: #0d9488;
+  --accent-fill-2: #14b8a6;
+  --accent-fill-3: #0f766e;
+  --accent-fill-bright: #5eead4;
+
   /* Chrome: the sidebar, phone header, footer and audio dock. The light
      theme keeps a dark brand slab; the dark theme sinks it to near-black. */
   --accent-chrome: #092b27;
   --accent-chrome-rgb: 9 43 39;
   --accent-chrome-dark: #050a12;
   --accent-chrome-dark-rgb: 6 12 22;
+
+  /* Derived shades for the handful of surfaces whose colour is not one of
+     the five stops: landing-page deep text, the pale tint on the coloured
+     CTA panel, its hover wash, the lifted button hover, the tab pill's mid
+     stop, and the two dark dock gradients. Every palette re-points these
+     below, so no component rule has to name a colour. */
+  --accent-deep: #0b6b63;
+  --accent-pale: #c8fff5;
+  --accent-wash: #f4fffc;
+  --accent-hover-1: #17b7a8;
+  --accent-hover-2: #0d877c;
+  --accent-tab-mid: #0f9f8a;
+  --accent-dock-1: #0c302b;
+  --accent-dock-2: #082320;
+  --accent-dock-3: #04100f;
+  --accent-dock-menu-1: #0d302b;
+  --accent-dock-menu-2: #082320;
+  --accent-dock-menu-3: #051311;
 
   --color-primary: var(--accent-1);
   --color-primary-light: var(--accent-2);
@@ -223,10 +253,26 @@ html {
   --accent-bright: #60a5fa;
   --accent-brightest: #93c5fd;
   --accent-rgb: 37 99 235;
+  --accent-fill-1: #2563eb;
+  --accent-fill-2: #3b82f6;
+  --accent-fill-3: #1d4ed8;
+  --accent-fill-bright: #60a5fa;
   --accent-chrome: #05080f;
   --accent-chrome-rgb: 5 8 15;
   --accent-chrome-dark: #04070d;
   --accent-chrome-dark-rgb: 4 7 13;
+  --accent-deep: #1d4ed8;
+  --accent-pale: #dbeafe;
+  --accent-wash: #f5f8ff;
+  --accent-hover-1: #60a5fa;
+  --accent-hover-2: #3b82f6;
+  --accent-tab-mid: #2563eb;
+  --accent-dock-1: #0a172c;
+  --accent-dock-2: #061020;
+  --accent-dock-3: #030812;
+  --accent-dock-menu-1: #0b182e;
+  --accent-dock-menu-2: #061020;
+  --accent-dock-menu-3: #040a14;
 }
 
 [data-theme="dark"][data-accent="blue"] {
@@ -245,10 +291,26 @@ html {
   --accent-bright: #a78bfa;
   --accent-brightest: #c4b5fd;
   --accent-rgb: 124 58 237;
+  --accent-fill-1: #7c3aed;
+  --accent-fill-2: #8b5cf6;
+  --accent-fill-3: #6d28d9;
+  --accent-fill-bright: #a78bfa;
   --accent-chrome: #08050f;
   --accent-chrome-rgb: 8 5 15;
   --accent-chrome-dark: #07040d;
   --accent-chrome-dark-rgb: 7 4 13;
+  --accent-deep: #6d28d9;
+  --accent-pale: #ede9fe;
+  --accent-wash: #f8f5ff;
+  --accent-hover-1: #a78bfa;
+  --accent-hover-2: #8b5cf6;
+  --accent-tab-mid: #7c3aed;
+  --accent-dock-1: #140b28;
+  --accent-dock-2: #0c061a;
+  --accent-dock-3: #06030d;
+  --accent-dock-menu-1: #150c2a;
+  --accent-dock-menu-2: #0c061a;
+  --accent-dock-menu-3: #07040f;
 }
 
 [data-theme="dark"][data-accent="violet"] {
@@ -267,10 +329,26 @@ html {
   --accent-bright: #fbbf24;
   --accent-brightest: #fcd34d;
   --accent-rgb: 180 83 9;
+  --accent-fill-1: #b45309;
+  --accent-fill-2: #d97706;
+  --accent-fill-3: #92400e;
+  --accent-fill-bright: #fbbf24;
   --accent-chrome: #171006;
   --accent-chrome-rgb: 23 16 6;
   --accent-chrome-dark: #0f0a03;
   --accent-chrome-dark-rgb: 15 10 3;
+  --accent-deep: #92400e;
+  --accent-pale: #fef3c7;
+  --accent-wash: #fffaf0;
+  --accent-hover-1: #fbbf24;
+  --accent-hover-2: #d97706;
+  --accent-tab-mid: #b45309;
+  --accent-dock-1: #2a1d08;
+  --accent-dock-2: #1a1105;
+  --accent-dock-3: #0d0802;
+  --accent-dock-menu-1: #2b1e08;
+  --accent-dock-menu-2: #1a1105;
+  --accent-dock-menu-3: #0e0902;
 }
 
 [data-theme="dark"][data-accent="gold"] {
@@ -289,10 +367,26 @@ html {
   --accent-bright: #fb7185;
   --accent-brightest: #fda4af;
   --accent-rgb: 190 18 60;
+  --accent-fill-1: #be123c;
+  --accent-fill-2: #e11d48;
+  --accent-fill-3: #9f1239;
+  --accent-fill-bright: #fb7185;
   --accent-chrome: #12050a;
   --accent-chrome-rgb: 18 5 10;
   --accent-chrome-dark: #0d0407;
   --accent-chrome-dark-rgb: 13 4 7;
+  --accent-deep: #9f1239;
+  --accent-pale: #ffe4e6;
+  --accent-wash: #fff5f7;
+  --accent-hover-1: #fb7185;
+  --accent-hover-2: #e11d48;
+  --accent-tab-mid: #be123c;
+  --accent-dock-1: #260910;
+  --accent-dock-2: #170509;
+  --accent-dock-3: #0b0204;
+  --accent-dock-menu-1: #270a11;
+  --accent-dock-menu-2: #170509;
+  --accent-dock-menu-3: #0c0305;
 }
 
 [data-theme="dark"][data-accent="rose"] {
@@ -311,10 +405,26 @@ html {
   --accent-bright: #22d3ee;
   --accent-brightest: #a5f3fc;
   --accent-rgb: 14 116 144;
+  --accent-fill-1: #0e7490;
+  --accent-fill-2: #0891b2;
+  --accent-fill-3: #155e75;
+  --accent-fill-bright: #22d3ee;
   --accent-chrome: #041016;
   --accent-chrome-rgb: 4 16 22;
   --accent-chrome-dark: #030b10;
   --accent-chrome-dark-rgb: 3 11 16;
+  --accent-deep: #155e75;
+  --accent-pale: #cffafe;
+  --accent-wash: #f2fdff;
+  --accent-hover-1: #22d3ee;
+  --accent-hover-2: #0891b2;
+  --accent-tab-mid: #0e7490;
+  --accent-dock-1: #082430;
+  --accent-dock-2: #04151d;
+  --accent-dock-3: #020b0f;
+  --accent-dock-menu-1: #092531;
+  --accent-dock-menu-2: #04151d;
+  --accent-dock-menu-3: #030c10;
 }
 
 [data-theme="dark"][data-accent="ocean"] {
@@ -325,6 +435,9 @@ html {
   --accent-brightest: #cffafe;
   --accent-rgb: 34 211 238;
 }
+
+/* Dark mode keeps the palette's light-theme hover pair: a filled button
+   hover must stay saturated so its white label stays readable. */
 
 [data-theme="dark"] .table-striped tbody tr:nth-child(even) {
   background: #1a2332;
@@ -758,7 +871,7 @@ body:has(.global-audio-bar) .main-content {
 
 .btn-primary,
 .add.btn-primary {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  background: linear-gradient(135deg, var(--accent-fill-1), var(--accent-fill-2));
   color: white;
   box-shadow: 0 2px 8px rgb(var(--accent-rgb) / 0.3);
 }
@@ -2109,6 +2222,87 @@ body:has(.global-audio-bar) .main-content {
   font-size: 1.05rem;
 }
 
+/* Edition list in the settings dropdown, grouped by language. The header
+   follows the app's section-label pattern (nav-section-label): quiet, small,
+   uppercase English name on the left and the language's own name on the right
+   so the two never collide on narrow panels. */
+.language-group + .language-group {
+  margin-top: 0.35rem;
+  border-top: 1px solid var(--color-border-light);
+}
+
+.language-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem 0.375rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+}
+
+.language-label > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Native language name: its own script, so no uppercase and no tracking. */
+.edition-lang-preview {
+  flex: 0 0 auto;
+  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.edition-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  cursor: pointer;
+  padding: 0.55rem 1rem;
+  transition: background var(--transition), color var(--transition);
+  text-align: left;
+  font-size: 0.875rem;
+}
+
+.edition-row-author {
+  font-weight: 600;
+  color: var(--color-text);
+  flex: 0 0 auto;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* First ayah of Al-Fatihah for that edition, at the right end of the same line
+   as the author. One line with an ellipsis: the point is telling two editions
+   apart at a glance, not reading a whole translation. */
+.edition-row-preview {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.85;
+}
+
 .selected-highlight {
   background: var(--color-primary-glow) !important;
   color: var(--color-primary-dark) !important;
@@ -2119,11 +2313,16 @@ body:has(.global-audio-bar) .main-content {
   position: sticky;
   top: 0;
   z-index: 5;
+  width: 100%;
+  box-sizing: border-box;
   background: var(--color-surface);
   border: none;
   border-bottom: 1px solid var(--color-border-light);
   padding: 0.75rem 1rem;
   font-family: var(--font-sans);
+  font-size: 0.875rem;
+  color: var(--color-text);
+  outline: none;
 }
 
 .edition-pill {
@@ -2279,7 +2478,7 @@ body:has(.global-audio-bar) .main-content {
   border-radius: 22px;
   background:
     radial-gradient(circle at 6% 0%, rgb(var(--accent-rgb) / 0.12), transparent 42%),
-    linear-gradient(155deg, #0c302b 0%, #082320 55%, #04100f 100%);
+    linear-gradient(155deg, var(--accent-dock-1) 0%, var(--accent-dock-2) 55%, var(--accent-dock-3) 100%);
   color: #f2fffb;
   box-shadow:
     0 24px 52px -24px rgba(3, 22, 20, 0.6),
@@ -4057,7 +4256,7 @@ hr {
   --landing-line: rgba(16, 42, 40, 0.1);
   --landing-line-strong: rgba(16, 42, 40, 0.17);
   --landing-teal: var(--accent-1);
-  --landing-teal-deep: #0b6b63;
+  --landing-teal-deep: var(--accent-deep);
   --landing-teal-soft: rgb(var(--accent-rgb) / 0.1);
   --landing-gold: #f59e0b;
   --landing-gold-soft: rgba(245, 158, 11, 0.14);
@@ -4220,7 +4419,7 @@ hr {
   width: 38px;
   height: 38px;
   border-radius: 12px;
-  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
+  background: linear-gradient(135deg, var(--accent-fill-2), var(--accent-fill-3));
   color: #fff;
   font-size: 1.35rem;
   box-shadow: 0 10px 22px -10px rgb(var(--accent-rgb) / 0.75);
@@ -4262,6 +4461,114 @@ hr {
   display: flex;
   align-items: center;
   gap: 0.55rem;
+}
+
+/* Accent picker: a round split swatch immediately before the theme toggle.
+   The menu hangs below it and is capped so it never overflows narrow screens. */
+.landing-accent {
+  position: relative;
+  display: flex;
+}
+
+.landing-accent-btn {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--landing-line);
+  border-radius: 50%;
+  background: var(--landing-card);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.landing-accent-btn:hover,
+.landing-accent-btn[aria-expanded='true'] {
+  border-color: var(--landing-teal);
+  background: var(--landing-card-solid);
+  box-shadow: 0 8px 18px -12px rgb(var(--accent-rgb) / 0.8);
+}
+
+.landing-accent-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--swatch);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18);
+}
+
+.landing-accent-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  width: max-content;
+  min-width: 11.5rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.4rem;
+  border: 1px solid var(--landing-line);
+  border-radius: 16px;
+  background: var(--landing-card-solid);
+  box-shadow: var(--shadow-lg);
+  animation: landing-accent-in 0.16s ease-out;
+}
+
+.landing-accent-option {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.5rem 0.55rem;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--landing-body);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.landing-accent-option:hover,
+.landing-accent-option:focus-visible {
+  background: var(--landing-card);
+  color: var(--landing-ink);
+}
+
+.landing-accent-option.is-active { color: var(--landing-ink); }
+
+.landing-accent-swatch {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--swatch);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18);
+}
+
+.landing-accent-name {
+  flex: 1;
+  white-space: nowrap;
+}
+
+.landing-accent-check {
+  font-size: 1rem;
+  color: var(--landing-teal-deep);
+}
+
+@keyframes landing-accent-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-accent-menu { animation: none; }
 }
 
 .landing-theme,
@@ -4339,7 +4646,7 @@ hr {
 .landing .btn .material-symbols-rounded { font-size: 1.15rem; }
 
 .landing .btn-primary {
-  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
+  background: linear-gradient(135deg, var(--accent-fill-2), var(--accent-fill-3));
   color: #fff;
   box-shadow: 0 16px 30px -16px rgb(var(--accent-rgb) / 0.8);
 }
@@ -4734,7 +5041,7 @@ hr {
 }
 
 .landing-day.is-done {
-  background: var(--landing-teal);
+  background: var(--accent-fill-1);
   color: #fff;
 }
 
@@ -4759,7 +5066,7 @@ hr {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent-2), var(--accent-bright));
+  background: linear-gradient(135deg, var(--accent-fill-2), var(--accent-fill-bright));
   color: #fff;
   font-size: 0.78rem;
   font-weight: 800;
@@ -5516,7 +5823,7 @@ hr {
   overflow: hidden;
   padding: clamp(2.5rem, 6vw, 5rem);
   border-radius: 32px;
-  background: linear-gradient(135deg, var(--accent-3) 0%, var(--accent-1) 48%, var(--accent-3) 100%);
+  background: linear-gradient(135deg, var(--accent-fill-3) 0%, var(--accent-fill-1) 48%, var(--accent-fill-3) 100%);
   color: #f2fffb;
   text-align: center;
   box-shadow: 0 30px 70px -30px rgb(var(--accent-rgb) / 0.65);
@@ -5533,7 +5840,7 @@ hr {
 
 .landing-final > * { position: relative; }
 
-.landing-final .landing-kicker { color: #c8fff5; }
+.landing-final .landing-kicker { color: var(--accent-pale); }
 
 .landing-final-title {
   max-width: 880px;
@@ -5563,11 +5870,11 @@ hr {
 
 .landing .landing-final .btn-primary {
   background: #fff;
-  color: #0b6b63;
+  color: var(--accent-deep);
   box-shadow: 0 16px 30px -16px rgba(0, 0, 0, 0.5);
 }
 
-.landing .landing-final .btn-primary:hover { background: #f4fffc; }
+.landing .landing-final .btn-primary:hover { background: var(--accent-wash); }
 
 .landing .landing-final .btn-outline {
   border-color: rgba(255, 255, 255, 0.35);
@@ -5888,7 +6195,7 @@ body {
   width: 2.4rem;
   height: 2.4rem;
   border-radius: 0.8rem;
-  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
+  background: linear-gradient(135deg, var(--accent-fill-2), var(--accent-fill-3));
   box-shadow: 0 14px 30px -14px rgb(var(--accent-rgb) / 0.8);
 }
 
@@ -5980,7 +6287,7 @@ body {
 .nav-avatar {
   width: 1.65rem;
   height: 1.65rem;
-  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
+  background: linear-gradient(135deg, var(--accent-fill-2), var(--accent-fill-3));
   box-shadow: 0 8px 18px -10px rgb(var(--accent-rgb) / 0.8);
 }
 
@@ -6091,7 +6398,7 @@ body {
 
 .btn-primary,
 .add.btn-primary {
-  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
+  background: linear-gradient(135deg, var(--accent-fill-2), var(--accent-fill-3));
   color: #fff;
   border-color: transparent;
   box-shadow: 0 16px 30px -18px rgb(var(--accent-rgb) / 0.8);
@@ -6099,7 +6406,7 @@ body {
 
 .btn-primary:hover,
 .add.btn-primary:hover {
-  background: linear-gradient(135deg, #17b7a8, #0d877c);
+  background: linear-gradient(135deg, var(--accent-hover-1), var(--accent-hover-2));
   color: #fff;
   transform: translateY(-2px);
   box-shadow: 0 20px 38px -16px rgb(var(--accent-rgb) / 0.9);
@@ -6107,7 +6414,7 @@ body {
 
 [data-theme="dark"] .btn-primary,
 [data-theme="dark"] .add.btn-primary {
-  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
+  background: linear-gradient(135deg, var(--accent-fill-2), var(--accent-fill-3));
   color: #fff;
 }
 
@@ -6394,7 +6701,7 @@ body {
 
 .quran-tab.is-active .quran-tab-count {
   color: #fff;
-  background: var(--accent-3);
+  background: var(--accent-fill-3);
 }
 
 .surah-grid { gap: 1rem; }
@@ -6550,7 +6857,7 @@ body {
 
 .post-share[data-copied="true"] {
   color: #fff;
-  background: var(--accent-3);
+  background: var(--accent-fill-3);
   border-color: var(--accent-3);
 }
 
@@ -6567,7 +6874,7 @@ body {
 
 .profile-avatar,
 .account-avatar {
-  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
+  background: linear-gradient(135deg, var(--accent-fill-2), var(--accent-fill-3));
   color: #fff;
   box-shadow: 0 14px 30px -18px rgb(var(--accent-rgb) / 0.8);
 }
@@ -6640,7 +6947,7 @@ body {
   width: 58px;
   height: 58px;
   border-radius: 18px;
-  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
+  background: linear-gradient(135deg, var(--accent-fill-2), var(--accent-fill-3));
   box-shadow: 0 16px 32px -16px rgb(var(--accent-rgb) / 0.8);
 }
 
@@ -6710,7 +7017,7 @@ body {
 /* ---- Misc surfaces ---- */
 
 #myBtn {
-  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
+  background: linear-gradient(135deg, var(--accent-fill-2), var(--accent-fill-3));
   color: #fff;
   box-shadow: var(--shadow-lg);
 }
@@ -7584,7 +7891,7 @@ input[type="datetime-local"] { color-scheme: light; }
   margin-top: -7px;
   border: 3px solid var(--color-surface);
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
+  background: linear-gradient(135deg, var(--accent-fill-2), var(--accent-fill-3));
   box-shadow: 0 4px 14px rgb(var(--accent-rgb) / 0.45);
 }
 
@@ -7599,7 +7906,7 @@ input[type="datetime-local"] { color-scheme: light; }
   height: 16px;
   border: 3px solid var(--color-surface);
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
+  background: linear-gradient(135deg, var(--accent-fill-2), var(--accent-fill-3));
   box-shadow: 0 4px 14px rgb(var(--accent-rgb) / 0.45);
 }
 
@@ -9020,7 +9327,7 @@ select.form-control option,
   border-radius: 16px;
   background:
     radial-gradient(circle at 8% 0%, rgb(var(--accent-rgb) / 0.1), transparent 40%),
-    linear-gradient(155deg, #0d302b 0%, #082320 55%, #051311 100%);
+    linear-gradient(155deg, var(--accent-dock-menu-1) 0%, var(--accent-dock-menu-2) 55%, var(--accent-dock-menu-3) 100%);
   box-shadow:
     0 22px 46px -22px rgba(2, 12, 11, 0.6),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -9605,7 +9912,7 @@ body:has(.global-audio-bar) .main-content {
 .tabbar-center-btn:active { transform: translateY(1px); }
 
 .tabbar-center-btn.is-active {
-  background: linear-gradient(135deg, var(--accent-2), #0f9f8a 55%, #fbbf24 130%);
+  background: linear-gradient(135deg, var(--accent-fill-2), var(--accent-tab-mid) 55%, #fbbf24 130%);
   color: #fff;
 }
 
@@ -9703,7 +10010,7 @@ body:has(.tabbar-sheet) .tabbar {
 .tabbar-sheet-item .material-symbols-rounded { font-size: 1.35rem; }
 
 .tabbar-sheet-item.is-active .tabbar-sheet-tile {
-  background: linear-gradient(135deg, var(--accent-2), #0f9f8a 55%, #fbbf24 130%);
+  background: linear-gradient(135deg, var(--accent-fill-2), var(--accent-tab-mid) 55%, #fbbf24 130%);
   color: #fff;
 }
 
@@ -10917,7 +11224,7 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   height: 2rem;
   flex: 0 0 auto;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
+  background: linear-gradient(135deg, var(--accent-fill-2), var(--accent-fill-3));
   color: #fff;
   font-size: 0.82rem;
   font-weight: 800;
@@ -11673,7 +11980,7 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   flex: 0 0 auto;
   border: 3px solid var(--color-surface);
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
+  background: linear-gradient(135deg, var(--accent-fill-2), var(--accent-fill-3));
   box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.55), 0 14px 24px -16px rgba(16, 42, 40, 0.65);
   color: #fff;
   font-size: 1.1rem;
@@ -12046,3 +12353,16 @@ a.leaderboard-player:hover .leaderboard-name {
   .friend-challenge-head-row .btn { width: 100%; justify-content: center; }
 }
 
+
+/* One-time challenges */
+.challenge-type-toggle{display:flex;align-items:center;gap:.5rem;margin:.75rem 0 .25rem;font-size:.9rem;color:var(--color-text);cursor:pointer}
+.challenge-type-toggle input{width:1rem;height:1rem}
+.challenge-completed-section{margin-top:1.25rem;border-top:1px solid var(--color-border-light);padding-top:.75rem}
+.challenge-completed-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.55rem .25rem;border:0;background:transparent;color:var(--color-text-secondary);font:inherit;font-weight:600;cursor:pointer}
+.challenge-completed-toggle:hover{color:var(--color-text)}
+.challenge-completed-list{margin-top:.5rem}
+.challenge-card.is-one-time .challenge-card-eyebrow{color:var(--color-text-muted)}
+.challenge-card.is-closed{opacity:.82}
+.challenge-card.is-closed .challenge-card-title{text-decoration:line-through;color:var(--color-text-secondary)}
+.challenge-toggle-done{align-self:center;flex:0 0 auto;padding:.35rem .7rem;border:1px solid var(--color-border);border-radius:var(--radius-sm);background:var(--color-surface);color:var(--color-text-secondary);font:inherit;font-size:.8125rem;cursor:pointer}
+.challenge-toggle-done:hover{color:var(--color-text);border-color:var(--color-primary)}

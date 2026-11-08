@@ -54,11 +54,16 @@ export default function ChallengesPage() {
   // ones you share. The active tab also decides what a new challenge becomes.
   const [tab, setTab] = useState('self');
   const [selectedFriends, setSelectedFriends] = useState([]);
+  // One-time challenges skip streak math and land under a hidden
+  // "Completed" tab once they are done, so a single task can be reused
+  // without cluttering the active list.
+  const [oneTimeChallenge, setOneTimeChallenge] = useState(false);
   // Editing a shared challenge adds late friends; only the creator sees it.
   const [editingShared, setEditingShared] = useState(null);
   const [sharedDraft, setSharedDraft] = useState('');
   const [sharedSelected, setSharedSelected] = useState([]);
   const [sharedSaving, setSharedSaving] = useState(false);
+  const [completedOpen, setCompletedOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -151,11 +156,8 @@ export default function ChallengesPage() {
     setSaving(true);
     setError('');
     try {
-      // completedIds + date, matching POST /api/challenges/streaks, which
-      // validates the date server-side before writing anything.
       await api.saveStreaks({ completed, date });
-      // Reload instead of trusting the short save response: it omits the
-      // challenge name and last-updated label, which blanked the cards.
+      setCompleted([]);
       await load();
       toast('Streaks updated');
     } catch (err) {
@@ -179,7 +181,8 @@ export default function ChallengesPage() {
         await sharedApi.create({ name, friends: selectedFriends });
         toast(`Challenge sent to ${selectedFriends.length} ${selectedFriends.length === 1 ? 'friend' : 'friends'}`);
       } else {
-        await api.create(name);
+        await api.create({ name, oneTime: oneTimeChallenge });
+        setOneTimeChallenge(false);
         toast('Challenge added');
       }
       setDraft('');
@@ -370,6 +373,11 @@ export default function ChallengesPage() {
     setSharedError('');
   }
 
+  const selfTasks = list.filter((item) => item.kind !== 'shared');
+  const selfDoneIds = new Set((completed || []).map(String));
+  const activeTasks = selfTasks.filter((item) => !Boolean(item.oneTime) || !(item.completed || selfDoneIds.has(String(item._id))));
+  const completedTasks = selfTasks.filter((item) => Boolean(item.oneTime) && (item.completed || selfDoneIds.has(String(item._id))));
+
   const bestCurrent = list.reduce((best, item) => Math.max(best, Number(item.currentStreak) || 0), 0);
   const bestEver = list.reduce((best, item) => Math.max(best, Number(item.maxStreak ?? item.currentStreak) || 0), 0);
   const activeCount = list.filter((item) => (Number(item.currentStreak) || 0) > 0).length;
@@ -411,6 +419,7 @@ export default function ChallengesPage() {
         </button>
       </div>
 
+
       {tab === 'self' && list.length > 0 && (
         <div className="challenge-consistency">
           <div className="challenge-consistency-head">
@@ -448,7 +457,7 @@ export default function ChallengesPage() {
         <div className="container1 challenge-panel">
           <div className="form-floating">
             <input
-              className="form-control"
+              className="form-control form-control-sm"
               type="text"
               value={draft}
               autoFocus
@@ -458,6 +467,22 @@ export default function ChallengesPage() {
             />
             <label>Challenge</label>
           </div>
+
+          {creating && tab === 'self' && (
+            <div>
+              <label className="challenge-type-toggle" htmlFor="one-time-checkbox">
+                <input
+                  id="one-time-checkbox"
+                  type="checkbox"
+                  checked={oneTimeChallenge}
+                  onChange={(e) => setOneTimeChallenge(e.target.checked)}
+                />
+                <span>One-time task</span>
+              </label>
+              <span className="help-text">Done tasks move to Completed and do not keep a streak.</span>
+            </div>
+          )}
+
 
           {/* The tab chooses the kind: your own streak, or one shared with
               friends. The picker stays hidden while renaming because the
@@ -488,7 +513,6 @@ export default function ChallengesPage() {
               )}
             </div>
           )}
-
           <div className="new-task" style={{ marginTop: '0.75rem' }}>
             <button
               type="button"
@@ -499,7 +523,8 @@ export default function ChallengesPage() {
               {creating ? 'Add' : 'Save'}
             </button>
             <button type="button" className="btn btn-outline" style={{ marginLeft: '0.5rem' }}
-              onClick={() => { setEditing(null); setDraft(''); setSelectedFriends([]); }}>
+              onClick={() => { setEditing(null); setDraft(''); setSelectedFriends([]); }}
+            >
               Cancel
             </button>
           </div>
@@ -514,104 +539,203 @@ export default function ChallengesPage() {
       )}
 
       {tab === 'self' && (
-      <div className="container1 challenge-panel is-flat">
-        {canManage && (
-          <DateField
-            id="challenge-date"
-            label="Date"
-            value={date}
-            onChange={(nextDate) => { setDate(nextDate); setCompleted([]); }}
-          />
-        )}
+        <div className="container1 challenge-panel is-flat">
+          {canManage && activeTasks.some((c) => !c.oneTime) && (
+            <DateField
+              id="challenge-date"
+              label="Date"
+              value={date}
+              onChange={(nextDate) => { setDate(nextDate); setCompleted([]); }}
+            />
+          )}
 
-        <div className="challenge-list" style={{ marginTop: '1.25rem' }}>
-          {list.length === 0 && (
-            <div className="challenge-empty-state">
-              <span className="challenge-empty-icon material-symbols-rounded" aria-hidden="true">local_fire_department</span>
-              <strong>Start with one small habit.</strong>
-              <p>{canManage
-                ? 'Add a challenge above, then check in each day to build your streak.'
-                : 'No challenges have been added yet.'}</p>
+          <div className="challenge-list" style={{ marginTop: '1.25rem' }}>
+            {activeTasks.length === 0 && completedTasks.length === 0 && (
+              <div className="challenge-empty-state">
+                <span className="challenge-empty-icon material-symbols-rounded" aria-hidden="true">local_fire_department</span>
+                <strong>Start with one small habit.</strong>
+                <p>{canManage
+                  ? 'Add a challenge above, then check in each day to build your streak.'
+                  : 'No challenges have been added yet.'}</p>
+              </div>
+            )}
+
+            {activeTasks.map((challenge, i) => {
+              const isOneTime = Boolean(challenge.oneTime);
+              const isDone = selfDoneIds.has(String(challenge._id));
+              const streak = Number(challenge.currentStreak) || 0;
+              const best = Number(challenge.maxStreak) || 0;
+              return (
+                <article
+                  className={`challenge-card${isDone ? ' is-done' : ''}${isOneTime ? ' is-one-time' : ''}`}
+                  data-challenge-id={challenge._id}
+                  key={challenge._id}
+                >
+                  {canManage && (
+                    <label className="challenge-check">
+                      <input
+                        type="checkbox"
+                        checked={isDone}
+                        aria-label={`Mark ${challenge.challenge} complete`}
+                        onChange={async (e) => {
+                          const id = String(challenge._id);
+                          if (isOneTime && e.target.checked) {
+                            setSaving(true);
+                            setError('');
+                            try {
+                              await api.saveStreaks({ completed: [id], date });
+                              setCompleted((current) => current.filter((x) => x !== id));
+                              setCompletedOpen(true);
+                              await load();
+                              toast('Task completed');
+                            } catch {
+                              setError('Could not complete that task.');
+                            } finally {
+                              setSaving(false);
+                            }
+                            return;
+                          }
+                          setCompleted((current) => e.target.checked
+                            ? [...current, id]
+                            : current.filter((x) => x !== id));
+                        }}
+                        id={`challenge_${i}`}
+                      />
+                      <span className="challenge-check-box" aria-hidden="true">
+                        <span className="material-symbols-rounded">check</span>
+                      </span>
+                    </label>
+                  )}
+                  <div className="challenge-info">
+                    <div className="challenge-header-row">
+                      <div className="challenge-title-block">
+                        <span className="challenge-card-eyebrow">{isOneTime ? 'One-time task' : 'Challenge'}</span>
+                        <strong className="challenge-card-title">{challenge.challenge}</strong>
+                      </div>
+                      {canManage && (
+                        <div className="challenge-actions">
+                          <button
+                            type="button"
+                            className="challenge-icon-btn challenge-icon-btn-edit"
+                            aria-label="Edit challenge"
+                            title="Edit"
+                            onClick={() => { setEditing(String(challenge._id)); setDraft(challenge.challenge); }}
+                          >
+                            <span className="material-symbols-rounded" aria-hidden="true">edit</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="challenge-icon-btn challenge-icon-btn-danger"
+                            aria-label="Delete challenge"
+                            title="Delete"
+                            onClick={() => remove(challenge._id)}
+                          >
+                            <span className="material-symbols-rounded" aria-hidden="true">delete</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="challenge-card-stats">
+                      {!isOneTime && (
+                        <>
+                          <span className="streak-badge">
+                            <span className="material-symbols-rounded" aria-hidden="true">local_fire_department</span>
+                            {streak} day streak
+                          </span>
+                          <span className="challenge-best-badge">Best {best}</span>
+                        </>
+                      )}
+                      {isOneTime && <span className="challenge-meta">No streak · check to complete</span>}
+                      <span className="challenge-meta">Last updated: {challenge.lastUpdated || '—'}</span>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
+          {canManage && activeTasks.some((c) => !c.oneTime) && (
+            <div className="new-task" style={{ marginTop: '1.5rem' }}>
+              <button type="button" className="btn btn-success" onClick={submitStreaks} disabled={saving}>
+                {saving ? 'Saving…' : 'Update Streaks'}
+              </button>
             </div>
           )}
 
-          {list.map((challenge, i) => {
-            const isDone = completed.includes(String(challenge._id));
-            const streak = Number(challenge.currentStreak) || 0;
-            const best = Number(challenge.maxStreak) || 0;
-            return (
-              <article
-                className={`challenge-card${isDone ? ' is-done' : ''}`}
-                data-challenge-id={challenge._id}
-                key={challenge._id}
+          {completedTasks.length > 0 && (
+            <section className="challenge-completed-section" aria-label="Completed one-time tasks">
+              <button
+                type="button"
+                className="challenge-completed-toggle"
+                aria-expanded={completedOpen}
+                onClick={() => setCompletedOpen((v) => !v)}
               >
-                {canManage && (
-                  <label className="challenge-check">
-                    <input
-                      type="checkbox"
-                      checked={isDone}
-                      aria-label={`Mark ${challenge.challenge} complete for this date`}
-                      onChange={(e) => setCompleted((current) => e.target.checked
-                        ? [...current, String(challenge._id)]
-                        : current.filter((id) => id !== String(challenge._id)))}
-                      id={`challenge_${i}`}
-                    />
-                    <span className="challenge-check-box" aria-hidden="true">
-                      <span className="material-symbols-rounded">check</span>
-                    </span>
-                  </label>
-                )}
-                <div className="challenge-info">
-                  <div className="challenge-header-row">
-                    <div className="challenge-title-block">
-                      <span className="challenge-card-eyebrow">Challenge</span>
-                      <strong className="challenge-card-title">{challenge.challenge}</strong>
-                    </div>
-                    {canManage && (
-                      <div className="challenge-actions">
-                        <button
-                          type="button"
-                          className="challenge-icon-btn challenge-icon-btn-edit"
-                          aria-label="Edit challenge"
-                          title="Edit"
-                          onClick={() => { setEditing(String(challenge._id)); setDraft(challenge.challenge); }}
-                        >
-                          <span className="material-symbols-rounded" aria-hidden="true">edit</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="challenge-icon-btn challenge-icon-btn-danger"
-                          aria-label="Delete challenge"
-                          title="Delete"
-                          onClick={() => remove(challenge._id)}
-                        >
-                          <span className="material-symbols-rounded" aria-hidden="true">delete</span>
-                        </button>
+                <span>Completed ({completedTasks.length})</span>
+                <span className="material-symbols-rounded" aria-hidden="true">
+                  {completedOpen ? 'expand_less' : 'expand_more'}
+                </span>
+              </button>
+              {completedOpen && (
+                <div className="challenge-list challenge-completed-list">
+                  {completedTasks.map((challenge) => (
+                    <article
+                      className="challenge-card is-done is-closed"
+                      data-challenge-id={challenge._id}
+                      key={challenge._id}
+                    >
+                      <div className="challenge-info">
+                        <div className="challenge-header-row">
+                          <div className="challenge-title-block">
+                            <span className="challenge-card-eyebrow">Completed</span>
+                            <strong className="challenge-card-title">{challenge.challenge}</strong>
+                          </div>
+                          {canManage && (
+                            <div className="challenge-actions">
+                              <button
+                                type="button"
+                                className="challenge-icon-btn"
+                                aria-label="Reopen task"
+                                title="Reopen"
+                                onClick={async () => {
+                                  setSaving(true);
+                                  setError('');
+                                  try {
+                                    await api.saveStreaks({ completed: [], date, reopenId: String(challenge._id) });
+                                    setCompleted((current) => current.filter((id) => id !== String(challenge._id)));
+                                    await load();
+                                    toast('Task reopened');
+                                  } catch {
+                                    setError('Could not reopen that task.');
+                                  } finally {
+                                    setSaving(false);
+                                  }
+                                }}
+                              >
+                                <span className="material-symbols-rounded" aria-hidden="true">undo</span>
+                              </button>
+                              <button
+                                type="button"
+                                className="challenge-icon-btn challenge-icon-btn-danger"
+                                aria-label="Delete challenge"
+                                title="Delete"
+                                onClick={() => remove(challenge._id)}
+                              >
+                                <span className="material-symbols-rounded" aria-hidden="true">delete</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        <div className="challenge-card-stats">
+                          <span className="challenge-meta">One-time task · completed</span>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                  <div className="challenge-card-stats">
-                    <span className="streak-badge">
-                      <span className="material-symbols-rounded" aria-hidden="true">local_fire_department</span>
-                      {streak} day streak
-                    </span>
-                    <span className="challenge-best-badge">Best {best}</span>
-                    <span className="challenge-meta">Last updated: {challenge.lastUpdated || '—'}</span>
-                  </div>
+                    </article>
+                  ))}
                 </div>
-              </article>
-            );
-          })}
+              )}
+            </section>
+          )}
         </div>
-
-        {canManage && list.length > 0 && (
-          <div className="new-task" style={{ marginTop: '1.5rem' }}>
-            <button type="button" className="btn btn-success" onClick={submitStreaks} disabled={saving}>
-              {saving ? 'Saving…' : 'Update Streaks'}
-            </button>
-          </div>
-        )}
-      </div>
       )}
 
       {tab === 'friends' && (

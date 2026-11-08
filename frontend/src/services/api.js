@@ -111,7 +111,7 @@ export const hadiths = {
 
 export const challenges = {
   list: () => api.get('/challenges'),
-  create: (challenge) => api.post('/challenges', { challenge }),
+  create: (payload) => api.post('/challenges', typeof payload === 'string' ? { challenge: payload } : { challenge: payload.name, oneTime: Boolean(payload.oneTime) }),
   rename: (id, challenge) => api.post(`/challenges/${id}`, { challenge }),
   remove: (id) => api.request(`/challenges/${id}`, { method: 'DELETE' }),
   saveStreaks: (payload) => api.post('/challenges/streaks', payload),

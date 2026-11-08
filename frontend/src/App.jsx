@@ -12,7 +12,7 @@ import { ToastProvider } from './components/ToastProvider';
 import useShareHandler from './hooks/useShareHandler';
 import { api } from './services/api';
 import * as typography from './services/typography';
-import { applyAccent } from './services/accent';
+import { applyAccent, syncThemeColor } from './services/accent';
 import QuranPage from './pages/QuranPage';
 import HadithPage from './pages/HadithPage';
 import HadithBookPage from './pages/HadithBookPage';
@@ -118,6 +118,9 @@ function Shell() {
   const setTheme = useCallback((value) => {
     const next = value === 'dark' ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', next);
+    // The browser chrome is themed from the accent's chrome pair, so a theme
+    // switch also moves the address-bar colour.
+    syncThemeColor();
     try {
       localStorage.setItem(THEME_STORAGE_KEY, next);
     } catch (err) {

@@ -15,6 +15,27 @@ export function normaliseAccent(value) {
   return ACCENT_IDS.includes(value) ? value : 'green';
 }
 
+// Keep the browser/PWA chrome (the Android address bar, the iOS status bar)
+// in step with the app chrome. The value is read from the palette variables
+// after they are applied, so it follows both the accent and the theme without
+// a second copy of the colours in JavaScript.
+export function syncThemeColor() {
+  const root = document.documentElement;
+  const dark = root.getAttribute('data-theme') === 'dark';
+  const color = getComputedStyle(root)
+    .getPropertyValue(dark ? '--accent-chrome-dark' : '--accent-chrome')
+    .trim();
+  if (!color) return;
+
+  let meta = document.querySelector('meta[name="theme-color"]');
+  if (!meta) {
+    meta = document.createElement('meta');
+    meta.setAttribute('name', 'theme-color');
+    document.head.appendChild(meta);
+  }
+  meta.setAttribute('content', color);
+}
+
 export function applyAccent(value, { persist = true } = {}) {
   const accent = normaliseAccent(value);
   const root = document.documentElement;
@@ -22,6 +43,9 @@ export function applyAccent(value, { persist = true } = {}) {
   // also keeps the HTML clean for everyone who never opens the picker.
   if (accent === 'green') root.removeAttribute('data-accent');
   else root.setAttribute('data-accent', accent);
+
+  // The palette changed, so the chrome colour did too.
+  syncThemeColor();
 
   if (persist) {
     try {
