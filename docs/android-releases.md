@@ -17,6 +17,9 @@ To ship an update:
    - `notes`: one change per line, shown in the update dialog
    - `minSupportedVersionCode`: raise it to force an update (no "Later")
      for anyone below that version
-4. Commit and push. Phones pick it up the next time the app opens.
+4. Update `ANDROID_APP` at the top of `frontend/src/pages/LandingPage.jsx`
+   (version, file size, `href`): it is what the website's download buttons point
+   at, and it is not read from `version.json`.
+5. Commit and push. Phones pick it up the next time the app opens.
 
 Keep older APK files out of the repo once no one needs them.

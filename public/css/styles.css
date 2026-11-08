@@ -28,7 +28,7 @@
   font-style: normal;
   font-weight: 100 700;
   font-display: block;
-  src: url('/fonts/material-symbols-rounded-v2.woff2') format('woff2');
+  src: url('/fonts/material-symbols-rounded-v3.woff2') format('woff2');
 }
 
 .material-symbols-rounded {
@@ -5609,7 +5609,9 @@ hr {
 /* ---- Split sections ---- */
 
 .landing-quran,
-.landing-community {
+.landing-community,
+.landing-together,
+.landing-android {
   background: linear-gradient(180deg, transparent, var(--landing-bg-soft) 28%, transparent);
 }
 
@@ -6003,6 +6005,284 @@ hr {
 }
 
 .landing-preview--community .landing-mini-post:last-child { margin-bottom: 0; }
+
+.landing-preview--friends {
+  background: linear-gradient(160deg, var(--landing-card-solid), var(--landing-bg-soft));
+}
+
+/* ---- Shared challenge members ----
+   Who is in the challenge, their own streak, and whether they have checked in
+   today. Shared by the Friends preview and the "Together" section so the two
+   always show the same thing. */
+
+.landing-friends {
+  display: flex;
+  flex-direction: column;
+  margin-top: 0.2rem;
+}
+
+.landing-friend {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--landing-line);
+}
+
+.landing-friend:last-child { border-bottom: 0; }
+
+.landing-friend .landing-avatar {
+  width: 30px;
+  height: 30px;
+  font-size: 0.72rem;
+}
+
+.landing-friend-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.landing-friend-meta strong {
+  overflow: hidden;
+  color: var(--landing-ink);
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.landing-friend-meta span { color: var(--landing-muted); font-size: 0.66rem; }
+
+.landing-friend-streak {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  margin-left: auto;
+  color: var(--landing-muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.landing-friend-streak .material-symbols-rounded { font-size: 0.95rem; }
+
+.landing-friend-streak.is-done { color: var(--landing-teal-deep); }
+
+/* The invitation card in "Together". Its buttons are part of the picture, so
+   they are spans: there is nothing here to press. */
+
+.landing-invite-text {
+  margin: 0 0 0.85rem;
+  color: var(--landing-body);
+  font-size: 0.82rem;
+  line-height: 1.65;
+}
+
+.landing-invite-text strong { color: var(--landing-ink); }
+
+.landing-invite-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.landing-invite-btn {
+  padding: 0.38rem 0.85rem;
+  border: 1px solid var(--landing-line-strong);
+  border-radius: 999px;
+  color: var(--landing-body);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.landing-invite-btn.is-accept {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--accent-fill-2), var(--accent-fill-bright));
+  color: #fff;
+}
+
+/* ---- The tools beside the tracker (hadith, qibla, giving, ...) ---- */
+
+.landing-tools {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+/* Six tiles read as two rows of three on a wide screen; auto-fit alone gives a
+   lopsided four-and-two at desktop widths. */
+@media (min-width: 900px) {
+  .landing-tools { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+.landing-tool {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 1.15rem 1.25rem;
+  border: 1px solid var(--landing-line);
+  border-radius: 20px;
+  background: var(--landing-card-solid);
+  text-decoration: none;
+  transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition);
+}
+
+.landing-tool:hover {
+  transform: translateY(-2px);
+  border-color: var(--landing-line-strong);
+  box-shadow: var(--landing-shadow);
+}
+
+.landing-tool:focus-visible {
+  outline: 2px solid var(--landing-teal);
+  outline-offset: 3px;
+}
+
+.landing-tool-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  margin-bottom: 0.15rem;
+  border-radius: 12px;
+  background: var(--landing-teal-soft);
+  color: var(--landing-teal-deep);
+  font-size: 1.2rem;
+}
+
+.landing-tool h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  color: var(--landing-ink);
+  font-size: 0.95rem;
+}
+
+.landing-tool h3 .material-symbols-rounded {
+  color: var(--landing-muted);
+  font-size: 1rem;
+  transition: transform var(--transition), color var(--transition);
+}
+
+.landing-tool:hover h3 .material-symbols-rounded {
+  color: var(--landing-teal);
+  transform: translateX(2px);
+}
+
+.landing-tool p {
+  margin: 0;
+  color: var(--landing-body);
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+/* ---- Android APK download ----
+   The quiet link under the hero buttons and the panel that repeats it before
+   the closing call to action. Both point at the signed APK in public/android/. */
+
+.landing-android-link {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 1rem;
+  color: var(--landing-body);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: color var(--transition);
+}
+
+.landing-android-link .material-symbols-rounded {
+  color: var(--landing-teal);
+  font-size: 1.1rem;
+  transition: color var(--transition);
+}
+
+.landing-android-link:hover { color: var(--landing-ink); }
+.landing-android-link:hover .material-symbols-rounded { color: var(--landing-teal-deep); }
+
+.landing-android-link-meta {
+  padding: 0.14rem 0.44rem;
+  border-radius: 999px;
+  background: var(--landing-teal-soft);
+  color: var(--landing-teal-deep);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.landing-android-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(1rem, 3vw, 2rem);
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+  border: 1px solid var(--landing-line);
+  border-radius: 28px;
+  background: linear-gradient(135deg, var(--landing-card-solid), var(--landing-bg-soft));
+  box-shadow: var(--landing-shadow);
+}
+
+.landing-android-mark {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: var(--landing-teal-soft);
+  color: var(--landing-teal-deep);
+  font-size: 1.9rem;
+}
+
+.landing-android-copy .landing-kicker { margin-bottom: 0.4rem; }
+
+.landing-android-copy h2 {
+  margin: 0 0 0.45rem;
+  color: var(--landing-ink);
+  font-size: clamp(1.3rem, 2.4vw, 1.8rem);
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.landing-android-copy p {
+  max-width: 56ch;
+  margin: 0;
+  color: var(--landing-body);
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+.landing-android-copy .landing-android-meta {
+  margin-top: 0.6rem;
+  color: var(--landing-muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.landing-android-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.55rem;
+  max-width: 250px;
+}
+
+.landing-android-hint {
+  color: var(--landing-muted);
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .landing-android-card { grid-template-columns: minmax(0, 1fr); }
+  .landing-android-mark { width: 48px; height: 48px; border-radius: 15px; font-size: 1.6rem; }
+  .landing-android-actions { max-width: none; }
+}
 
 /* ---- Responsive ---- */
 

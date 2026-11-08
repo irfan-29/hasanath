@@ -20,7 +20,7 @@ const NAMES = fs
   .filter(Boolean)
   .sort();
 
-const OUT = path.join(__dirname, '..', 'public', 'fonts', 'material-symbols-rounded-v2.woff2');
+const OUT = path.join(__dirname, '..', 'public', 'fonts', 'material-symbols-rounded-v3.woff2');
 const CSS_URL =
   'https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200' +
   `&icon_names=${NAMES.join(',')}`;

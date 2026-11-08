@@ -18,8 +18,19 @@ const FALLBACK_AYAH = {
   translationLabel: 'Sahih International',
 };
 
+// The signed APK ships in public/android/ and the file name carries its
+// version, so this has to move with every release. docs/android-releases.md
+// has the checklist; installed phones find updates on their own through
+// public/android/version.json.
+const ANDROID_APP = {
+  version: '1.5',
+  size: '78 KB',
+  href: '/android/Hasanath-1.5.apk',
+};
+
 const NAV_LINKS = [
   { href: '#features', label: 'Features' },
+  { href: '#together', label: 'Friends' },
   { href: '#quran', label: 'Qur’an' },
   { href: '#how', label: 'How it works' },
   { href: '#community', label: 'Community' },
@@ -67,9 +78,18 @@ const FEATURES = [
     icon: 'emoji_events',
     label: 'Challenges',
     title: 'Small goals. Real momentum.',
-    body: 'Create personal challenges, tick them daily, and let consistency do the quiet work that motivation cannot.',
-    points: ['Goals that fit your life', 'Daily ticks', 'A history you can look back on'],
+    body: 'Set a daily goal for yourself, or invite friends in and keep each other steady. Every check-in adds to a streak you can look back on.',
+    points: ['Goals that fit your life, daily or one-off', 'Shared challenges with up to 20 friends', 'Streaks, a leaderboard and catch-up days'],
     to: '/challenges',
+  },
+  {
+    id: 'friends',
+    icon: 'group',
+    label: 'Friends',
+    title: 'Keep good company.',
+    body: 'Find friends by username and visit their profile. No follower counts, no public metrics — just the people you actually keep company with.',
+    points: ['Search friends by username', 'Public profiles, private worship logs', 'A notification for every request and invite'],
+    to: '/posts',
   },
   {
     id: 'community',
@@ -79,6 +99,49 @@ const FEATURES = [
     body: 'Share a verse, a lesson, or a quiet win. Read what others are learning, without the noise of a general feed.',
     points: ['Share reflections', 'Read what others learn', 'Your account, your identity'],
     to: '/posts',
+  },
+];
+
+// The tools that live beside the tracker. None of them had a place on this
+// page, so a visitor who only read the marketing copy never learned the app
+// also carries hadith, prayer times, the qibla, the Hijri calendar, giving and
+// a monthly summary.
+const TOOLS = [
+  {
+    icon: 'menu_book',
+    title: 'Hadith',
+    body: 'The sayings of the Prophet ﷺ from the major collections, searchable, with bookmarks.',
+    to: '/hadith',
+  },
+  {
+    icon: 'schedule',
+    title: 'Salah timings',
+    body: 'Today’s prayer times for where you are, and what is next.',
+    to: '/salah-timings',
+  },
+  {
+    icon: 'explore',
+    title: 'Qibla',
+    body: 'A compass that points to the Ka’bah, wherever you happen to be.',
+    to: '/qibla',
+  },
+  {
+    icon: 'calendar_month',
+    title: 'Islamic calendar',
+    body: 'Hijri dates and months, side by side with the Gregorian day.',
+    to: '/calendar',
+  },
+  {
+    icon: 'volunteer_activism',
+    title: 'Charity',
+    body: 'Set a giving goal and keep a quiet record of what you give toward it.',
+    to: '/charity',
+  },
+  {
+    icon: 'insights',
+    title: 'Stats',
+    body: 'Salah, challenges and giving, gathered into one monthly view.',
+    to: '/stats',
   },
 ];
 
@@ -105,6 +168,14 @@ const CHALLENGE_DEMO = [
   { icon: 'favorite', name: 'Morning dhikr', streak: 8 },
   { icon: 'volunteer_activism', name: 'Give a little', streak: 5 },
   { icon: 'nightlight', name: 'Qiyam on Friday', streak: 3 },
+];
+
+// A shared challenge as the app shows it: each member's own streak, and
+// whether they have checked in today.
+const FRIEND_DEMO = [
+  { initial: 'A', name: 'Amina', note: 'Checked in today', streak: 12, done: true },
+  { initial: 'Y', name: 'Yusuf', note: 'Checked in today', streak: 9, done: true },
+  { initial: 'S', name: 'Sara', note: 'Not yet today', streak: 4, done: false },
 ];
 
 function PrayerRing({ value, size = 144 }) {
@@ -274,10 +345,43 @@ function CommunityPreview() {
   );
 }
 
+function FriendsPreview() {
+  return (
+    <PreviewFrame className="landing-preview--friends">
+      <div className="landing-preview-head">
+        <div>
+          <span className="landing-preview-kicker">Friends’ challenge</span>
+          <h3>Read after Maghrib</h3>
+        </div>
+        <span className="landing-badge">4 members</span>
+      </div>
+      <div className="landing-friends">
+        {FRIEND_DEMO.map((friend) => (
+          <div className="landing-friend" key={friend.name}>
+            <span className="landing-avatar" aria-hidden="true">{friend.initial}</span>
+            <div className="landing-friend-meta">
+              <strong>{friend.name}</strong>
+              <span>{friend.note}</span>
+            </div>
+            <span className={`landing-friend-streak${friend.done ? ' is-done' : ''}`}>
+              <span className="material-symbols-rounded" aria-hidden="true">
+                {friend.done ? 'local_fire_department' : 'schedule'}
+              </span>
+              {friend.streak}d
+            </span>
+          </div>
+        ))}
+      </div>
+      <p className="landing-preview-note">Everyone sees the streak. Nobody sees your log.</p>
+    </PreviewFrame>
+  );
+}
+
 const PREVIEWS = {
   salah: SalahPreview,
   quran: QuranPreview,
   challenges: ChallengesPreview,
+  friends: FriendsPreview,
   community: CommunityPreview,
 };
 
@@ -586,8 +690,8 @@ export default function LandingPage() {
                 <span className="landing-grad">remembered.</span>
               </h1>
               <p className="landing-lede">
-                Track your salah, read the Qur’an, build gentle streaks, and share
-                reflections — in one quiet, ad-free place.
+                Track your salah, read the Qur’an, take on challenges with friends,
+                and share reflections — in one quiet, ad-free place.
               </p>
               <div className="landing-cta-row">
                 <Link to="/register" className="btn btn-primary">
@@ -598,6 +702,11 @@ export default function LandingPage() {
                   Explore without an account
                 </Link>
               </div>
+              <a className="landing-android-link" href={ANDROID_APP.href} download>
+                <span className="material-symbols-rounded" aria-hidden="true">android</span>
+                Download for Android
+                <span className="landing-android-link-meta">APK · {ANDROID_APP.size}</span>
+              </a>
               <div className="landing-trust">
                 <span className="landing-trust-item">
                   <span className="material-symbols-rounded" aria-hidden="true">check_circle</span>
@@ -723,7 +832,7 @@ export default function LandingPage() {
           <div className="landing-marquee-track">
             {[0, 1].map((group) => (
               <div className="landing-marquee-group" key={group}>
-                {['Salah', 'Qur’an', 'Dhikr', 'Streaks', 'Reflection', 'Community'].map((item) => (
+                {['Salah', 'Qur’an', 'Dhikr', 'Challenges', 'Friends', 'Hadith', 'Reflection', 'Community'].map((item) => (
                   <span className="landing-marquee-item" key={`${group}-${item}`}>
                     {item}
                     <span className="landing-marquee-star material-symbols-rounded">star</span>
@@ -815,6 +924,103 @@ export default function LandingPage() {
                   Explore {active.label}
                   <span className="material-symbols-rounded" aria-hidden="true">arrow_forward</span>
                 </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="together" className="landing-section landing-together" aria-labelledby="together-title">
+          <div className="landing-inner landing-split">
+            <div className="landing-split-copy landing-reveal">
+              <p className="landing-kicker">Together</p>
+              <h2 id="together-title" className="landing-section-title">
+                Good habits hold better with company.
+              </h2>
+              <p className="landing-section-lede">
+                Add a friend by username, then start a challenge you all check in
+                to. You see each other’s streaks and nothing else — the daily
+                nudging happens without anyone reading your records.
+              </p>
+              <ul className="landing-checklist">
+                <li>
+                  <span className="material-symbols-rounded" aria-hidden="true">check</span>
+                  Find friends by username, accept or decline requests
+                </li>
+                <li>
+                  <span className="material-symbols-rounded" aria-hidden="true">check</span>
+                  One shared challenge for up to 20 friends
+                </li>
+                <li>
+                  <span className="material-symbols-rounded" aria-hidden="true">check</span>
+                  Daily check-ins with a shared streak and a leaderboard
+                </li>
+                <li>
+                  <span className="material-symbols-rounded" aria-hidden="true">check</span>
+                  Catch up on a missed day from the past week
+                </li>
+                <li>
+                  <span className="material-symbols-rounded" aria-hidden="true">check</span>
+                  A notification when someone invites, accepts or checks in
+                </li>
+              </ul>
+              <Link to="/challenges" className="btn btn-primary">
+                Start a challenge with friends
+                <span className="material-symbols-rounded" aria-hidden="true">arrow_forward</span>
+              </Link>
+            </div>
+
+            <div className="landing-community-stack landing-reveal">
+              <div className="landing-card">
+                <div className="landing-card-top">
+                  <span className="landing-card-eyebrow">New invitation</span>
+                  <span className="landing-pill">Just now</span>
+                </div>
+                <p className="landing-invite-text">
+                  <strong>Amina</strong> invited you to <strong>Read after Maghrib</strong>.
+                </p>
+                <div className="landing-invite-actions" aria-hidden="true">
+                  <span className="landing-invite-btn is-accept">Accept</span>
+                  <span className="landing-invite-btn">Decline</span>
+                </div>
+              </div>
+
+              <div className="landing-card">
+                <div className="landing-card-top">
+                  <span className="landing-card-eyebrow">Shared streak</span>
+                  <span className="landing-pill">7 days</span>
+                </div>
+                <div className="landing-streak-top">
+                  <span className="landing-flame material-symbols-rounded" aria-hidden="true">
+                    local_fire_department
+                  </span>
+                  <div>
+                    <strong>7</strong>
+                    <span>days together</span>
+                  </div>
+                </div>
+                <div className="landing-friends">
+                  {FRIEND_DEMO.map((friend) => (
+                    <div className="landing-friend" key={`shared-${friend.name}`}>
+                      <span className="landing-avatar" aria-hidden="true">{friend.initial}</span>
+                      <div className="landing-friend-meta">
+                        <strong>{friend.name}</strong>
+                        <span>Best {friend.streak}</span>
+                      </div>
+                      <span className={`landing-friend-streak${friend.done ? ' is-done' : ''}`}>
+                        <span className="material-symbols-rounded" aria-hidden="true">
+                          {friend.done ? 'check_circle' : 'radio_button_unchecked'}
+                        </span>
+                        {friend.done ? 'Today' : 'Pending'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p className="landing-card-hint">Three of four checked in today.</p>
+              </div>
+
+              <div className="landing-community-note">
+                <span className="material-symbols-rounded" aria-hidden="true">lock</span>
+                Friends see the challenge you share. Your salah and reading log stay private.
               </div>
             </div>
           </div>
@@ -969,6 +1175,71 @@ export default function LandingPage() {
           </div>
         </section>
 
+        <section className="landing-section" aria-labelledby="tools-title">
+          <div className="landing-inner">
+            <div className="landing-section-head landing-reveal">
+              <p className="landing-kicker">Also inside</p>
+              <h2 id="tools-title" className="landing-section-title">
+                The rest of the day, in the same place.
+              </h2>
+              <p className="landing-section-lede">
+                Hadith, prayer times, the qiblah, the Hijri calendar, giving and a
+                monthly summary — all one tap from the tracker.
+              </p>
+            </div>
+            <div className="landing-tools">
+              {TOOLS.map((tool, index) => (
+                <Link
+                  key={tool.title}
+                  to={tool.to}
+                  className="landing-tool landing-reveal"
+                  style={{ '--step-delay': `${index * 0.06}s` }}
+                >
+                  <span className="landing-tool-icon material-symbols-rounded" aria-hidden="true">
+                    {tool.icon}
+                  </span>
+                  <h3>
+                    {tool.title}
+                    <span className="material-symbols-rounded" aria-hidden="true">arrow_forward</span>
+                  </h3>
+                  <p>{tool.body}</p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="landing-section landing-android" aria-labelledby="android-title">
+          <div className="landing-inner">
+            <div className="landing-android-card landing-reveal">
+              <span className="landing-android-mark material-symbols-rounded" aria-hidden="true">
+                android
+              </span>
+              <div className="landing-android-copy">
+                <p className="landing-kicker">Also on Android</p>
+                <h2 id="android-title">Keep it on your phone.</h2>
+                <p>
+                  Prefer an app icon? Install Hasanath straight from the file — no
+                  store account, the same tracker, and the next version is offered
+                  from inside the app.
+                </p>
+                <p className="landing-android-meta">
+                  Version {ANDROID_APP.version} · {ANDROID_APP.size}
+                </p>
+              </div>
+              <div className="landing-android-actions">
+                <a className="btn btn-primary" href={ANDROID_APP.href} download>
+                  <span className="material-symbols-rounded" aria-hidden="true">download</span>
+                  Download APK
+                </a>
+                <span className="landing-android-hint">
+                  Android asks once whether to allow installs from your browser.
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="landing-quote-section" aria-label="A reminder">
           <div className="landing-inner">
             <figure className="landing-quote landing-reveal">
@@ -1027,9 +1298,15 @@ export default function LandingPage() {
           <div className="landing-footer-col">
             <h3>App</h3>
             <Link to="/quran">Qur’an</Link>
+            <Link to="/hadith">Hadith</Link>
             <Link to="/salah">Salah Tracker</Link>
             <Link to="/challenges">Challenges</Link>
             <Link to="/posts">Community</Link>
+            <Link to="/charity">Charity</Link>
+            <Link to="/stats">Stats</Link>
+            <a href={ANDROID_APP.href} download>
+              Android app (APK)
+            </a>
           </div>
 
           <div className="landing-footer-col">
@@ -1042,7 +1319,9 @@ export default function LandingPage() {
           <div className="landing-footer-col">
             <h3>Explore</h3>
             <Link to="/salah-timings">Salah timings</Link>
+            <Link to="/qibla">Qibla</Link>
             <Link to="/calendar">Islamic calendar</Link>
+            <Link to="/notifications">Notifications</Link>
             <Link to="/settings">Settings</Link>
           </div>
         </div>

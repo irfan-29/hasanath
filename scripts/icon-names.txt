@@ -87,3 +87,5 @@ videocam
 volunteer_activism
 undo
 expand_less
+android
+download
