@@ -73,12 +73,18 @@ export default function ReadTab({ surahs, ayahOfTheDay, lastReadSurahs, favorite
       {shown && (
         <div className="container1 is-flat">
           <div className="featured-head">
-            <div className="featured-label">{isRandom ? 'Random Ayah' : 'Ayah of the Day'}</div>
             {isRandom && (
-              <button type="button" className="featured-reset" onClick={() => setRandomAyah(null)}>
-                Back to Ayah of the Day
+              <button
+                type="button"
+                className="fav-btn featured-back"
+                onClick={() => setRandomAyah(null)}
+                title="Back to Ayah of the Day"
+                aria-label="Back to Ayah of the Day"
+              >
+                <span className="material-symbols-rounded">arrow_back</span>
               </button>
             )}
+            <div className="featured-label">{isRandom ? 'Random Ayah' : 'Ayah of the Day'}</div>
 
             {/* The actions sit on the label row rather than under the verse:
                 share, open in the reader and show another verse stay reachable
@@ -167,8 +173,11 @@ export default function ReadTab({ surahs, ayahOfTheDay, lastReadSurahs, favorite
 
       <div className="container1 is-flat">
         <div className="card-header">
-          <h3>Find a Surah</h3>
+          <h3>All Surahs</h3>
+          <span className="badge badge-primary">114 Surahs</span>
         </div>
+        {/* The search belongs to the list it filters, so it sits under the
+            heading instead of in a card of its own with a second title. */}
         <div className="surah-search-wrapper">
           <input
             type="text"
@@ -176,14 +185,8 @@ export default function ReadTab({ surahs, ayahOfTheDay, lastReadSurahs, favorite
             placeholder="Search by number or name"
             value={term}
             onChange={(e) => setTerm(e.target.value)}
+            aria-label="Search surahs by number or name"
           />
-        </div>
-      </div>
-
-      <div className="container1 is-flat">
-        <div className="card-header">
-          <h3>All Surahs</h3>
-          <span className="badge badge-primary">114 Surahs</span>
         </div>
         <div className="surah-grid">
           {filtered.map((surah, i) => {

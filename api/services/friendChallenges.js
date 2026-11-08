@@ -89,7 +89,7 @@ function checkinWindow(today) {
 }
 
 // Yesterday through the start of the window, oldest first, for the client's
-// "missed a day" strip. Today has its own check-in button.
+// "catch up on the week" strip. Today has its own check-in button.
 function recentDays(participant, today) {
     const history = new Set(participant.history || []);
     const { start } = checkinWindow(today);

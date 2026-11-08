@@ -516,7 +516,7 @@ export default function ChallengesPage() {
           <div className="new-task" style={{ marginTop: '0.75rem' }}>
             <button
               type="button"
-              className="btn btn-success"
+              className="btn btn-primary"
               disabled={saving || (creating && tab === 'friends' && selectedFriends.length === 0)}
               onClick={() => (creating ? create() : saveEdit())}
             >
@@ -656,7 +656,7 @@ export default function ChallengesPage() {
 
           {canManage && activeTasks.some((c) => !c.oneTime) && (
             <div className="new-task" style={{ marginTop: '1.5rem' }}>
-              <button type="button" className="btn btn-success" onClick={submitStreaks} disabled={saving}>
+              <button type="button" className="btn btn-primary" onClick={submitStreaks} disabled={saving}>
                 {saving ? 'Saving…' : 'Update Streaks'}
               </button>
             </div>
@@ -932,7 +932,7 @@ function FriendChallengeCard({
           )}
 
           <div className="friend-challenge-edit-actions">
-            <button type="submit" className="btn btn-success btn-sm" disabled={saving || !draft.trim()}>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={saving || !draft.trim()}>
               {saving ? 'Saving…' : 'Save changes'}
             </button>
             <button
@@ -977,7 +977,7 @@ function FriendChallengeCard({
             <span className="challenge-best-badge">Best {mine.maxStreak || 0}</span>
             <button
               type="button"
-              className={`btn btn-sm ${mine.checkedInToday ? 'btn-outline' : 'btn-success'}`}
+              className={`btn btn-sm ${mine.checkedInToday ? 'btn-outline' : 'btn-primary'}`}
               disabled={busy}
               aria-pressed={Boolean(mine.checkedInToday)}
               title={mine.checkedInToday ? 'Undo today’s check-in' : 'Mark today complete'}
@@ -990,7 +990,7 @@ function FriendChallengeCard({
           {Array.isArray(mine.recentDays) && mine.recentDays.length > 0 && (
             <div className="friend-challenge-backfill">
               <div className="backfill-head">
-                <span className="backfill-title">Missed a day?</span>
+                <span className="backfill-title">Catch up on the week</span>
                 <span className="backfill-hint">Tap a day to log or undo · last 7 days</span>
               </div>
               <div className="backfill-days">

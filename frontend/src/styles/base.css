@@ -2007,6 +2007,7 @@ body:has(.global-audio-bar) .main-content {
 .surah-search-wrapper {
   position: relative;
   width: 100%;
+  margin-bottom: 0.5rem;
 }
 
 .surah-search-input {
@@ -10577,6 +10578,15 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 .surah-pill,
 .challenge-empty-state,
 .hadith-chip,
+.notif-item,
+.notif-empty,
+.friend-challenge-card,
+.friend-result-list,
+.friend-row,
+.friend-empty,
+.friend-picker,
+.friend-picker-option,
+.leaderboard,
 .calendar-table td,
 .table,
 [data-theme="dark"] .container1,
@@ -10638,18 +10648,16 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 
 .featured-head .featured-label { margin-bottom: 0; }
 
-.featured-reset {
-  padding: 0;
-  font: inherit;
-  font-size: 0.8125rem;
-  font-weight: 600;
+/* Back to the daily ayah while a refreshed one is showing. It is icon-only
+   because the full "Back to Ayah of the Day" label competed with the label
+   and action buttons for the row and wrapped them onto a second line. */
+.featured-back {
+  margin-left: -0.4rem;
+  margin-right: -0.15rem;
   color: var(--color-primary);
-  background: none;
-  border: none;
-  cursor: pointer;
 }
 
-.featured-reset:hover { text-decoration: underline; }
+[data-theme="dark"] .featured-back { color: var(--color-primary-light); }
 
 /* Share / open / refresh sit on the "Ayah of the Day" label row, pushed to
    the right edge, so they are reachable without reading to the bottom of a
@@ -11064,18 +11072,16 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   align-items: flex-start;
   gap: 0.9rem;
   padding: 1rem 1.15rem;
-  border: 1px solid var(--color-border-light);
   border-radius: 18px;
-  background: var(--color-surface);
-  box-shadow: 0 14px 34px -30px rgba(16, 42, 40, 0.4);
-  transition: border-color var(--transition), box-shadow var(--transition);
+  transition: background var(--transition);
 }
 
+/* Unread still stands out, but by a tint of the accent over the same grey
+   panel as every other item on the page - not by a different surface. */
 .notif-item.is-unread {
-  border-color: rgb(var(--accent-rgb) / 0.32);
   background:
-    linear-gradient(135deg, rgb(var(--accent-rgb) / 0.055), transparent 55%),
-    var(--color-surface);
+    linear-gradient(135deg, rgb(var(--accent-rgb) / 0.09), transparent 58%),
+    var(--color-surface-tint);
 }
 
 .notif-icon {
@@ -11245,9 +11251,7 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 
 .friend-result-list {
   padding: 0.6rem;
-  border: 1px solid var(--color-border-light);
   border-radius: 14px;
-  background: var(--color-bg);
 }
 
 .friend-row,
@@ -11298,7 +11302,6 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 .friend-empty {
   margin-top: 1rem;
   padding: 0.9rem 1rem;
-  border: 1px dashed var(--color-border-light);
   border-radius: 14px;
   color: var(--color-text-secondary);
   font-size: 0.84rem;
@@ -11374,9 +11377,7 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 .friend-picker {
   margin-top: 0.9rem;
   padding: 0.85rem 0.95rem;
-  border: 1px solid var(--color-border-light);
   border-radius: 14px;
-  background: var(--color-bg);
 }
 
 .friend-picker-toggle {
@@ -11408,13 +11409,11 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   align-items: center;
   gap: 0.45rem;
   padding: 0.32rem 0.7rem 0.32rem 0.45rem;
-  border: 1px solid var(--color-border-light);
   border-radius: 999px;
-  background: var(--color-surface);
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
-  transition: border-color var(--transition), background var(--transition);
+  transition: background var(--transition);
 }
 
 .friend-picker-option input {
@@ -11424,7 +11423,7 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   cursor: pointer;
 }
 
-.friend-picker-option:hover { border-color: var(--color-primary); }
+.friend-picker-option:hover { background: var(--color-primary-glow); }
 
 .friend-picker-option .friend-avatar {
   width: 1.45rem;
@@ -11479,17 +11478,13 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 
 .friend-challenge-card {
   padding: 1.2rem 1.35rem;
-  border: 1px solid var(--color-border-light);
   border-radius: 20px;
-  background: var(--color-surface);
-  box-shadow: 0 16px 38px -34px rgba(16, 42, 40, 0.4);
 }
 
 .friend-challenge-card.is-pending {
-  border-color: rgb(var(--accent-rgb) / 0.3);
   background:
-    linear-gradient(135deg, rgb(var(--accent-rgb) / 0.06), transparent 60%),
-    var(--color-surface);
+    linear-gradient(135deg, rgb(var(--accent-rgb) / 0.09), transparent 62%),
+    var(--color-surface-tint);
 }
 
 .friend-challenge-top {
@@ -11557,10 +11552,8 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
    with a tint rather than a reorder, so the standing is honest. */
 .leaderboard {
   margin-top: 1rem;
-  border: 1px solid var(--color-border-light);
   border-radius: 14px;
   overflow: hidden;
-  background: var(--color-bg);
 }
 
 .leaderboard-head {
@@ -11656,70 +11649,8 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 
 /* ---- Profile: sections ---- */
 
-.profile-tabs {
-  display: flex;
-  gap: 0.3rem;
-  max-width: 980px;
-  margin: 0 auto 1.5rem;
-  padding: 0.3rem;
-  border: 1px solid var(--color-border-light);
-  border-radius: 999px;
-  background: rgba(16, 42, 40, 0.055);
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
-}
-
-[data-theme="dark"] .profile-tabs { background: rgba(255, 255, 255, 0.045); }
-
-.profile-tab {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  flex: 1;
-  padding: 0.68rem 0.9rem;
-  font: inherit;
-  font-size: 0.86rem;
-  font-weight: 700;
-  color: var(--color-text-secondary);
-  background: transparent;
-  border: none;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: color var(--transition), background var(--transition), box-shadow var(--transition);
-}
-
-.profile-tab .material-symbols-rounded { font-size: 1.15rem; }
-.profile-tab:hover { color: var(--color-text); }
-
-.profile-tab.is-active {
-  color: var(--color-primary-dark);
-  background: var(--color-surface);
-  box-shadow: 0 8px 20px -14px rgba(16, 42, 40, 0.35);
-}
-
-[data-theme="dark"] .profile-tab.is-active { color: var(--color-primary-light); }
-
-.profile-tab:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
-
-.profile-tab-count {
-  min-width: 1.25rem;
-  padding: 0 0.3rem;
-  font-size: 0.6875rem;
-  line-height: 1.25rem;
-  text-align: center;
-  color: var(--color-text-secondary);
-  background: var(--color-border);
-  border-radius: 999px;
-}
-
-.profile-tab.is-active .profile-tab-count {
-  color: #fff;
-  background: var(--color-primary);
-}
+/* The profile's tab bar is the same segmented navigator as the Quran page
+   and Challenges - see "Segmented tab navigator" at the end of this file. */
 
 .profile-panel { max-width: 980px; margin: 0 auto; }
 
@@ -11736,11 +11667,6 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 .profile-friends .friend-search { margin-top: 0; margin-bottom: 1.25rem; }
 .profile-friends .friends-list { margin-top: 0; }
 
-.profile-friends .friend-row {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-light);
-}
-
 /* Your identity in the chrome opens your own profile. */
 .header-account-head {
   text-decoration: none;
@@ -11753,11 +11679,6 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 
 .nav-user { transition: background var(--transition); }
 .nav-user:hover { background: rgba(255, 255, 255, 0.1); }
-
-@media (max-width: 640px) {
-  .profile-tab { padding: 0.62rem 0.5rem; font-size: 0.82rem; }
-  .profile-tab .material-symbols-rounded { font-size: 1.05rem; }
-}
 
 /* Profile share: the same quiet corner icon used by posts, instead of a button
    competing with the friend actions. */
@@ -11857,7 +11778,7 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   background: var(--color-surface);
   font: inherit;
   cursor: pointer;
-  transition: border-color var(--transition), background var(--transition), transform var(--transition);
+  transition: border-color var(--transition), background var(--transition);
 }
 
 .backfill-weekday {
@@ -11883,10 +11804,11 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   font-size: 0.95rem;
 }
 
+/* The strip is an overflow-x scroller, so a lift would be sheared off at the
+   top edge of the track. Hover tints the chip in place instead. */
 .backfill-day:hover:not(:disabled) {
   border-color: var(--color-primary);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 10px -3px rgba(15, 23, 42, 0.22);
+  background: var(--color-primary-glow);
 }
 
 .backfill-day.is-done {
@@ -11895,8 +11817,8 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 }
 
 .backfill-day.is-done:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 10px -3px rgba(15, 23, 42, 0.22);
+  border-color: var(--color-primary);
+  background: rgb(var(--accent-rgb) / 0.16);
 }
 
 .backfill-day.is-done .backfill-weekday,
@@ -12178,13 +12100,21 @@ a.leaderboard-player:hover .leaderboard-name {
   .podium-profile { transition: none; }
 }
 
-/* ---- Challenges: self / friends tabs ---- */
+/* ---- Segmented tab navigator (Quran, Challenges, Profile) ----------------
+   One control for every in-page navigator: a rounded track holding equal-width
+   pills, the selected one filled with the accent tint rather than a raised
+   white card. This is the Qur'an page's bar, which the newer Challenges and
+   Profile screens had drifted from - they were drawing a white pill with a
+   drop shadow and a solid accent counter, so three pages offered three
+   different-looking navigators. Values are shared, not copied. */
 
-.challenge-tabs {
+.quran-tabs,
+.challenge-tabs,
+.profile-tabs {
   display: flex;
-  gap: 0.3rem;
-  max-width: 860px;
-  margin: 0 auto 1.25rem;
+  gap: 0.25rem;
+  max-width: 620px;
+  margin: 0 auto 1.5rem;
   padding: 0.3rem;
   border: 1px solid var(--color-border-light);
   border-radius: 999px;
@@ -12193,9 +12123,13 @@ a.leaderboard-player:hover .leaderboard-name {
   backdrop-filter: blur(14px);
 }
 
-[data-theme="dark"] .challenge-tabs { background: rgba(255, 255, 255, 0.045); }
+[data-theme="dark"] .quran-tabs,
+[data-theme="dark"] .challenge-tabs,
+[data-theme="dark"] .profile-tabs { background: rgba(255, 255, 255, 0.045); }
 
-.challenge-tab {
+.quran-tab,
+.challenge-tab,
+.profile-tab {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -12210,39 +12144,72 @@ a.leaderboard-player:hover .leaderboard-name {
   border: none;
   border-radius: 999px;
   cursor: pointer;
-  transition: color var(--transition), background var(--transition), box-shadow var(--transition);
+  /* On a 360px phone the longest label ("My challenges") breaks over two
+     lines; centring keeps that balanced instead of ragged-left. */
+  text-align: center;
+  transition: color var(--transition), background var(--transition);
 }
 
-.challenge-tab .material-symbols-rounded { font-size: 1.15rem; }
-.challenge-tab:hover { color: var(--color-text); }
+.quran-tab .material-symbols-rounded,
+.challenge-tab .material-symbols-rounded,
+.profile-tab .material-symbols-rounded { font-size: 1.15rem; }
 
-.challenge-tab.is-active {
+.quran-tab:hover,
+.challenge-tab:hover,
+.profile-tab:hover { color: var(--color-text); }
+
+.quran-tab.is-active,
+.challenge-tab.is-active,
+.profile-tab.is-active {
   color: var(--color-primary-dark);
-  background: var(--color-surface);
-  box-shadow: 0 8px 20px -14px rgba(16, 42, 40, 0.35);
+  background: var(--color-primary-glow);
+  box-shadow: none;
 }
 
-[data-theme="dark"] .challenge-tab.is-active { color: var(--color-primary-light); }
+[data-theme="dark"] .quran-tab.is-active,
+[data-theme="dark"] .challenge-tab.is-active,
+[data-theme="dark"] .profile-tab.is-active { color: var(--color-primary-light); }
 
-.challenge-tab:focus-visible {
+.quran-tab:focus-visible,
+.challenge-tab:focus-visible,
+.profile-tab:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
-.challenge-tab-count {
+.quran-tab-count,
+.challenge-tab-count,
+.profile-tab-count {
   min-width: 1.25rem;
   padding: 0 0.3rem;
   color: var(--color-text-secondary);
   font-size: 0.6875rem;
+  font-weight: 700;
   line-height: 1.25rem;
   text-align: center;
   background: var(--color-border);
   border-radius: 999px;
 }
 
-.challenge-tab.is-active .challenge-tab-count {
+.quran-tab.is-active .quran-tab-count,
+.challenge-tab.is-active .challenge-tab-count,
+.profile-tab.is-active .profile-tab-count {
   color: #fff;
-  background: var(--color-primary);
+  background: var(--accent-fill-3);
+}
+
+@media (max-width: 640px) {
+  .quran-tab,
+  .challenge-tab,
+  .profile-tab { padding: 0.62rem 0.5rem; font-size: 0.82rem; }
+
+  .quran-tab .material-symbols-rounded,
+  .challenge-tab .material-symbols-rounded,
+  .profile-tab .material-symbols-rounded { font-size: 1.05rem; }
+
+  .quran-tabs,
+  .challenge-tabs,
+  .profile-tabs { margin-bottom: 1rem; }
 }
 
 .friend-challenge-section.is-tabbed { margin-top: 0; }
@@ -12351,9 +12318,6 @@ a.leaderboard-player:hover .leaderboard-name {
 }
 
 @media (max-width: 640px) {
-  .challenge-tab { padding: 0.62rem 0.5rem; font-size: 0.82rem; }
-  .challenge-tab .material-symbols-rounded { font-size: 1.02rem; }
-  .challenge-tabs { margin-bottom: 1rem; }
   .friend-challenge-head-row .btn { width: 100%; justify-content: center; }
 }
 
