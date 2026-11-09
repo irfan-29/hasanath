@@ -5941,6 +5941,68 @@ hr {
   line-height: 1.65;
 }
 
+/* Parent-company stamp. It sits inside the brand column rather than the link
+   columns so the attribution reads as provenance, not another nav item. */
+.landing-footer-parent {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  padding: 0.4rem 0.55rem 0.4rem 0.42rem;
+  border: 1px solid var(--landing-line);
+  border-radius: 999px;
+  background: var(--landing-card);
+  color: var(--landing-body);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: transform 0.2s ease, border-color 0.2s ease, color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.landing-footer-parent strong {
+  color: var(--landing-ink);
+  font-weight: 800;
+}
+
+.landing-footer-parent:hover {
+  transform: translateY(-1px);
+  border-color: var(--landing-line-strong);
+  color: var(--landing-ink);
+  box-shadow: 0 10px 24px -18px var(--landing-ink);
+}
+
+.landing-footer-parent-mark {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px -6px rgba(0, 0, 0, 0.6);
+}
+
+.landing-footer-parent-mark svg {
+  display: block;
+  width: 27px;
+  height: 27px;
+}
+
+.landing-footer-parent-arrow {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+  color: var(--landing-muted);
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.landing-footer-parent:hover .landing-footer-parent-arrow {
+  transform: translate(1px, -1px);
+  color: var(--landing-teal-deep);
+}
+
 .landing-footer-col {
   display: flex;
   flex-direction: column;

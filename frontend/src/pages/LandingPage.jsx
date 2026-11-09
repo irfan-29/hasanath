@@ -28,6 +28,13 @@ const ANDROID_APP = {
   href: '/android/Hasanath-1.5.apk',
 };
 
+// The studio behind Hasanath. That site lives in its own repository and is
+// deployed separately; set VITE_UMI_APPS_URL at build time if the domain moves.
+const UMI_APPS = {
+  name: 'UMI Apps',
+  href: import.meta.env.VITE_UMI_APPS_URL || 'https://umiapps.vercel.app',
+};
+
 const NAV_LINKS = [
   { href: '#features', label: 'Features' },
   { href: '#together', label: 'Friends' },
@@ -1293,6 +1300,71 @@ export default function LandingPage() {
             <p className="landing-footer-note">
               A calm place for salah, Qur’an, and the small habits that add up.
             </p>
+            <a
+              className="landing-footer-parent"
+              href={UMI_APPS.href}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span className="landing-footer-parent-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <defs>
+                    <linearGradient id="umiMiniRing" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0" stopColor="#2dd4bf" />
+                      <stop offset="0.5" stopColor="#6366f1" />
+                      <stop offset="1" stopColor="#ffb45c" />
+                    </linearGradient>
+                    <clipPath id="umiMiniClip">
+                      <circle cx="12" cy="12" r="10" />
+                    </clipPath>
+                  </defs>
+                  <g clipPath="url(#umiMiniClip)">
+                    <circle cx="12" cy="12" r="10" fill="#0a1024" />
+                    <circle cx="12" cy="13.6" r="9" fill="#ff8a3d" opacity="0.22" />
+                    <circle cx="12" cy="12.8" r="4" fill="#ffd166" />
+                    <path
+                      d="M1.5 16 5.6 10.5 8 13.2 10.8 8l2.8 5.4 2.4-2.6 6.5 5.2Z"
+                      fill="#2dd4bf"
+                    />
+                    <path
+                      d="M1.5 18.2 4.8 13.6l2.6 2.6 2.8-4.2 3.2 4.6 2.9-3.4 5.2 5Z"
+                      fill="#3b82f6"
+                      opacity="0.9"
+                    />
+                    <path
+                      d="M1.5 20.6 5 16.6l2.6 2.4 2.5-3.7 2.8 3.8 3.1-2.8 4.5 4.3Z"
+                      fill="#22305c"
+                    />
+                  </g>
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="10.6"
+                    fill="none"
+                    stroke="url(#umiMiniRing)"
+                    strokeWidth="1.2"
+                  />
+                </svg>
+              </span>
+              <span>
+                A product of <strong>{UMI_APPS.name}</strong>
+              </span>
+              <svg
+                className="landing-footer-parent-arrow"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path
+                  d="M8 16 16 8M9 8h7v7"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </a>
           </div>
 
           <div className="landing-footer-col">
