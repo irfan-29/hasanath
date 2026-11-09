@@ -46,7 +46,7 @@ function SalahRing({ completed, total }) {
       <svg viewBox="0 0 120 120" aria-hidden="true">
         <defs>
           <linearGradient id="salah-ring-gradient" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="var(--accent-2)" />
+            <stop offset="0" stopColor="var(--accent-fill-2)" />
             <stop offset="1" stopColor="#e6bd74" />
           </linearGradient>
         </defs>

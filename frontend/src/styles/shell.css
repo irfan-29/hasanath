@@ -107,7 +107,7 @@
 .app-loader__track { stroke: var(--color-border); }
 
 .app-loader__fill {
-  stroke: var(--color-primary);
+  stroke: var(--accent-fill-1);
   animation: app-loader-fill 1.1s linear infinite;
 }
 

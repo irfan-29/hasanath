@@ -101,10 +101,10 @@ html {
   /* Fill stops stay at the saturated light-theme values in both themes.
      The dark theme lifts --accent-1/2/3 so links and icons stay readable on
      a near-black page; reusing those lifted values for filled surfaces put
-     white text on pastel. Anything that paints a button, logo, avatar or CTA
-     panel reads these instead, so dark mode keeps the light-mode shading.
-     Each palette re-points them below and the dark blocks deliberately do
-     not override them. */
+     white text and charts on pastel. Anything that paints a button, logo,
+     avatar, CTA panel, ring, progress bar or chart reads these instead, so
+     dark mode keeps the light-mode shading. Each palette re-points them
+     below and the dark blocks deliberately do not override them. */
   --accent-fill-1: #0d9488;
   --accent-fill-2: #14b8a6;
   --accent-fill-3: #0f766e;
@@ -572,7 +572,7 @@ a {
 .logo-icon {
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  background: linear-gradient(135deg, var(--accent-fill-1), var(--accent-fill-2));
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
@@ -1137,7 +1137,7 @@ body:has(.global-audio-bar) .main-content {
 }
 
 .calendar-controls button:hover {
-  background: var(--color-primary);
+  background: var(--accent-fill-1);
   color: white;
   border-color: var(--color-primary);
 }
@@ -1616,7 +1616,7 @@ body:has(.global-audio-bar) .main-content {
 
 .challenge-check input:checked + .challenge-check-box {
   border-color: var(--color-primary);
-  background: var(--color-primary);
+  background: var(--accent-fill-1);
   color: #fff;
 }
 
@@ -1999,7 +1999,7 @@ body:has(.global-audio-bar) .main-content {
 }
 
 .surah-pill:hover {
-  background: var(--color-primary);
+  background: var(--accent-fill-1);
   color: white;
 }
 
@@ -2072,7 +2072,7 @@ body:has(.global-audio-bar) .main-content {
   width: 48px;
   height: 48px;
   border: none;
-  background: var(--color-primary);
+  background: var(--accent-fill-1);
   color: white;
   box-shadow: var(--shadow-lg);
   cursor: pointer;
@@ -2576,7 +2576,7 @@ body:has(.sidebar.collapsed) .global-audio-bar {
 .audio-btn-play {
   width: 42px;
   height: 42px;
-  background: var(--color-primary);
+  background: var(--accent-fill-1);
   color: white;
   box-shadow: 0 2px 8px rgb(var(--accent-rgb) / 0.35);
 }
@@ -2654,7 +2654,7 @@ body:has(.sidebar.collapsed) .global-audio-bar {
   height: 13px;
   border: 2px solid var(--color-surface);
   border-radius: 50%;
-  background: var(--color-primary);
+  background: var(--accent-fill-1);
   box-shadow: 0 2px 8px rgb(var(--accent-rgb) / 0.35);
   pointer-events: none;
   transform: translate(-50%, -50%);
@@ -2967,7 +2967,7 @@ hr {
   width: 54px;
   height: 54px;
   border-radius: var(--radius-md);
-  background: var(--color-primary);
+  background: var(--accent-fill-1);
   color: #fff;
   font-size: 1.75rem;
   box-shadow: var(--shadow-glow);
@@ -3094,7 +3094,7 @@ hr {
   width: 1.625rem;
   height: 1.625rem;
   border-radius: 50%;
-  background: var(--color-primary);
+  background: var(--accent-fill-1);
   color: #fff;
   font-size: 0.8125rem;
   font-weight: 700;
@@ -3252,7 +3252,7 @@ hr {
   box-shadow: var(--shadow-sm);
   transition: transform var(--transition);
 }
-.tg-switch input:checked + .tg-slider { background: var(--color-primary); }
+.tg-switch input:checked + .tg-slider { background: var(--accent-fill-1); }
 .tg-switch input:checked + .tg-slider::before { transform: translateX(20px); }
 .tg-switch input:disabled + .tg-slider { opacity: 0.7; cursor: not-allowed; }
 .tg-switch input:focus-visible + .tg-slider { box-shadow: 0 0 0 3px var(--color-primary-glow); }
@@ -3271,7 +3271,7 @@ hr {
   transition: all var(--transition);
 }
 .tg-row input:checked ~ .tg-check {
-  background: var(--color-primary);
+  background: var(--accent-fill-1);
   border-color: var(--color-primary);
   color: #fff;
 }
@@ -3374,7 +3374,7 @@ hr {
 
 .tg-send-btn:hover {
   color: #fff;
-  background: var(--color-primary);
+  background: var(--accent-fill-1);
   box-shadow: var(--shadow-sm);
 }
 
@@ -3642,7 +3642,7 @@ hr {
 [data-theme="dark"] .post-filter-count { background: rgba(255, 255, 255, 0.09); }
 
 .post-filter-toggle.is-active .post-filter-count {
-  background: var(--color-primary);
+  background: var(--accent-fill-1);
   color: #fff;
 }
 
@@ -3713,7 +3713,7 @@ hr {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: var(--color-primary);
+  background: var(--accent-fill-1);
   color: #fff;
   font-size: 0.8125rem;
   font-weight: 700;
@@ -3766,7 +3766,7 @@ hr {
    Falls back to grey if the app never sets data-copied. */
 .post-share[data-copied="true"] {
   color: #fff;
-  background: var(--color-primary);
+  background: var(--accent-fill-1);
   border-color: var(--color-primary);
 }
 
@@ -3802,7 +3802,7 @@ hr {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: var(--color-primary);
+  background: var(--accent-fill-1);
   color: #fff;
   font-size: 1.75rem;
   font-weight: 700;
@@ -3817,7 +3817,7 @@ hr {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: var(--color-primary);
+  background: var(--accent-fill-1);
   color: #fff;
   font-size: 1.5rem;
   font-weight: 700;
@@ -4056,7 +4056,7 @@ hr {
 
 .quran-tab.is-active .quran-tab-count {
   color: #fff;
-  background: var(--color-primary);
+  background: var(--accent-fill-1);
 }
 
 /* ---------- Quran: audio tab ---------- */
@@ -4886,7 +4886,7 @@ hr {
 
 .landing-ring-fill {
   fill: none;
-  stroke: var(--landing-teal);
+  stroke: var(--accent-fill-1);
   stroke-width: 8;
   stroke-linecap: round;
   transition: stroke-dashoffset 0.5s cubic-bezier(0.4, 0, 0.2, 1);
@@ -5607,7 +5607,7 @@ hr {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--landing-teal), var(--accent-bright));
+  background: linear-gradient(90deg, var(--accent-fill-1), var(--accent-fill-bright));
 }
 
 /* ---- Split sections ---- */
@@ -6860,7 +6860,7 @@ body {
 }
 
 .calendar-controls button:hover {
-  background: var(--color-primary);
+  background: var(--accent-fill-1);
   color: #fff;
   border-color: var(--color-primary);
 }
@@ -7064,7 +7064,7 @@ body {
 }
 
 .surah-pill:hover {
-  background: var(--color-primary);
+  background: var(--accent-fill-1);
   border-color: var(--color-primary);
   color: #fff;
 }
@@ -7440,12 +7440,12 @@ body {
 .charity-progress-fill {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--color-primary-light), var(--color-primary));
+  background: linear-gradient(90deg, var(--accent-fill-2), var(--accent-fill-1));
   transition: width var(--transition);
 }
 
 .charity-progress-fill.is-complete {
-  background: linear-gradient(90deg, #0f9f7a, var(--accent-2));
+  background: linear-gradient(90deg, #0f9f7a, var(--accent-fill-2));
 }
 
 .charity-progress-value {
@@ -7884,12 +7884,12 @@ body {
   min-width: 2px;
 }
 
-.stats-bar-good { background: linear-gradient(90deg, var(--accent-2), #0f9f7a); }
+.stats-bar-good { background: linear-gradient(90deg, var(--accent-fill-2), #0f9f7a); }
 .stats-bar-late { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
 .stats-bar-missed { background: linear-gradient(90deg, #fca5a5, #d9534f); }
 .stats-bar-other { background: linear-gradient(90deg, #94a3b8, #64748b); }
 .stats-bar-empty { width: 100%; background: var(--color-border-light); }
-.stats-bar-charity { background: linear-gradient(90deg, var(--color-primary-light), var(--color-primary)); }
+.stats-bar-charity { background: linear-gradient(90deg, var(--accent-fill-2), var(--accent-fill-1)); }
 .stats-bar-challenge { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
 
 .stats-challenge-grid {
@@ -9312,7 +9312,7 @@ select.form-control option,
 }
 
 .app-date-day.is-selected {
-  background: var(--color-primary);
+  background: var(--accent-fill-1);
   color: #fff;
   box-shadow: 0 4px 14px -6px rgb(var(--accent-rgb) / 0.55);
 }
@@ -10092,7 +10092,7 @@ body:has(.global-audio-bar) .main-content {
 
 .header-guest-btn.is-primary {
   border-color: transparent;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  background: linear-gradient(135deg, var(--accent-fill-1), var(--accent-fill-2));
   color: #fff;
 }
 
@@ -11395,7 +11395,7 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   height: 7px;
   flex: 0 0 auto;
   border-radius: 50%;
-  background: var(--color-primary);
+  background: var(--accent-fill-1);
 }
 
 .notif-text {
