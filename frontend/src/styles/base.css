@@ -4268,6 +4268,8 @@ hr {
   --landing-gold-ink: #946421;
   --landing-shadow: 0 30px 70px -34px rgba(16, 42, 40, 0.42);
   --landing-radius: 26px;
+  /* The UMI Apps wordmark gradient, reused for the parent-studio credit. */
+  --landing-umi-grad: linear-gradient(110deg, #c2410c, #e11d48 52%, #7c3aed 90%);
 
   position: relative;
   min-height: 100vh;
@@ -4295,6 +4297,7 @@ hr {
   --landing-gold-soft: rgba(56, 189, 248, 0.14);
   --landing-gold-ink: #fbbf24;
   --landing-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.75);
+  --landing-umi-grad: linear-gradient(110deg, #ffd08a, #ff7a59 46%, #f472b6 84%);
 }
 
 .landing *,
@@ -5967,8 +5970,20 @@ hr {
 }
 
 .landing-footer-parent strong {
-  color: var(--landing-ink);
+  background: var(--landing-umi-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
   font-weight: 800;
+}
+
+@supports not ((background-clip: text) or (-webkit-background-clip: text)) {
+  .landing-footer-parent strong {
+    background: none;
+    color: var(--landing-ink);
+    -webkit-text-fill-color: currentColor;
+  }
 }
 
 .landing-footer-parent:hover {
