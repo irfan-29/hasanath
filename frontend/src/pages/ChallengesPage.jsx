@@ -9,7 +9,6 @@ import { useConfirm } from '../components/ConfirmProvider';
 import { useToast } from '../components/ToastProvider';
 import { useSession } from '../hooks/useSession.jsx';
 import Loader from '../components/Loader';
-import DateField from '../components/DateField';
 
 // Shared-challenge days are ISO keys chosen by the server. Parsing at noon
 // keeps a key on the same calendar day wherever the browser sits, and the day
@@ -37,8 +36,9 @@ export default function ChallengesPage() {
   const [list, setList] = useState([]);
   const [canManage, setCanManage] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [completed, setCompleted] = useState([]);
+  // Each personal card checks in on its own, so the busy id identifies the card
+  // being written rather than blocking the whole page.
+  const [checkinBusy, setCheckinBusy] = useState('');
   const [editing, setEditing] = useState(null);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
@@ -152,18 +152,49 @@ export default function ChallengesPage() {
     );
   }
 
-  async function submitStreaks() {
-    setSaving(true);
+  // A personal check-in names one card and (optionally) one day. The server
+  // owns the 7-day window, so a 400 here is always the window message.
+  async function checkinSelf(challenge, day) {
+    const forToday = !day || day === isoDay();
+    const id = String(challenge._id);
+    setCheckinBusy(id);
     setError('');
     try {
-      await api.saveStreaks({ completed, date });
-      setCompleted([]);
-      await load();
-      toast('Streaks updated');
+      const result = await api.checkin(id, day);
+      setList(result.challenges || []);
+      if (result.checkedIn) {
+        toast(forToday ? 'Checked in for today' : `Logged for ${dayFull(day)}`);
+      } else {
+        toast(forToday ? 'Today’s check-in removed' : `Removed ${dayFull(day)}`, { kind: 'delete' });
+      }
     } catch (err) {
-      setError(err.status === 400 ? 'That date could not be read.' : 'Could not update streaks.');
+      setError(err.status === 400
+        ? 'That day is outside the 7-day check-in window.'
+        : 'Could not save that check-in.');
     } finally {
-      setSaving(false);
+      setCheckinBusy('');
+    }
+  }
+
+  // One-time tasks are a single completion, not a streak, but they still go
+  // through the same per-card route so no other challenge is reset.
+  async function completeOneTime(challenge) {
+    const id = String(challenge._id);
+    setCheckinBusy(id);
+    setError('');
+    try {
+      const result = await api.checkin(id);
+      setList(result.challenges || []);
+      if (result.checkedIn) {
+        setCompletedOpen(true);
+        toast('Task completed');
+      } else {
+        toast('Task reopened', { kind: 'delete' });
+      }
+    } catch (err) {
+      setError('Could not update that task.');
+    } finally {
+      setCheckinBusy('');
     }
   }
 
@@ -374,9 +405,8 @@ export default function ChallengesPage() {
   }
 
   const selfTasks = list.filter((item) => item.kind !== 'shared');
-  const selfDoneIds = new Set((completed || []).map(String));
-  const activeTasks = selfTasks.filter((item) => !Boolean(item.oneTime) || !(item.completed || selfDoneIds.has(String(item._id))));
-  const completedTasks = selfTasks.filter((item) => Boolean(item.oneTime) && (item.completed || selfDoneIds.has(String(item._id))));
+  const activeTasks = selfTasks.filter((item) => !item.oneTime || !item.completed);
+  const completedTasks = selfTasks.filter((item) => item.oneTime && item.completed);
 
   const bestCurrent = list.reduce((best, item) => Math.max(best, Number(item.currentStreak) || 0), 0);
   const bestEver = list.reduce((best, item) => Math.max(best, Number(item.maxStreak ?? item.currentStreak) || 0), 0);
@@ -540,16 +570,7 @@ export default function ChallengesPage() {
 
       {tab === 'self' && (
         <div className="container1 challenge-panel is-flat">
-          {canManage && activeTasks.some((c) => !c.oneTime) && (
-            <DateField
-              id="challenge-date"
-              label="Date"
-              value={date}
-              onChange={(nextDate) => { setDate(nextDate); setCompleted([]); }}
-            />
-          )}
-
-          <div className="challenge-list" style={{ marginTop: '1.25rem' }}>
+          <div className="challenge-list">
             {activeTasks.length === 0 && completedTasks.length === 0 && (
               <div className="challenge-empty-state">
                 <span className="challenge-empty-icon material-symbols-rounded" aria-hidden="true">local_fire_department</span>
@@ -562,43 +583,23 @@ export default function ChallengesPage() {
 
             {activeTasks.map((challenge, i) => {
               const isOneTime = Boolean(challenge.oneTime);
-              const isDone = selfDoneIds.has(String(challenge._id));
               const streak = Number(challenge.currentStreak) || 0;
               const best = Number(challenge.maxStreak) || 0;
+              const busy = checkinBusy === String(challenge._id);
               return (
                 <article
-                  className={`challenge-card${isDone ? ' is-done' : ''}${isOneTime ? ' is-one-time' : ''}`}
+                  className={`challenge-card${challenge.checkedInToday ? ' is-done' : ''}${isOneTime ? ' is-one-time' : ''}`}
                   data-challenge-id={challenge._id}
                   key={challenge._id}
                 >
-                  {canManage && (
+                  {canManage && isOneTime && (
                     <label className="challenge-check">
                       <input
                         type="checkbox"
-                        checked={isDone}
+                        checked={Boolean(challenge.completed)}
                         aria-label={`Mark ${challenge.challenge} complete`}
-                        onChange={async (e) => {
-                          const id = String(challenge._id);
-                          if (isOneTime && e.target.checked) {
-                            setSaving(true);
-                            setError('');
-                            try {
-                              await api.saveStreaks({ completed: [id], date });
-                              setCompleted((current) => current.filter((x) => x !== id));
-                              setCompletedOpen(true);
-                              await load();
-                              toast('Task completed');
-                            } catch {
-                              setError('Could not complete that task.');
-                            } finally {
-                              setSaving(false);
-                            }
-                            return;
-                          }
-                          setCompleted((current) => e.target.checked
-                            ? [...current, id]
-                            : current.filter((x) => x !== id));
-                        }}
+                        disabled={busy}
+                        onChange={() => completeOneTime(challenge)}
                         id={`challenge_${i}`}
                       />
                       <span className="challenge-check-box" aria-hidden="true">
@@ -635,32 +636,75 @@ export default function ChallengesPage() {
                         </div>
                       )}
                     </div>
-                    <div className="challenge-card-stats">
-                      {!isOneTime && (
-                        <>
+
+                    {isOneTime ? (
+                      <div className="challenge-card-stats">
+                        <span className="challenge-meta">No streak · check to complete</span>
+                        <span className="challenge-meta">Last updated: {challenge.lastUpdated || '—'}</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="challenge-checkin-meta">
                           <span className="streak-badge">
                             <span className="material-symbols-rounded" aria-hidden="true">local_fire_department</span>
                             {streak} day streak
                           </span>
                           <span className="challenge-best-badge">Best {best}</span>
-                        </>
-                      )}
-                      {isOneTime && <span className="challenge-meta">No streak · check to complete</span>}
-                      <span className="challenge-meta">Last updated: {challenge.lastUpdated || '—'}</span>
-                    </div>
+                          {canManage && (
+                            <button
+                              type="button"
+                              className={`btn btn-sm ${challenge.checkedInToday ? 'btn-outline' : 'btn-primary'}`}
+                              disabled={busy}
+                              aria-pressed={Boolean(challenge.checkedInToday)}
+                              title={challenge.checkedInToday ? 'Undo today’s check-in' : 'Mark today complete'}
+                              onClick={() => checkinSelf(challenge)}
+                            >
+                              {challenge.checkedInToday ? 'Checked in today' : 'Check in today'}
+                            </button>
+                          )}
+                        </div>
+
+                        {canManage && Array.isArray(challenge.recentDays) && challenge.recentDays.length > 0 && (
+                          <div className="challenge-backfill">
+                            <div className="backfill-head">
+                              <span className="backfill-title">Catch up on the week</span>
+                              <span className="backfill-hint">Tap a day to log or undo · last 7 days</span>
+                            </div>
+                            <div className="backfill-days">
+                              {challenge.recentDays.map((day) => (
+                                <button
+                                  key={day.key}
+                                  type="button"
+                                  className={`backfill-day${day.checked ? ' is-done' : ''}`}
+                                  aria-pressed={day.checked}
+                                  aria-label={`${day.checked ? 'Remove' : 'Log'} check-in for ${dayFull(day.key)}`}
+                                  title={dayFull(day.key)}
+                                  disabled={busy}
+                                  onClick={() => checkinSelf(challenge, day.key)}
+                                >
+                                  <span className="backfill-weekday">{shortDay(day.key)}</span>
+                                  <span className="backfill-date">
+                                    {dayNumber(day.key)}
+                                    {day.checked && (
+                                      <span className="material-symbols-rounded" aria-hidden="true">check</span>
+                                    )}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <span className="challenge-meta challenge-last-updated">
+                          Last updated: {challenge.lastUpdated || '—'}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </article>
               );
             })}
           </div>
-
-          {canManage && activeTasks.some((c) => !c.oneTime) && (
-            <div className="new-task" style={{ marginTop: '1.5rem' }}>
-              <button type="button" className="btn btn-primary" onClick={submitStreaks} disabled={saving}>
-                {saving ? 'Saving…' : 'Update Streaks'}
-              </button>
-            </div>
-          )}
 
           {completedTasks.length > 0 && (
             <section className="challenge-completed-section" aria-label="Completed one-time tasks">
@@ -696,20 +740,8 @@ export default function ChallengesPage() {
                                 className="challenge-icon-btn"
                                 aria-label="Reopen task"
                                 title="Reopen"
-                                onClick={async () => {
-                                  setSaving(true);
-                                  setError('');
-                                  try {
-                                    await api.saveStreaks({ completed: [], date, reopenId: String(challenge._id) });
-                                    setCompleted((current) => current.filter((id) => id !== String(challenge._id)));
-                                    await load();
-                                    toast('Task reopened');
-                                  } catch {
-                                    setError('Could not reopen that task.');
-                                  } finally {
-                                    setSaving(false);
-                                  }
-                                }}
+                                disabled={checkinBusy === String(challenge._id)}
+                                onClick={() => completeOneTime(challenge)}
                               >
                                 <span className="material-symbols-rounded" aria-hidden="true">undo</span>
                               </button>
@@ -969,7 +1001,7 @@ function FriendChallengeCard({
         </div>
       ) : (
         <>
-          <div className="friend-challenge-meta">
+          <div className="challenge-checkin-meta">
             <span className="streak-badge">
               <span className="material-symbols-rounded" aria-hidden="true">local_fire_department</span>
               {mine.currentStreak || 0} day streak
@@ -988,7 +1020,7 @@ function FriendChallengeCard({
           </div>
 
           {Array.isArray(mine.recentDays) && mine.recentDays.length > 0 && (
-            <div className="friend-challenge-backfill">
+            <div className="challenge-backfill">
               <div className="backfill-head">
                 <span className="backfill-title">Catch up on the week</span>
                 <span className="backfill-hint">Tap a day to log or undo · last 7 days</span>

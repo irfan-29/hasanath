@@ -6,6 +6,15 @@
 // account when they log in.
 
 const { readGuest, writeGuest, clearGuest } = require("../utils/guestStore.js");
+const {
+  isoDay,
+  computeStreak,
+  bestRunFrom,
+  isRealDay,
+  checkinWindow,
+  recentDays,
+  displayLabel
+} = require("../utils/challengeDays.js");
 // Imported rather than passed in: clearAudioProgress is the first function in
 // this file that needs to reach the collection directly. Every other write goes
 // through the already-loaded req.user and .save(), but an $unset cannot - which
@@ -208,11 +217,29 @@ async function clearAudioProgress(req) {
 // cannot be allowed to grow without limit.
 const MAX_CHALLENGE_HISTORY = 730;
 
+// Serialise a personal challenge the same way a shared one is serialised: the
+// raw record plus the two fields the check-in card derives from its history.
+function presentChallenge(challenge, today) {
+  const raw = challenge && typeof challenge.toObject === "function"
+    ? challenge.toObject()
+    : { ...challenge };
+  const history = (raw.history || []).filter(Boolean);
+  return {
+    ...raw,
+    checkedInToday: history.includes(today),
+    recentDays: raw.oneTime ? [] : recentDays({ history }, today)
+  };
+}
+
+function presentChallenges(challenges, today) {
+  return (challenges || []).map((challenge) => presentChallenge(challenge, today));
+}
+
 async function listChallenges(req) {
-  if (req.isAuthenticated && req.isAuthenticated()) {
-    return req.user.challenges || [];
-  }
-  return readGuest(req).challenges || [];
+  const challenges = (req.isAuthenticated && req.isAuthenticated())
+    ? (req.user.challenges || [])
+    : (readGuest(req).challenges || []);
+  return presentChallenges(challenges, isoDay());
 }
 
 async function addChallenge(req, challenge, opts = {}) {
@@ -349,6 +376,68 @@ async function applyStreakUpdate(req, { completedIds, lastUpdated, historyDate, 
   writeGuest(req, res_of(req), guest);
   return guest.challenges;
 }
+
+// Toggle one personal challenge's check-in for a single day. Unlike
+// applyStreakUpdate this never touches the other challenges and never rewrites
+// a day outside the rolling week: the streak is recomputed from the dated
+// history, which is the same rule the shared challenges follow.
+function toggleChallengeOnDay(challenge, key, today) {
+  if (challenge.oneTime) {
+    challenge.completed = !challenge.completed;
+    challenge.lastUpdated = displayLabel(today);
+    // A one-time task keeps at most the day it was completed. Reopening clears
+    // it, so re-completing later cannot leave a stale past date behind.
+    challenge.history = challenge.completed ? [today] : [];
+    return { ok: true, checkedIn: Boolean(challenge.completed) };
+  }
+
+  const history = Array.from(challenge.history || []).filter(Boolean);
+  const checkedIn = !history.includes(key);
+  challenge.history = checkedIn
+    ? Array.from(new Set([key, ...history]))
+      .sort((a, b) => b.localeCompare(a))
+      .slice(0, MAX_CHALLENGE_HISTORY)
+    : history.filter((entry) => entry !== key);
+
+  challenge.currentStreak = computeStreak(challenge.history, today);
+  const best = bestRunFrom(challenge.history);
+  challenge.maxStreak = best.best;
+  challenge.lastUpdated = displayLabel(key);
+  return { ok: true, checkedIn };
+}
+
+async function toggleChallengeCheckin(req, id, { date } = {}) {
+  const today = isoDay();
+  const key = String(date || today);
+  if (!isRealDay(key)) return { error: "invalid-date" };
+  const range = checkinWindow(today);
+  if (key < range.start || key > range.end) return { error: "invalid-date" };
+
+  if (req.isAuthenticated && req.isAuthenticated()) {
+    const challenge = req.user.challenges.id(id);
+    if (!challenge) return { error: "not-found" };
+    const result = toggleChallengeOnDay(challenge, key, today);
+    await req.user.save();
+    return {
+      ...result,
+      challenge: presentChallenge(challenge, today),
+      challenges: presentChallenges(req.user.challenges, today)
+    };
+  }
+
+  const guest = readGuest(req);
+  const challenge = (guest.challenges || [])
+    .find((entry) => String(entry._id) === String(id));
+  if (!challenge) return { error: "not-found" };
+  const result = toggleChallengeOnDay(challenge, key, today);
+  writeGuest(req, res_of(req), guest);
+  return {
+    ...result,
+    challenge: presentChallenge(challenge, today),
+    challenges: presentChallenges(guest.challenges, today)
+  };
+}
+
 // --- Charity ---------------------------------------------------------------
 //
 // A charity has a recurring target and a list of dated donations. The target
@@ -735,6 +824,7 @@ module.exports = {
   renameChallenge,
   deleteChallenge,
   applyStreakUpdate,
+  toggleChallengeCheckin,
   listSalah,
   recordSalah,
   resolveSalahDay,

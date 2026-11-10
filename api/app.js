@@ -30,6 +30,7 @@ const statsService = require("./services/stats.js");
 const User = require("./models/User.js");
 const friendsService = require("./services/friends.js");
 const friendChallengesService = require("./services/friendChallenges.js");
+const challengeDays = require("./utils/challengeDays.js");
 const appNotifications = require("./services/appNotifications.js");
 const Friendship = require("./models/Friendship.js");
 const FriendChallenge = require("./models/FriendChallenge.js");
@@ -1416,6 +1417,51 @@ app.post("/api/challenges/streaks", requireLogin, async function(req, res){
         res.json({ challenges: updatedChallenges, date: formattedDate });
     } catch (err) {
         console.error("api/challenges streaks:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+// One card, one day. The batch route above resets every unticked challenge,
+// which is exactly what made independent per-card check-ins impossible; this
+// route touches only the challenge it names and enforces the same rolling
+// 7-day window as the shared challenges.
+app.post("/api/challenges/:id/checkin", requireLogin, async function(req, res){
+    try {
+        const result = await userData.toggleChallengeCheckin(req, req.params.id, {
+            date: req.body.date
+        });
+        if (result.error === "invalid-date") return res.status(400).json({ error: "invalid-date" });
+        if (result.error) return res.status(404).json({ error: result.error });
+
+        const today = challengeDays.isoDay();
+        const key = String(req.body.date || today);
+        const tracked = result.challenges.filter((challenge) => !challenge.oneTime);
+        // Only today's action is a streak update worth messaging about: a
+        // backfilled day repairs the record, it does not change what was done
+        // today. A one-time task has no streak at all.
+        if (!result.challenge.oneTime && key === today) {
+            await notifyStreakUpdate(req, {
+                formattedDate: challengeDays.displayLabel(today),
+                completed: tracked
+                    .filter((challenge) => challenge.checkedInToday)
+                    .map((challenge) => String(challenge._id)),
+                updatedChallenges: tracked.map((challenge) => ({
+                    id: String(challenge._id),
+                    name: challenge.challenge,
+                    currentStreak: challenge.currentStreak,
+                    maxStreak: challenge.maxStreak
+                }))
+            });
+        }
+
+        res.json({
+            ok: true,
+            checkedIn: result.checkedIn,
+            challenge: result.challenge,
+            challenges: result.challenges
+        });
+    } catch (err) {
+        console.error("api/challenges checkin:", err.message);
         res.status(500).json({ error: "failed" });
     }
 });

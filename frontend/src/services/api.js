@@ -114,6 +114,9 @@ export const challenges = {
   create: (payload) => api.post('/challenges', typeof payload === 'string' ? { challenge: payload } : { challenge: payload.name, oneTime: Boolean(payload.oneTime) }),
   rename: (id, challenge) => api.post(`/challenges/${id}`, { challenge }),
   remove: (id) => api.request(`/challenges/${id}`, { method: 'DELETE' }),
+  // One challenge, one day: the server decides whether the day is still inside
+  // the rolling 7-day window.
+  checkin: (id, date) => api.post(`/challenges/${id}/checkin`, date ? { date } : {}),
   saveStreaks: (payload) => api.post('/challenges/streaks', payload),
 };
 

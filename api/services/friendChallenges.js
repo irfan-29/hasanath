@@ -11,103 +11,18 @@ const Friendship = require("../models/Friendship.js");
 const appNotifications = require("./appNotifications.js");
 const notify = require("./notifications.js");
 
+const {
+    isoDay,
+    computeStreak,
+    bestRunFrom,
+    isRealDay,
+    checkinWindow,
+    recentDays,
+    displayLabel
+} = require("../utils/challengeDays.js");
+
 const MAX_FRIENDS = 20;
 const MAX_HISTORY = 730;
-// A check-in can be logged for today or any of the six days before it. That is
-// long enough to recover a forgotten evening, short enough that a shared
-// leaderboard still measures the week everyone is actually living in. The
-// window is deliberately not tied to the join date: a person who starts using
-// the challenge today still needs to repair the week they just lived.
-const BACKFILL_DAYS = 7;
-
-// The server's calendar day. The personal tracker already resolves "today" this
-// way, so both streak systems agree on when a day ends.
-function isoDay(date = new Date()) {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
-}
-
-function shiftDay(key, days) {
-    const [y, m, d] = key.split("-").map(Number);
-    const date = new Date(y, m - 1, d, 12);
-    date.setDate(date.getDate() + days);
-    return isoDay(date);
-}
-
-// A streak is the run ending today, or ending yesterday while today is still in
-// progress, so an unfinished day does not read as a broken streak.
-function computeStreak(history, today) {
-    const days = new Set((history || []).filter(Boolean));
-    let cursor = days.has(today) ? today : shiftDay(today, -1);
-    if (!days.has(cursor)) return 0;
-
-    let count = 0;
-    while (days.has(cursor)) {
-        count += 1;
-        cursor = shiftDay(cursor, -1);
-    }
-    return count;
-}
-
-/**
- * bestRunFrom(hist): continuous run (best, start, end) inside `hist`.
- */
-function bestRunFrom(hist) {
-    const days = new Set((hist || []).filter(Boolean));
-    let best = 0, start = null, end = null;
-    for (const startD of Array.from(days).sort()) {
-        let run = 0, cur = new Date(startD);
-        let k = isoDay(cur), first = k, last = k;
-        while (days.has(k)) {
-            run++;
-            last = k;
-            cur = new Date(cur);
-            cur.setDate(cur.getDate() + 1);
-            k = isoDay(cur);
-        }
-        if (run > best) { best = run; start = first; end = last; }
-    }
-    return { best, start, end };
-}
-
-function isRealDay(key) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return false;
-    const [y, m, d] = key.split("-").map(Number);
-    const date = new Date(y, m - 1, d, 12);
-    return date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d;
-}
-
-// The days a check-in may name: never before the rolling week, never the
-// future.
-function checkinWindow(today) {
-    return {
-        start: shiftDay(today, -(BACKFILL_DAYS - 1)),
-        end: today
-    };
-}
-
-// Yesterday through the start of the window, oldest first, for the client's
-// "catch up on the week" strip. Today has its own check-in button.
-function recentDays(participant, today) {
-    const history = new Set(participant.history || []);
-    const { start } = checkinWindow(today);
-    const days = [];
-    let cursor = shiftDay(today, -1);
-    while (cursor >= start) {
-        days.push({ key: cursor, checked: history.has(cursor) });
-        cursor = shiftDay(cursor, -1);
-    }
-    return days.reverse();
-}
-
-function displayLabel(key) {
-    const [y, m, d] = key.split("-").map(Number);
-    return new Date(y, m - 1, d, 12).toLocaleDateString("en-US", {
-        weekday: "long", month: "short", day: "2-digit", year: "numeric"
-    });
-}
 
 // `doc` is expected to have creator and participants.user populated with at
 // least `username`.

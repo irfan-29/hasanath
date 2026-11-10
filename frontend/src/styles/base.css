@@ -1685,6 +1685,14 @@ body:has(.global-audio-bar) .main-content {
   font-size: 0.72rem;
 }
 
+/* The timestamp sits under the check-in card, quieter than the streak so the
+   action stays the loudest thing in the card. */
+.challenge-last-updated {
+  display: block;
+  margin-top: 0.55rem;
+  font-size: 0.7rem;
+}
+
 .challenge-empty-state {
   display: flex;
   flex-direction: column;
@@ -11886,7 +11894,7 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   margin-top: 0.7rem;
 }
 
-.friend-challenge-meta {
+.challenge-checkin-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -11897,7 +11905,7 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   overflow: visible;
 }
 
-.friend-challenge-meta .btn { margin-left: auto; }
+.challenge-checkin-meta .btn { margin-left: auto; }
 
 .friend-challenge-invited {
   margin-top: 0.7rem;
@@ -11999,7 +12007,7 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   .friend-search { flex-direction: column; }
   .friend-search .btn { width: 100%; justify-content: center; }
   .friend-challenge-card { padding: 1.05rem 1.1rem; border-radius: 18px; }
-  .friend-challenge-meta .btn { margin-left: 0; width: 100%; justify-content: center; }
+  .challenge-checkin-meta .btn { margin-left: 0; width: 100%; justify-content: center; }
   .notif-toolbar { width: 100%; }
   .notif-toolbar .btn { width: 100%; justify-content: center; }
 }
@@ -12084,7 +12092,7 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 
 /* A forgotten evening should not cost a streak. The server decides which days
    are still open; this strip only presents them as tappable days. */
-.friend-challenge-backfill {
+.challenge-backfill {
   margin-top: 0.85rem;
   padding: 0.7rem 0.8rem 0.75rem;
   border: 1px dashed var(--color-border-light);
