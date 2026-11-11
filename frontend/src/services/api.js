@@ -111,7 +111,19 @@ export const hadiths = {
 
 export const challenges = {
   list: () => api.get('/challenges'),
-  create: (payload) => api.post('/challenges', typeof payload === 'string' ? { challenge: payload } : { challenge: payload.name, oneTime: Boolean(payload.oneTime) }),
+  // `startDate`/`period`/`endDate` describe the challenge window; a one-time
+  // task ignores them. The server validates the family (start within the last
+  // six days or the future, end not before start).
+  create: (payload) => {
+    const data = typeof payload === 'string' ? { name: payload } : payload;
+    return api.post('/challenges', {
+      challenge: data.name,
+      oneTime: Boolean(data.oneTime),
+      startDate: data.startDate,
+      period: data.period,
+      endDate: data.endDate,
+    });
+  },
   rename: (id, challenge) => api.post(`/challenges/${id}`, { challenge }),
   remove: (id) => api.request(`/challenges/${id}`, { method: 'DELETE' }),
   // One challenge, one day: the server decides whether the day is still inside

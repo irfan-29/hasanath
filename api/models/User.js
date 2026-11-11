@@ -41,6 +41,11 @@ const challengeSchema = new mongoose.Schema({
     currentStreak: Number,
     maxStreak: Number,
     lastUpdated: String,
+    // The window the challenge is meant to be checked in. ISO YYYY-MM-DD so
+    // they compare directly with `history`. Challenges created before dates
+    // existed have neither field and keep the old rolling-week behaviour.
+    startDate: String,
+    endDate: String,
     // ISO dates the challenge was checked in on. Streak counts are enough for
     // the tracker list, but the stats report needs actual days to plot, so
     // every future check-in records its date here.

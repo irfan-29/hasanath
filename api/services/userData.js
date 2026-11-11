@@ -11,9 +11,12 @@ const {
   computeStreak,
   bestRunFrom,
   isRealDay,
-  checkinWindow,
   recentDays,
-  displayLabel
+  displayLabel,
+  validateChallengeDates,
+  challengeStatus,
+  challengeWindow,
+  daysRemaining
 } = require("../utils/challengeDays.js");
 // Imported rather than passed in: clearAudioProgress is the first function in
 // this file that needs to reach the collection directly. Every other write goes
@@ -218,21 +221,59 @@ async function clearAudioProgress(req) {
 const MAX_CHALLENGE_HISTORY = 730;
 
 // Serialise a personal challenge the same way a shared one is serialised: the
-// raw record plus the two fields the check-in card derives from its history.
+// raw record plus the window state and the two fields the check-in card
+// derives from its history.
 function presentChallenge(challenge, today) {
   const raw = challenge && typeof challenge.toObject === "function"
     ? challenge.toObject()
     : { ...challenge };
   const history = (raw.history || []).filter(Boolean);
+  const startDate = raw.startDate || "";
+  const endDate = raw.endDate || "";
+  const status = challengeStatus(today, startDate, endDate);
+  // A finished challenge keeps the streak it ended with. Anchoring at today
+  // would read zero as soon as the window closed.
+  const anchor = status === "ended" && endDate ? endDate : today;
+  // Only dated challenges recompute from history. Undated legacy rows keep the
+  // counter they were saved with, so this change does not zero old streaks.
+  const dated = Boolean(startDate || endDate);
   return {
     ...raw,
+    startDate,
+    endDate,
+    status,
+    daysRemaining: daysRemaining(today, endDate),
     checkedInToday: history.includes(today),
-    recentDays: raw.oneTime ? [] : recentDays({ history }, today)
+    currentStreak: raw.oneTime
+      ? 0
+      : (dated ? computeStreak(history, anchor) : Number(raw.currentStreak) || 0),
+    recentDays: raw.oneTime ? [] : recentDays({ history }, today, { startDate, endDate })
   };
 }
 
+// A personal challenge's `_id` is an ObjectId, whose hex form starts with the
+// creation timestamp, so it doubles as a creation sort key with no extra field.
+// Shared challenges sort on `createdAt`; this keeps both tabs newest-first.
+function newestFirst(challenges) {
+  const list = Array.from(challenges || []);
+  if (!list.some((challenge) => challenge && challenge._id)) return list;
+  return list
+    .map((challenge, index) => ({
+      challenge,
+      index,
+      key: challenge && challenge._id ? String(challenge._id) : ""
+    }))
+    .sort((a, b) => {
+      if (a.key && b.key) return b.key.localeCompare(a.key);
+      if (a.key) return -1;
+      if (b.key) return 1;
+      return a.index - b.index;
+    })
+    .map((entry) => entry.challenge);
+}
+
 function presentChallenges(challenges, today) {
-  return (challenges || []).map((challenge) => presentChallenge(challenge, today));
+  return newestFirst(challenges).map((challenge) => presentChallenge(challenge, today));
 }
 
 async function listChallenges(req) {
@@ -244,13 +285,31 @@ async function listChallenges(req) {
 
 async function addChallenge(req, challenge, opts = {}) {
   const oneTime = Boolean(opts.oneTime);
+  // One-time tasks are a checkbox, not a streak, so they never get a window.
+  let window = { startDate: "", endDate: "" };
+  if (!oneTime) {
+    const validated = validateChallengeDates(opts, isoDay());
+    if (validated.error) return { error: validated.error };
+    window = validated;
+  }
+  const record = {
+    challenge,
+    currentStreak: 0,
+    maxStreak: 0,
+    oneTime,
+    completed: false,
+    history: [],
+    ...window
+  };
+  // Insert at the head so the list is newest-first even before a reload, and so
+  // a guest cookie (whose entries have no id to sort on) keeps that order.
   if (req.isAuthenticated && req.isAuthenticated()) {
-    req.user.challenges.push({ challenge, currentStreak: 0, maxStreak: 0, oneTime, completed: false });
+    req.user.challenges.unshift(record);
     await req.user.save();
     return req.user.challenges;
   }
   const guest = readGuest(req);
-  guest.challenges.push({ challenge, currentStreak: 0, maxStreak: 0, oneTime, completed: false });
+  guest.challenges.unshift(record);
   writeGuest(req, res_of(req), guest);
   return guest.challenges;
 }
@@ -399,7 +458,11 @@ function toggleChallengeOnDay(challenge, key, today) {
       .slice(0, MAX_CHALLENGE_HISTORY)
     : history.filter((entry) => entry !== key);
 
-  challenge.currentStreak = computeStreak(challenge.history, today);
+  // A finished challenge can still be repaired inside the last week, and its
+  // streak must be read at the end date rather than at today.
+  const status = challengeStatus(today, challenge.startDate, challenge.endDate);
+  const anchor = status === "ended" && challenge.endDate ? challenge.endDate : today;
+  challenge.currentStreak = computeStreak(challenge.history, anchor);
   const best = bestRunFrom(challenge.history);
   challenge.maxStreak = best.best;
   challenge.lastUpdated = displayLabel(key);
@@ -410,12 +473,14 @@ async function toggleChallengeCheckin(req, id, { date } = {}) {
   const today = isoDay();
   const key = String(date || today);
   if (!isRealDay(key)) return { error: "invalid-date" };
-  const range = checkinWindow(today);
-  if (key < range.start || key > range.end) return { error: "invalid-date" };
 
   if (req.isAuthenticated && req.isAuthenticated()) {
     const challenge = req.user.challenges.id(id);
     if (!challenge) return { error: "not-found" };
+    if (!challenge.oneTime) {
+      const range = challengeWindow(today, challenge.startDate, challenge.endDate);
+      if (key < range.start || key > range.end) return { error: "invalid-date" };
+    }
     const result = toggleChallengeOnDay(challenge, key, today);
     await req.user.save();
     return {
@@ -429,6 +494,10 @@ async function toggleChallengeCheckin(req, id, { date } = {}) {
   const challenge = (guest.challenges || [])
     .find((entry) => String(entry._id) === String(id));
   if (!challenge) return { error: "not-found" };
+  if (!challenge.oneTime) {
+    const range = challengeWindow(today, challenge.startDate, challenge.endDate);
+    if (key < range.start || key > range.end) return { error: "invalid-date" };
+  }
   const result = toggleChallengeOnDay(challenge, key, today);
   writeGuest(req, res_of(req), guest);
   return {
@@ -544,7 +613,10 @@ function presentCharity(charity, referenceDateKey) {
 
 async function listCharities(req, referenceDateKey) {
   if (!req.isAuthenticated || !req.isAuthenticated()) return [];
-  return (req.user.charities || []).map((charity) => presentCharity(charity, referenceDateKey));
+  // Newest first, like challenges and friends' challenges, so adding a target
+  // puts it at the top instead of the bottom.
+  return newestFirst(req.user.charities || [])
+    .map((charity) => presentCharity(charity, referenceDateKey));
 }
 
 async function addCharity(req, { name, targetAmount, period }) {
@@ -561,14 +633,14 @@ async function addCharity(req, { name, targetAmount, period }) {
   const existing = (req.user.charities || []).find((charity) => charity.name.toLowerCase() === cleanName.toLowerCase());
   if (existing) return { duplicate: true };
 
-  req.user.charities.push({
+  req.user.charities.unshift({
     name: cleanName,
     targetAmount: amount,
     period: cleanPeriod,
     donations: []
   });
   await req.user.save();
-  const added = req.user.charities[req.user.charities.length - 1];
+  const added = req.user.charities[0];
   return presentCharity(added);
 }
 

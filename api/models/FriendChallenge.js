@@ -25,6 +25,11 @@ const friendChallengeSchema = new mongoose.Schema({
     name: { type: String, required: true, trim: true },
     creator: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     participants: [participantSchema],
+    // The shared window, in ISO YYYY-MM-DD. Every participant checks in inside
+    // the same dates, so the window lives on the challenge rather than on each
+    // participant. Empty for documents created before dates existed.
+    startDate: { type: String, default: "" },
+    endDate: { type: String, default: "" },
     createdAt: { type: Date, default: Date.now }
 });
 

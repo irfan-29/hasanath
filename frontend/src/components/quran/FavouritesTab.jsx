@@ -10,9 +10,9 @@ export default function FavouritesTab({ entries, isLoggedIn, onToggle, favoriteF
     return (
       <div className="quran-tab-panel" data-tab-panel="favourites">
         <div className="gate-notice">
-          <span className="material-symbols-rounded">lock</span>
-          <div>
-            <p className="gate-title">Sign in to save ayahs</p>
+          <span className="gate-icon material-symbols-rounded" aria-hidden="true">lock</span>
+          <div className="gate-body">
+            <h2 className="gate-title">Sign in to save ayahs</h2>
             <p className="gate-text">
               Bookmarks are tied to your account, so they follow you across devices.{' '}
               <a href="/login">Sign in</a> or <a href="/register">create an account</a> to start saving.

@@ -180,7 +180,7 @@ export default function AccountPage() {
                   <span className="material-symbols-rounded">check</span>
                   Update
                 </button>
-                <button type="button" className="btn btn-outline" style={{ marginLeft: '0.5rem' }}
+                <button type="button" className="btn btn-outline"
                         onClick={() => { closeEditor(); setUsername(d.username || ''); }}>
                   Cancel
                 </button>

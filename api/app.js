@@ -1374,8 +1374,15 @@ app.post("/api/challenges", requireLogin, async function(req, res){
     const challenge = String(req.body.challenge || "").trim();
     if (!challenge) return res.status(400).json({ error: "invalid" });
     try {
-        const challenges = await userData.addChallenge(req, challenge, { oneTime: Boolean(req.body.oneTime) });
-        res.status(201).json({ challenges });
+        const result = await userData.addChallenge(req, challenge, {
+            oneTime: Boolean(req.body.oneTime),
+            startDate: req.body.startDate,
+            period: req.body.period,
+            endDate: req.body.endDate
+        });
+        // Date validation answers with { error } instead of the list.
+        if (result && result.error) return res.status(400).json({ error: result.error });
+        res.status(201).json({ challenges: result });
     } catch (err) {
         console.error("api/challenges POST:", err.message);
         res.status(500).json({ error: "failed" });
@@ -2001,10 +2008,14 @@ app.post("/api/friend-challenges", requireLogin, async function(req, res){
     try {
         const result = await friendChallengesService.createChallenge(req.user, {
             name: req.body.name,
-            friends: req.body.friends
+            friends: req.body.friends,
+            startDate: req.body.startDate,
+            period: req.body.period,
+            endDate: req.body.endDate
         });
         if (result.error === "invalid-name") return res.status(400).json({ error: "invalid-name" });
         if (result.error === "no-friends") return res.status(400).json({ error: "no-friends" });
+        if (result.error) return res.status(400).json({ error: result.error });
         res.status(201).json({ challenge: result.challenge });
     } catch (err) {
         console.error("api/friend-challenges POST:", err.message);

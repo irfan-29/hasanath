@@ -451,7 +451,7 @@ function PostForm({ post, onClose, onSaved }) {
         <button type="button" className="btn btn-primary" onClick={submit} disabled={saving || !canSave}>
           {saving ? 'Saving…' : editing ? 'Save changes' : 'Save'}
         </button>
-        <button type="button" className="btn btn-outline" style={{ marginLeft: '0.5rem' }} onClick={onClose}>Cancel</button>
+        <button type="button" className="btn btn-outline" onClick={onClose}>Cancel</button>
       </div>
     </div>
   );

@@ -101,7 +101,7 @@ function CharityCard({ charity, onDonate, onEdit, onDelete, donationOpen, donati
             <button type="button" className="btn btn-primary" onClick={() => onDonationSave(charity.id)} disabled={saving}>
               {donationIndex != null ? (saving ? 'Saving…' : 'Save changes') : (saving ? 'Saving…' : 'Save donation')}
             </button>
-            <button type="button" className="btn btn-outline" style={{ marginLeft: '0.5rem' }} onClick={onDonationClose}>
+            <button type="button" className="btn btn-outline" onClick={onDonationClose}>
               Cancel
             </button>
           </div>

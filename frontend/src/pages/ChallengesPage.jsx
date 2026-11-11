@@ -9,6 +9,8 @@ import { useConfirm } from '../components/ConfirmProvider';
 import { useToast } from '../components/ToastProvider';
 import { useSession } from '../hooks/useSession.jsx';
 import Loader from '../components/Loader';
+import DateField from '../components/DateField';
+import FormSelect from '../components/FormSelect';
 
 // Shared-challenge days are ISO keys chosen by the server. Parsing at noon
 // keeps a key on the same calendar day wherever the browser sits, and the day
@@ -27,6 +29,63 @@ const dayNumber = (key) => parseDay(key).getDate();
 const dayFull = (key) => parseDay(key).toLocaleDateString('en-US', {
   weekday: 'long', month: 'short', day: 'numeric',
 });
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const shiftKey = (key, days) => {
+  const date = parseDay(key);
+  date.setDate(date.getDate() + days);
+  return isoDay(date);
+};
+const daysBetweenKeys = (start, end) => Math.round((parseDay(end) - parseDay(start)) / DAY_MS);
+// A challenge may start today or up to six days ago: those are the days a
+// check-in can still repair. Future starts are allowed because the card simply
+// waits for its first day.
+const earliestStartKey = () => shiftKey(isoDay(), -6);
+const formatWindowDay = (key) => parseDay(key).toLocaleDateString('en-GB', {
+  day: 'numeric', month: 'short', year: 'numeric',
+});
+const PERIOD_OPTIONS = [
+  { value: '10', label: '10 days' },
+  { value: '30', label: '30 days' },
+  { value: '90', label: '90 days' },
+  { value: 'custom', label: 'Custom end date' },
+];
+// The last day of a preset window. Ten days from the 11th is the 20th, so the
+// start day counts as day one.
+const windowEnd = (start, period) => (
+  !start || period === 'custom' ? '' : shiftKey(start, Number(period) - 1)
+);
+const DATE_ERROR_MESSAGES = {
+  'invalid-start': 'Pick a valid start date.',
+  'start-too-old': 'A challenge can start today or up to 6 days ago.',
+  'invalid-period': 'Choose a 10, 30 or 90 day period, or a custom end date.',
+  'invalid-end': 'Pick a valid end date.',
+  'end-before-start': 'The end date cannot be before the start date.',
+  'period-too-long': 'That challenge is too long.',
+};
+
+// The same window line on personal and friends' cards, so a challenge reads the
+// same wherever it appears.
+function ChallengeWindowLine({ startDate, endDate, status, daysRemaining }) {
+  if (!startDate && !endDate) return null;
+  let state = '';
+  if (status === 'upcoming') state = 'Not started';
+  else if (status === 'ended') state = 'Ended';
+  else if (typeof daysRemaining === 'number') {
+    state = daysRemaining <= 1 ? 'Last day' : `${daysRemaining} days left`;
+  }
+  const tone = status === 'ended' ? ' is-ended' : status === 'upcoming' ? ' is-upcoming' : '';
+  return (
+    <p className="challenge-window">
+      <span className="material-symbols-rounded" aria-hidden="true">calendar_month</span>
+      <span className="challenge-window-dates">
+        {startDate ? formatWindowDay(startDate) : '—'}
+        {endDate ? ` – ${formatWindowDay(endDate)}` : ''}
+      </span>
+      {state && <span className={`challenge-window-state${tone}`}>{state}</span>}
+    </p>
+  );
+}
 
 // Markup mirrors views/challenges.ejs so the shared stylesheet applies.
 export default function ChallengesPage() {
@@ -58,6 +117,12 @@ export default function ChallengesPage() {
   // "Completed" tab once they are done, so a single task can be reused
   // without cluttering the active list.
   const [oneTimeChallenge, setOneTimeChallenge] = useState(false);
+  // The window for a new challenge. Preset periods produce an end date on the
+  // server; "custom" sends the chosen end date instead.
+  const [startDate, setStartDate] = useState(isoDay());
+  const [period, setPeriod] = useState('30');
+  const [endDate, setEndDate] = useState('');
+  const [dateError, setDateError] = useState('');
   // Editing a shared challenge adds late friends; only the creator sees it.
   const [editingShared, setEditingShared] = useState(null);
   const [sharedDraft, setSharedDraft] = useState('');
@@ -198,32 +263,89 @@ export default function ChallengesPage() {
     }
   }
 
+  // Reset the create form's window whenever it opens, closes or switches tabs.
+  function resetWindow() {
+    setStartDate(isoDay());
+    setPeriod('30');
+    setEndDate('');
+    setDateError('');
+    setOneTimeChallenge(false);
+  }
+
+  function chooseStartDate(next) {
+    setStartDate(next);
+    setDateError('');
+    // Keep a custom end from landing before the new start.
+    if (period === 'custom' && endDate && endDate < next) setEndDate(next);
+  }
+
+  function choosePeriod(next) {
+    setPeriod(next);
+    setDateError('');
+    // A custom window needs a concrete date to edit, so seed it with the same
+    // 30-day default the preset offers.
+    if (next === 'custom' && !endDate) setEndDate(shiftKey(startDate, 29));
+  }
+
+  // Mirrors the server's rules so the user sees the problem before a request.
+  function validateWindow() {
+    if (!startDate) return 'Pick a start date.';
+    if (startDate < earliestStartKey()) return 'A challenge can start today or up to 6 days ago.';
+    if (period === 'custom') {
+      if (!endDate) return 'Pick an end date, or choose a preset period.';
+      if (endDate < startDate) return 'The end date cannot be before the start date.';
+      if (daysBetweenKeys(startDate, endDate) > 3660) return 'That challenge is too long.';
+    }
+    return '';
+  }
+
   async function create() {
     const name = draft.trim();
     if (!name) return;
     const withFriends = tab === 'friends';
     if (withFriends && selectedFriends.length === 0) return;
 
+    // One-time tasks are a checkbox, not a streak, so they have no window.
+    const noWindow = !withFriends && oneTimeChallenge;
+    if (!noWindow) {
+      const invalid = validateWindow();
+      if (invalid) {
+        setDateError(invalid);
+        return;
+      }
+    }
+    const windowPayload = noWindow
+      ? {}
+      : { startDate, period, ...(period === 'custom' ? { endDate } : {}) };
+
     setSaving(true);
     setError('');
     setSharedError('');
+    setDateError('');
     try {
       if (withFriends) {
-        await sharedApi.create({ name, friends: selectedFriends });
+        await sharedApi.create({ name, friends: selectedFriends, ...windowPayload });
         toast(`Challenge sent to ${selectedFriends.length} ${selectedFriends.length === 1 ? 'friend' : 'friends'}`);
       } else {
-        await api.create({ name, oneTime: oneTimeChallenge });
+        await api.create({ name, oneTime: oneTimeChallenge, ...windowPayload });
         setOneTimeChallenge(false);
         toast('Challenge added');
       }
       setDraft('');
       setEditing(null);
       setSelectedFriends([]);
+      resetWindow();
       if (withFriends) await loadShared();
       else await load();
     } catch (err) {
-      if (withFriends) setSharedError('Could not send that challenge.');
-      else setError('Could not add that challenge.');
+      const message = err.status === 400 && err.body && DATE_ERROR_MESSAGES[err.body.error];
+      if (message) {
+        setDateError(message);
+      } else if (withFriends) {
+        setSharedError('Could not send that challenge.');
+      } else {
+        setError('Could not add that challenge.');
+      }
     } finally {
       setSaving(false);
     }
@@ -400,6 +522,7 @@ export default function ChallengesPage() {
     setEditingShared(null);
     setSharedDraft('');
     setSharedSelected([]);
+    resetWindow();
     setError('');
     setSharedError('');
   }
@@ -477,7 +600,7 @@ export default function ChallengesPage() {
 
       {tab === 'self' && canManage && (
         <div className="post-actions challenge-add-row">
-          <button type="button" className="btn btn-primary" onClick={() => { setEditing('__new__'); setDraft(''); }}>
+          <button type="button" className="btn btn-primary" onClick={() => { setEditing('__new__'); setDraft(''); resetWindow(); }}>
             Add new challenge
           </button>
         </div>
@@ -497,6 +620,47 @@ export default function ChallengesPage() {
             />
             <label>Challenge</label>
           </div>
+
+          {/* The window is fixed when the challenge is created: moving it
+              later would leave check-ins outside their own dates. */}
+          {creating && !(tab === 'self' && oneTimeChallenge) && (
+            <div className="challenge-window-form">
+              <div className="salah-form-grid">
+                <DateField
+                  id="challenge-start"
+                  label="Start date"
+                  value={startDate}
+                  min={earliestStartKey()}
+                  onChange={chooseStartDate}
+                />
+                <FormSelect
+                  id="challenge-period"
+                  label="Challenge period"
+                  value={period}
+                  options={PERIOD_OPTIONS}
+                  onChange={choosePeriod}
+                />
+                {period === 'custom' && (
+                  <DateField
+                    id="challenge-end"
+                    label="End date"
+                    value={endDate}
+                    min={startDate}
+                    onChange={(next) => { setEndDate(next); setDateError(''); }}
+                  />
+                )}
+              </div>
+              <p className="challenge-form-hint">
+                {period === 'custom'
+                  ? 'Choose any end date on or after the start date.'
+                  : `Runs ${formatWindowDay(startDate)} – ${formatWindowDay(windowEnd(startDate, period))}.`}
+                {' '}Start today, up to 6 days ago, or in the future.
+              </p>
+              {dateError && (
+                <p className="challenge-form-error" role="alert">{dateError}</p>
+              )}
+            </div>
+          )}
 
           {creating && tab === 'self' && (
             <div>
@@ -543,7 +707,7 @@ export default function ChallengesPage() {
               )}
             </div>
           )}
-          <div className="new-task" style={{ marginTop: '0.75rem' }}>
+          <div className="challenge-form-actions">
             <button
               type="button"
               className="btn btn-primary"
@@ -552,8 +716,8 @@ export default function ChallengesPage() {
             >
               {creating ? 'Add' : 'Save'}
             </button>
-            <button type="button" className="btn btn-outline" style={{ marginLeft: '0.5rem' }}
-              onClick={() => { setEditing(null); setDraft(''); setSelectedFriends([]); }}
+            <button type="button" className="btn btn-outline"
+              onClick={() => { setEditing(null); setDraft(''); setSelectedFriends([]); resetWindow(); }}
             >
               Cancel
             </button>
@@ -586,6 +750,8 @@ export default function ChallengesPage() {
               const streak = Number(challenge.currentStreak) || 0;
               const best = Number(challenge.maxStreak) || 0;
               const busy = checkinBusy === String(challenge._id);
+              // Legacy cards have no status field; they behave as active.
+              const status = challenge.status || 'active';
               return (
                 <article
                   className={`challenge-card${challenge.checkedInToday ? ' is-done' : ''}${isOneTime ? ' is-one-time' : ''}`}
@@ -637,6 +803,15 @@ export default function ChallengesPage() {
                       )}
                     </div>
 
+                    {!isOneTime && (
+                      <ChallengeWindowLine
+                        startDate={challenge.startDate}
+                        endDate={challenge.endDate}
+                        status={status}
+                        daysRemaining={challenge.daysRemaining}
+                      />
+                    )}
+
                     {isOneTime ? (
                       <div className="challenge-card-stats">
                         <span className="challenge-meta">No streak · check to complete</span>
@@ -650,7 +825,7 @@ export default function ChallengesPage() {
                             {streak} day streak
                           </span>
                           <span className="challenge-best-badge">Best {best}</span>
-                          {canManage && (
+                          {canManage && status === 'active' && (
                             <button
                               type="button"
                               className={`btn btn-sm ${challenge.checkedInToday ? 'btn-outline' : 'btn-primary'}`}
@@ -789,7 +964,7 @@ export default function ChallengesPage() {
                 <button
                   type="button"
                   className="btn btn-primary"
-                  onClick={() => { setEditing('__new__'); setDraft(''); setSelectedFriends([]); }}
+                  onClick={() => { setEditing('__new__'); setDraft(''); setSelectedFriends([]); resetWindow(); }}
                 >
                   New challenge
                 </button>
@@ -851,6 +1026,7 @@ function FriendChallengeCard({
 }) {
   const { username } = useSession();
   const pending = Boolean(challenge.me && challenge.me.status === 'pending');
+  const status = challenge.status || 'active';
   const mine = challenge.me || {};
   const creatorIsYou = challenge.creator.username === username;
   // Existing members and pending invitees are already in the challenge; the
@@ -880,6 +1056,12 @@ function FriendChallengeCard({
             {' · '}
             {challenge.participantCount} {challenge.participantCount === 1 ? 'member' : 'members'}
           </p>
+          <ChallengeWindowLine
+            startDate={challenge.startDate}
+            endDate={challenge.endDate}
+            status={status}
+            daysRemaining={challenge.daysRemaining}
+          />
         </div>
         {!pending && (
           <div className="friend-challenge-top-actions">
@@ -933,6 +1115,13 @@ function FriendChallengeCard({
             onChange={(event) => onDraftChange(event.target.value)}
           />
 
+          {challenge.startDate && challenge.endDate && (
+            <p className="friend-challenge-edit-hint">
+              Runs {formatWindowDay(challenge.startDate)} – {formatWindowDay(challenge.endDate)}.
+              The window is fixed when the challenge is created.
+            </p>
+          )}
+
           <p className="friend-challenge-edit-hint">
             Invite friends who joined later. They will get an invitation to accept.
           </p>
@@ -963,13 +1152,13 @@ function FriendChallengeCard({
             </div>
           )}
 
-          <div className="friend-challenge-edit-actions">
-            <button type="submit" className="btn btn-primary btn-sm" disabled={saving || !draft.trim()}>
-              {saving ? 'Saving…' : 'Save changes'}
+          <div className="challenge-form-actions">
+            <button type="submit" className="btn btn-primary" disabled={saving || !draft.trim()}>
+              {saving ? 'Saving…' : 'Save'}
             </button>
             <button
               type="button"
-              className="btn btn-outline btn-sm"
+              className="btn btn-outline"
               disabled={saving}
               onClick={onCancel}
             >
@@ -1007,16 +1196,18 @@ function FriendChallengeCard({
               {mine.currentStreak || 0} day streak
             </span>
             <span className="challenge-best-badge">Best {mine.maxStreak || 0}</span>
-            <button
-              type="button"
-              className={`btn btn-sm ${mine.checkedInToday ? 'btn-outline' : 'btn-primary'}`}
-              disabled={busy}
-              aria-pressed={Boolean(mine.checkedInToday)}
-              title={mine.checkedInToday ? 'Undo today’s check-in' : 'Mark today complete'}
-              onClick={() => onCheckin(challenge)}
-            >
-              {mine.checkedInToday ? 'Checked in today' : 'Check in today'}
-            </button>
+            {status === 'active' && (
+              <button
+                type="button"
+                className={`btn btn-sm ${mine.checkedInToday ? 'btn-outline' : 'btn-primary'}`}
+                disabled={busy}
+                aria-pressed={Boolean(mine.checkedInToday)}
+                title={mine.checkedInToday ? 'Undo today’s check-in' : 'Mark today complete'}
+                onClick={() => onCheckin(challenge)}
+              >
+                {mine.checkedInToday ? 'Checked in today' : 'Check in today'}
+              </button>
+            )}
           </div>
 
           {Array.isArray(mine.recentDays) && mine.recentDays.length > 0 && (

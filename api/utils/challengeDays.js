@@ -13,6 +13,14 @@
 // measures the week everyone is actually living in.
 const BACKFILL_DAYS = 7;
 
+// The preset challenge lengths offered by both create forms. A custom window
+// (an explicit end date) is the fourth option and is validated separately.
+const PERIOD_DAYS = [10, 30, 90];
+
+// A guard against a mistyped custom year producing a century-long card. Ten
+// years is far beyond any habit this app tracks.
+const MAX_CHALLENGE_DAYS = 3660;
+
 // The server's calendar day, matching the personal tracker's day boundary.
 function isoDay(date = new Date()) {
     const y = date.getFullYear();
@@ -82,16 +90,91 @@ function checkinWindow(today) {
     };
 }
 
+// Whole days from `startDate` to `endDate`, both ISO keys.
+function daysBetween(startDate, endDate) {
+    const start = new Date(`${startDate}T12:00:00`);
+    const end = new Date(`${endDate}T12:00:00`);
+    return Math.round((end - start) / 86400000);
+}
+
+/**
+ * validateChallengeDates({ startDate, period, endDate }, today)
+ *
+ * A challenge may start today, up to six days ago (the same days a check-in can
+ * still repair), or any day in the future. The period is either one of
+ * PERIOD_DAYS or "custom", in which case an explicit end date is required.
+ * Returns { startDate, endDate } or { error }.
+ */
+function validateChallengeDates(input = {}, today = isoDay()) {
+    const startDate = String(input.startDate || today);
+    if (!isRealDay(startDate)) return { error: "invalid-start" };
+    if (startDate < shiftDay(today, -(BACKFILL_DAYS - 1))) {
+        return { error: "start-too-old" };
+    }
+
+    // An omitted period behaves like the old 30-day default, so a client that
+    // has not been updated yet still creates a complete challenge.
+    const period = String(input.period || (input.endDate ? "custom" : "30"));
+    let endDate;
+
+    if (period === "custom") {
+        endDate = String(input.endDate || "");
+        if (!isRealDay(endDate)) return { error: "invalid-end" };
+        if (endDate < startDate) return { error: "end-before-start" };
+    } else {
+        const days = Number(period);
+        if (!PERIOD_DAYS.includes(days)) return { error: "invalid-period" };
+        endDate = shiftDay(startDate, days - 1);
+    }
+
+    if (daysBetween(startDate, endDate) > MAX_CHALLENGE_DAYS) {
+        return { error: "period-too-long" };
+    }
+    return { startDate, endDate };
+}
+
+// Where a challenge is in its life today. An undated (legacy) challenge is
+// always active, because it never promised a window.
+function challengeStatus(today, startDate, endDate) {
+    if (startDate && today < startDate) return "upcoming";
+    if (endDate && today > endDate) return "ended";
+    return "active";
+}
+
+// The days a check-in may name once the challenge window is applied: the
+// rolling backfill week intersected with the challenge's own dates. When the
+// two do not overlap (an upcoming challenge, or one that ended over a week ago)
+// the returned range has start > end and every day is rejected.
+function challengeWindow(today, startDate, endDate) {
+    const rolling = checkinWindow(today);
+    return {
+        start: startDate && startDate > rolling.start ? startDate : rolling.start,
+        end: endDate && endDate < rolling.end ? endDate : rolling.end
+    };
+}
+
+// Whole challenge days left, counting today. Null when the challenge has no
+// end date; 0 once it is over.
+function daysRemaining(today, endDate) {
+    if (!endDate) return null;
+    if (today > endDate) return 0;
+    return daysBetween(today, endDate) + 1;
+}
+
 // Yesterday through the start of the window, oldest first, for the client's
-// "catch up on the week" strip. Today has its own check-in button.
-function recentDays(participant, today) {
+// "catch up on the week" strip. Today has its own check-in button. Days outside
+// the challenge's own dates are omitted, so an upcoming challenge shows no
+// strip and a finished one stops at its end date.
+function recentDays(participant, today, { startDate, endDate } = {}) {
     const history = new Set(participant.history || []);
-    const { start } = checkinWindow(today);
+    const range = challengeWindow(today, startDate, endDate);
+    const yesterday = shiftDay(today, -1);
+    const cursor = endDate && endDate < yesterday ? endDate : yesterday;
     const days = [];
-    let cursor = shiftDay(today, -1);
-    while (cursor >= start) {
-        days.push({ key: cursor, checked: history.has(cursor) });
-        cursor = shiftDay(cursor, -1);
+    let day = cursor;
+    while (day >= range.start) {
+        days.push({ key: day, checked: history.has(day) });
+        day = shiftDay(day, -1);
     }
     return days.reverse();
 }
@@ -105,11 +188,18 @@ function displayLabel(key) {
 
 module.exports = {
     BACKFILL_DAYS,
+    PERIOD_DAYS,
+    MAX_CHALLENGE_DAYS,
     isoDay,
     shiftDay,
+    daysBetween,
     computeStreak,
     bestRunFrom,
     isRealDay,
+    validateChallengeDates,
+    challengeStatus,
+    challengeWindow,
+    daysRemaining,
     checkinWindow,
     recentDays,
     displayLabel

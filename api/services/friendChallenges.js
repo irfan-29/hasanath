@@ -18,7 +18,11 @@ const {
     isRealDay,
     checkinWindow,
     recentDays,
-    displayLabel
+    displayLabel,
+    validateChallengeDates,
+    challengeStatus,
+    challengeWindow,
+    daysRemaining
 } = require("../utils/challengeDays.js");
 
 const MAX_FRIENDS = 20;
@@ -31,17 +35,29 @@ function present(doc, viewerId) {
     const today = isoDay();
     const viewer = String(viewerId);
 
+    const startDate = raw.startDate || "";
+    const endDate = raw.endDate || "";
+    const status = challengeStatus(today, startDate, endDate);
+    // Dated challenges recompute every streak from its history, so a missed day
+    // cannot leave a stale number on the leaderboard. An ended challenge is
+    // read at its final day instead of today.
+    const dated = Boolean(startDate || endDate);
+    const anchor = status === "ended" && endDate ? endDate : today;
+
     const participants = (raw.participants || []).map((entry) => {
         const user = entry.user && entry.user._id ? entry.user : { _id: entry.user, username: "" };
+        const history = (entry.history || []).filter(Boolean);
         return {
             id: String(user._id),
             username: user.username || "",
             status: entry.status,
-            currentStreak: Number(entry.currentStreak) || 0,
+            currentStreak: dated
+                ? computeStreak(history, anchor)
+                : Number(entry.currentStreak) || 0,
             maxStreak: Number(entry.maxStreak) || 0,
-            checkedInToday: (entry.history || []).includes(today),
+            checkedInToday: history.includes(today),
             lastUpdated: entry.lastUpdated || "",
-            history: (entry.history || []).filter(Boolean),
+            history,
             isYou: String(user._id) === viewer
         };
     });
@@ -66,6 +82,10 @@ function present(doc, viewerId) {
         name: raw.name || "",
         creator: { id: String(creator._id || ""), username: creator.username || "" },
         createdAt: raw.createdAt,
+        startDate,
+        endDate,
+        status,
+        daysRemaining: daysRemaining(today, endDate),
         me: you
             ? {
                 status: you.status,
@@ -75,7 +95,7 @@ function present(doc, viewerId) {
                 // Only your own history leaves the server; the leaderboard below
                 // strips it so nobody can read a friend's private days.
                 history: you.history,
-                recentDays: recentDays(you, today)
+                recentDays: recentDays(you, today, { startDate, endDate })
             }
             : null,
         leaderboard: accepted.map(({ history, ...entry }, index) => ({
@@ -109,9 +129,13 @@ async function listChallenges(viewerId) {
     return docs.map((doc) => present(doc, viewerId));
 }
 
-async function createChallenge(viewer, { name, friends } = {}) {
+async function createChallenge(viewer, { name, friends, startDate, period, endDate } = {}) {
     const cleanName = String(name || "").trim().slice(0, 80);
     if (!cleanName) return { error: "invalid-name" };
+
+    // The window is shared by every participant, so it is validated once here.
+    const dates = validateChallengeDates({ startDate, period, endDate }, isoDay());
+    if (dates.error) return { error: dates.error };
 
     const usernames = Array.from(new Set(
         (Array.isArray(friends) ? friends : [])
@@ -146,6 +170,8 @@ async function createChallenge(viewer, { name, friends } = {}) {
     const challenge = await FriendChallenge.create({
         name: cleanName,
         creator: viewer._id,
+        startDate: dates.startDate,
+        endDate: dates.endDate,
         participants: [
             { user: viewer._id, status: "accepted", respondedAt: new Date() },
             ...invited.map((user) => ({ user: user._id, status: "pending" }))
@@ -230,8 +256,9 @@ async function toggleCheckin(viewer, challengeId, { date } = {}) {
         (entry) => String(entry.user) === String(viewer._id)
     );
     // Dates are validated against the server's day, so a client clock cannot
-    // open the future or rewrite an old week.
-    const range = checkinWindow(today);
+    // open the future or rewrite an old week. The challenge window narrows the
+    // rolling week further: nothing before the start date or after the end.
+    const range = challengeWindow(today, challenge.startDate, challenge.endDate);
     if (key < range.start || key > range.end) return { error: "invalid-date" };
 
     const history = Array.from(participant.history || []).filter(Boolean);
@@ -240,7 +267,9 @@ async function toggleCheckin(viewer, challengeId, { date } = {}) {
         ? Array.from(new Set([key, ...history])).sort((a, b) => b.localeCompare(a)).slice(0, MAX_HISTORY)
         : history.filter((entry) => entry !== key);
 
-    const streak = computeStreak(participant.history, today);
+    const status = challengeStatus(today, challenge.startDate, challenge.endDate);
+    const anchor = status === "ended" && challenge.endDate ? challenge.endDate : today;
+    const streak = computeStreak(participant.history, anchor);
     participant.currentStreak = streak;
     const best = bestRunFrom(participant.history);
     participant.maxStreak = best.best;

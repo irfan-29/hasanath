@@ -47,6 +47,10 @@ function sanitize(raw) {
         lastUpdated: c.lastUpdated ? String(c.lastUpdated).slice(0, 40) : undefined,
         oneTime: Boolean(c.oneTime),
         completed: Boolean(c.completed),
+        // ISO day keys. Bounded like the rest of the cookie so a hand-written
+        // value cannot store an arbitrarily long string.
+        startDate: c.startDate ? String(c.startDate).slice(0, 10) : undefined,
+        endDate: c.endDate ? String(c.endDate).slice(0, 10) : undefined,
         history: Array.isArray(c.history) ? c.history.slice(0, 40).map((d) => String(d).slice(0, 40)) : undefined
       }));
   }
