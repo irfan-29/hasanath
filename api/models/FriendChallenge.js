@@ -13,7 +13,6 @@ const participantSchema = new mongoose.Schema({
     maxStreak: { type: Number, default: 0 },
     // ISO YYYY-MM-DD check-in days, newest first, capped in the service.
     history: [String],
-    lastUpdated: String,
     // Best-run endpoints, recomputed from history in the service so undo can
     // recalculate a correct new best instead of keeping a stale cached max.
     bestStart: { type: String, default: '' },

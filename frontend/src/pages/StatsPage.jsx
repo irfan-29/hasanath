@@ -106,7 +106,6 @@ function ChallengeCard({ challenge }) {
       <div className="stats-bar" aria-hidden="true">
         <span className="stats-bar-cell stats-bar-challenge" style={{ width: `${percent}%` }} />
       </div>
-      {challenge.lastUpdated && <span className="stats-challenge-date">Last updated {challenge.lastUpdated}</span>}
     </article>
   );
 }

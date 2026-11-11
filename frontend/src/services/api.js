@@ -153,6 +153,8 @@ export const posts = {
 //
 export const friends = {
   list: () => api.get('/friends'),
+  // People you may know: friends of friends first, then new accounts.
+  suggestions: () => api.get('/friends/suggestions'),
   search: (q) => api.get(`/users/search?q=${encodeURIComponent(q)}`),
   request: (username) => api.post('/friends/requests', { username }),
   accept: (friendshipId) => api.post(`/friends/requests/${friendshipId}/accept`, {}),

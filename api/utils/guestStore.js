@@ -44,7 +44,6 @@ function sanitize(raw) {
         challenge: String(c.challenge).slice(0, 120),
         currentStreak: Number(c.currentStreak) || 0,
         maxStreak: Number(c.maxStreak) || 0,
-        lastUpdated: c.lastUpdated ? String(c.lastUpdated).slice(0, 40) : undefined,
         oneTime: Boolean(c.oneTime),
         completed: Boolean(c.completed),
         // ISO day keys. Bounded like the rest of the cookie so a hand-written

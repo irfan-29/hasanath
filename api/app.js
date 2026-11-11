@@ -195,46 +195,6 @@ app.use(userData.attachResponse);
 
 // Schemas
 
-const salahSchema = new mongoose.Schema({
-    date: String,
-    name: String,
-    value: String
-});
-const Salah = mongoose.model("Salah", salahSchema);
-
-const challengesSchema = new mongoose.Schema({
-    challenge: String,
-    currentStreak: Number,
-    maxStreak: Number,
-    lastUpdated: String
-});
-const Challenges = mongoose.model("Challenges", challengesSchema);
-
-const settingsSchema = new mongoose.Schema({
-    defaultHome: String,
-    location: String,
-    favoriteReciter: Number,
-    favoriteFont: String,
-    favoriteEdition: [String],
-    lastReadSurahs: [String],
-    theme: { type: String, default: 'light' },
-    primaryTranslation: String,
-    // Interface typography (App Font / App Text Size / Quran Text Size).
-    // Explicit so Mongoose strict mode does not discard the fields on
-    // user.settings writes the way it would unknown keys.
-    appFont: { type: String, default: "default" },
-    appFontSize: { type: Number, default: 100 },
-    quranFontSize: { type: Number, default: 100 },
-    telegramBotToken: String,
-    telegramChatId: String,
-    audioProgress: {
-        surahNo: Number,
-        surahName: String,
-        time: Number
-    }
-});
-const Settings = mongoose.model("Settings", settingsSchema);
-
 const AyahOfTheDay = require("./models/AyahOfTheDay.js");
 // The daily ayah's text resolution lives in a service because the Telegram
 // scheduler needs it too. It used to live here and read the same shared cached
@@ -1395,18 +1355,17 @@ app.post("/api/challenges", requireLogin, async function(req, res){
 app.post("/api/challenges/streaks", requireLogin, async function(req, res){
     const completed = [].concat(req.body.completed || []).map(String);
 
-    const lastUpdated = new Date(req.body.date);
-    if (isNaN(lastUpdated.getTime())) {
+    const streakDate = new Date(req.body.date);
+    if (isNaN(streakDate.getTime())) {
         return res.status(400).json({ error: "invalid-date" });
     }
-    const formattedDate = lastUpdated.toLocaleDateString("en-US", {
+    const formattedDate = streakDate.toLocaleDateString("en-US", {
         weekday: "long", month: "short", day: "2-digit", year: "numeric"
     });
 
     try {
         const allChallenges = await userData.applyStreakUpdate(req, {
             completedIds: completed,
-            lastUpdated: formattedDate,
             historyDate: userData.normaliseSalahDate(req.body.date),
             reopenId: req.body.reopenId ? String(req.body.reopenId) : undefined
         });
@@ -1875,6 +1834,18 @@ app.get("/api/friends", requireLogin, async function(req, res){
         res.json({ friends, incoming, outgoing });
     } catch (err) {
         console.error("api/friends:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+// "People you may know" for the friends tab: friends of friends first, then the
+// newest accounts. Anyone already friends or with a pending request is omitted.
+app.get("/api/friends/suggestions", requireLogin, async function(req, res){
+    try {
+        const users = await friendsService.suggestions(req.user._id);
+        res.json({ users });
+    } catch (err) {
+        console.error("api/friends/suggestions:", err.message);
         res.status(500).json({ error: "failed" });
     }
 });

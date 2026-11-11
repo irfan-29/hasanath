@@ -200,7 +200,6 @@ function buildChallengeStats(challenges, days = 30, today = new Date()) {
             storedStreak: Number(challenge.currentStreak) || 0,
             storedBest: Number(challenge.maxStreak) || 0,
             historyCount: unique.length,
-            lastUpdated: challenge.lastUpdated || "",
             recentCheckIns: recent,
             // The streak set is the best guess we can make for legacy rows that
             // do not yet carry their own history: the user has told us how many

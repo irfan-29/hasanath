@@ -18,7 +18,6 @@ const {
     isRealDay,
     checkinWindow,
     recentDays,
-    displayLabel,
     validateChallengeDates,
     validateChallengeEnd,
     challengeStatus,
@@ -59,7 +58,6 @@ function present(doc, viewerId) {
                 : Number(entry.currentStreak) || 0,
             maxStreak: Number(entry.maxStreak) || 0,
             checkedInToday: history.includes(today),
-            lastUpdated: entry.lastUpdated || "",
             history,
             isYou: String(user._id) === viewer
         };
@@ -278,7 +276,6 @@ async function toggleCheckin(viewer, challengeId, { date } = {}) {
     participant.maxStreak = best.best;
     participant.bestStart = best.start || "";
     participant.bestEnd = best.end || "";
-    participant.lastUpdated = displayLabel(key);
     await challenge.save();
 
     const doc = await populated(challenge._id);

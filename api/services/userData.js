@@ -12,7 +12,6 @@ const {
   bestRunFrom,
   isRealDay,
   recentDays,
-  displayLabel,
   validateChallengeDates,
   validateChallengeEnd,
   challengeStatus,
@@ -387,7 +386,7 @@ function mergeChallengeHistory(challenge, completed, dateKey) {
 // `historyDate` (ISO YYYY-MM-DD, optional) records the completion on the
 // challenge itself, so the stats page can plot actual days later without
 // having to infer them from a streak number.
-async function applyStreakUpdate(req, { completedIds, lastUpdated, historyDate, reopenId }) {
+async function applyStreakUpdate(req, { completedIds, historyDate, reopenId }) {
   const ids = (completedIds || []).map(String);
   const reopen = reopenId ? String(reopenId) : null;
 
@@ -397,13 +396,11 @@ async function applyStreakUpdate(req, { completedIds, lastUpdated, historyDate, 
       if (challenge.oneTime) {
         if (reopen && reopen === cid) {
           challenge.completed = false;
-          challenge.lastUpdated = lastUpdated;
           mergeChallengeHistory(challenge, false, historyDate);
           continue;
         }
         if (ids.includes(cid)) {
           challenge.completed = true;
-          challenge.lastUpdated = lastUpdated;
           mergeChallengeHistory(challenge, true, historyDate);
         }
         challenge.currentStreak = 0;
@@ -419,7 +416,6 @@ async function applyStreakUpdate(req, { completedIds, lastUpdated, historyDate, 
       } else {
         challenge.currentStreak = 0;
       }
-      challenge.lastUpdated = lastUpdated;
       mergeChallengeHistory(challenge, done, historyDate);
     }
     await req.user.save();
@@ -432,13 +428,11 @@ async function applyStreakUpdate(req, { completedIds, lastUpdated, historyDate, 
     if (challenge.oneTime) {
       if (reopen && reopen === cid) {
         challenge.completed = false;
-        challenge.lastUpdated = lastUpdated;
         mergeChallengeHistory(challenge, false, historyDate);
         continue;
       }
       if (ids.includes(cid)) {
         challenge.completed = true;
-        challenge.lastUpdated = lastUpdated;
         mergeChallengeHistory(challenge, true, historyDate);
       }
       challenge.currentStreak = 0;
@@ -454,7 +448,6 @@ async function applyStreakUpdate(req, { completedIds, lastUpdated, historyDate, 
     } else {
       challenge.currentStreak = 0;
     }
-    challenge.lastUpdated = lastUpdated;
     mergeChallengeHistory(challenge, done, historyDate);
   }
   writeGuest(req, res_of(req), guest);
@@ -468,7 +461,6 @@ async function applyStreakUpdate(req, { completedIds, lastUpdated, historyDate, 
 function toggleChallengeOnDay(challenge, key, today) {
   if (challenge.oneTime) {
     challenge.completed = !challenge.completed;
-    challenge.lastUpdated = displayLabel(today);
     // A one-time task keeps at most the day it was completed. Reopening clears
     // it, so re-completing later cannot leave a stale past date behind.
     challenge.history = challenge.completed ? [today] : [];
@@ -490,7 +482,6 @@ function toggleChallengeOnDay(challenge, key, today) {
   challenge.currentStreak = computeStreak(challenge.history, anchor);
   const best = bestRunFrom(challenge.history);
   challenge.maxStreak = best.best;
-  challenge.lastUpdated = displayLabel(key);
   return { ok: true, checkedIn };
 }
 

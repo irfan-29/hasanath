@@ -277,6 +277,81 @@ async function search(viewerId, rawQuery, { limit = 8 } = {}) {
     });
 }
 
+// "People you may know" for the friends tab. Friends of friends rank first
+// (mutual count), then the newest accounts fill the row so a new user with no
+// connections still sees someone. Anyone already a friend, or with a request
+// pending in either direction, is left out - the row only ever offers a fresh
+// Add.
+async function suggestions(viewerId, { limit = 12 } = {}) {
+    if (!viewerId) return [];
+
+    const mine = await Friendship.find({
+        $or: [{ requester: viewerId }, { recipient: viewerId }]
+    }).select("requester recipient status").lean();
+
+    const excluded = new Set([String(viewerId)]);
+    const friendIds = [];
+    for (const row of mine) {
+        const other = String(row.requester) === String(viewerId)
+            ? String(row.recipient)
+            : String(row.requester);
+        excluded.add(other);
+        if (row.status === "accepted") friendIds.push(other);
+    }
+    const friendSet = new Set(friendIds);
+
+    // One extra hop across accepted friendships gives each candidate a mutual
+    // friend count without loading the whole graph.
+    const mutuals = new Map();
+    if (friendIds.length) {
+        const secondHop = await Friendship.find({
+            status: "accepted",
+            $or: [{ requester: { $in: friendIds } }, { recipient: { $in: friendIds } }]
+        }).select("requester recipient").lean();
+
+        for (const row of secondHop) {
+            for (const side of [row.requester, row.recipient]) {
+                const id = String(side);
+                if (friendSet.has(id) || excluded.has(id)) continue;
+                mutuals.set(id, (mutuals.get(id) || 0) + 1);
+            }
+        }
+    }
+
+    const picked = [];
+    if (mutuals.size) {
+        const users = await User.find({ _id: { $in: [...mutuals.keys()] } })
+            .select("username name").lean();
+        users.sort((a, b) => (
+            (mutuals.get(String(b._id)) || 0) - (mutuals.get(String(a._id)) || 0)
+            || String(a.username).localeCompare(String(b.username))
+        ));
+        for (const user of users) {
+            if (picked.length >= limit) break;
+            picked.push({
+                ...publicSummary(user),
+                mutualCount: mutuals.get(String(user._id)) || 0
+            });
+            excluded.add(String(user._id));
+        }
+    }
+
+    if (picked.length < limit) {
+        // An ObjectId's hex form starts with its creation time, so descending
+        // _id is newest-account order. No extra timestamp field needed.
+        const users = await User.find({ _id: { $nin: [...excluded] } })
+            .select("username name")
+            .sort({ _id: -1 })
+            .limit(limit - picked.length)
+            .lean();
+        for (const user of users) {
+            picked.push({ ...publicSummary(user), mutualCount: 0 });
+        }
+    }
+
+    return picked;
+}
+
 module.exports = {
     publicSummary,
     findUser,
@@ -288,5 +363,6 @@ module.exports = {
     outgoingRequests,
     removeFriend,
     friendCount,
-    search
+    search,
+    suggestions
 };

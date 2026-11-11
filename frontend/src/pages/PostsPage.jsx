@@ -520,6 +520,8 @@ export function ProfilePage() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState(null);
   const [searching, setSearching] = useState(false);
+  // "People you may know" strip at the top of the owner's friends tab.
+  const [suggestions, setSuggestions] = useState([]);
 
   const reload = useCallback(async () => {
     try {
@@ -541,6 +543,15 @@ export function ProfilePage() {
     }
   }, []);
 
+  const loadSuggestions = useCallback(async () => {
+    try {
+      const data = await friendsApi.suggestions();
+      setSuggestions(data.users || []);
+    } catch (err) {
+      // The row is an extra; the rest of the friends tab stands without it.
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     setState({ loading: true, data: null });
@@ -553,8 +564,10 @@ export function ProfilePage() {
   const ownsProfile = Boolean(state.data && state.data.isOwner && isLoggedIn);
 
   useEffect(() => {
-    if (ownsProfile) loadPending();
-  }, [ownsProfile, loadPending]);
+    if (!ownsProfile) return;
+    loadPending();
+    loadSuggestions();
+  }, [ownsProfile, loadPending, loadSuggestions]);
 
   async function addFriend(target) {
     if (!isLoggedIn) {
@@ -568,6 +581,8 @@ export function ProfilePage() {
       setResults((current) => (current || []).map((entry) => (
         entry.username === target ? { ...entry, relation: 'outgoing' } : entry
       )));
+      // The card has served its purpose; leaving it would offer a second Add.
+      setSuggestions((current) => current.filter((entry) => entry.username !== target));
       await reload();
       if (ownsProfile) await loadPending();
       refreshBadge();
@@ -609,6 +624,8 @@ export function ProfilePage() {
       )));
       await reload();
       if (ownsProfile) await loadPending();
+      // Declining deletes the row, so they are suggestible again.
+      if (ownsProfile) await loadSuggestions();
       refreshBadge();
     } catch (err) {
       toast('Could not decline that request.', { kind: 'error' });
@@ -634,6 +651,8 @@ export function ProfilePage() {
       )));
       await reload();
       if (ownsProfile) await loadPending();
+      // A removed friend is a candidate again.
+      if (ownsProfile) await loadSuggestions();
       refreshBadge();
     } catch (err) {
       toast('Could not remove that friend.', { kind: 'error' });
@@ -803,6 +822,44 @@ export function ProfilePage() {
         <div className="profile-panel profile-friends" role="tabpanel" id="profile-panel-friends" aria-labelledby="profile-tab-friends">
           {isOwner && (
             <>
+              {/* The same "people you may know" idea as Instagram: a row of
+                  identity cards that scrolls sideways, each one offering the
+                  single action that matters here - Add. */}
+              {suggestions.length > 0 && (
+                <section className="profile-friends-block" aria-label="Suggested friends">
+                  <h3 className="profile-friends-title">Suggested for you</h3>
+                  <div className="friend-suggestions-scroll">
+                    {suggestions.map((entry) => (
+                      <article className="friend-suggestion" key={entry.id}>
+                        <Link
+                          className="friend-suggestion-avatar"
+                          to={`/u/${entry.username}`}
+                          aria-label={`Open ${entry.username}’s profile`}
+                        >
+                          {entry.username.charAt(0).toUpperCase()}
+                        </Link>
+                        <Link className="friend-suggestion-handle" to={`/u/${entry.username}`}>
+                          {entry.username}
+                        </Link>
+                        <span className="friend-suggestion-meta">
+                          {entry.mutualCount > 0
+                            ? `${entry.mutualCount} mutual friend${entry.mutualCount === 1 ? '' : 's'}`
+                            : (entry.name || 'New here')}
+                        </span>
+                        <button
+                          type="button"
+                          className="friend-suggestion-add"
+                          disabled={friendBusy}
+                          onClick={() => addFriend(entry.username)}
+                        >
+                          Add
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               <form className="friend-search" onSubmit={search}>
                 <input
                   className="form-control"

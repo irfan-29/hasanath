@@ -993,7 +993,6 @@ export default function ChallengesPage() {
                     {isOneTime ? (
                       <div className="challenge-card-stats">
                         <span className="challenge-meta">No streak · check to complete</span>
-                        <span className="challenge-meta">Last updated: {challenge.lastUpdated || '—'}</span>
                       </div>
                     ) : (
                       <>
@@ -1047,10 +1046,6 @@ export default function ChallengesPage() {
                             </div>
                           </div>
                         )}
-
-                        <span className="challenge-meta challenge-last-updated">
-                          Last updated: {challenge.lastUpdated || '—'}
-                        </span>
                       </>
                     )}
                   </div>

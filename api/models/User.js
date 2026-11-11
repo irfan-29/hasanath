@@ -40,7 +40,6 @@ const challengeSchema = new mongoose.Schema({
     challenge: String,
     currentStreak: Number,
     maxStreak: Number,
-    lastUpdated: String,
     // The window the challenge is meant to be checked in. ISO YYYY-MM-DD so
     // they compare directly with `history`. Challenges created before dates
     // existed have neither field and keep the old rolling-week behaviour.

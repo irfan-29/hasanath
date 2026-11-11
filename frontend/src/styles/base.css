@@ -1732,14 +1732,6 @@ body:has(.global-audio-bar) .main-content {
   font-size: 0.72rem;
 }
 
-/* The timestamp sits under the check-in card, quieter than the streak so the
-   action stays the loudest thing in the card. */
-.challenge-last-updated {
-  display: block;
-  margin-top: 0.55rem;
-  font-size: 0.7rem;
-}
-
 .challenge-empty-state {
   display: flex;
   flex-direction: column;
@@ -8059,7 +8051,6 @@ body {
   margin-bottom: 0.7rem;
 }
 .stats-challenge-numbers strong { color: var(--color-accent); font-weight: 800; }
-.stats-challenge-date { display: block; margin-top: 0.5rem; color: var(--color-text-muted); font-size: 0.78rem; }
 
 .stats-month-chart { display: grid; gap: 0.55rem; }
 .stats-month-row {
@@ -12103,6 +12094,101 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 
 .profile-friends .friend-search { margin-top: 0; margin-bottom: 1.25rem; }
 .profile-friends .friends-list { margin-top: 0; }
+
+/* "Suggested for you": a sideways-scrolling strip of people cards, the same
+   discover pattern as Instagram. Snap points stop a card from being left
+   half-cut after a swipe; the row itself never wraps. */
+.friend-suggestions-scroll {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+  padding-bottom: 0.3rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+
+.friend-suggestion {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.28rem;
+  width: 7rem;
+  padding: 0.9rem 0.55rem 0.7rem;
+  border-radius: 16px;
+  background: var(--color-surface-tint);
+  text-align: center;
+  scroll-snap-align: start;
+}
+
+.friend-suggestion-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-fill-2), var(--accent-fill-3));
+  color: #fff;
+  font-size: 1.45rem;
+  font-weight: 800;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.friend-suggestion-avatar:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.friend-suggestion-handle {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.friend-suggestion-handle:hover { color: var(--color-primary); }
+
+.friend-suggestion-meta {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 0.66rem;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.friend-suggestion-add {
+  margin-top: 0.2rem;
+  padding: 0.3rem 0.85rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter var(--transition), opacity var(--transition);
+}
+
+.friend-suggestion-add:hover:not(:disabled) { filter: brightness(0.94); }
+.friend-suggestion-add:disabled { opacity: 0.6; cursor: default; }
+
+@media (max-width: 480px) {
+  .friend-suggestion { width: 6.4rem; }
+  .friend-suggestion-avatar { width: 3.5rem; height: 3.5rem; font-size: 1.25rem; }
+}
 
 /* Your identity in the chrome opens your own profile. */
 .header-account-head {
