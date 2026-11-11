@@ -20,6 +20,7 @@ const {
     recentDays,
     displayLabel,
     validateChallengeDates,
+    validateChallengeEnd,
     challengeStatus,
     challengeWindow,
     daysRemaining
@@ -40,8 +41,10 @@ function present(doc, viewerId) {
     const status = challengeStatus(today, startDate, endDate);
     // Dated challenges recompute every streak from its history, so a missed day
     // cannot leave a stale number on the leaderboard. An ended challenge is
-    // read at its final day instead of today.
-    const dated = Boolean(startDate || endDate);
+    // read at its final day instead of today. Only a start date makes a
+    // challenge "dated": giving a legacy row an end date later must not replace
+    // its saved counters with zero from an empty history.
+    const dated = Boolean(startDate);
     const anchor = status === "ended" && endDate ? endDate : today;
 
     const participants = (raw.participants || []).map((entry) => {
@@ -285,7 +288,10 @@ async function toggleCheckin(viewer, challengeId, { date } = {}) {
 // Only the creator edits a challenge. Adding a friend who accepted after the
 // challenge started is the main reason to edit: participants are copied into
 // the document at creation, so a new friendship does not join by itself.
-async function updateChallenge(viewer, challengeId, { name, friends } = {}) {
+//
+// The end date is editable (extend it, or clear it to run with no end) while the
+// start date stays fixed: every participant's check-ins already belong to it.
+async function updateChallenge(viewer, challengeId, { name, friends, endDate, noEnd } = {}) {
     const challenge = await FriendChallenge.findOne({
         _id: challengeId,
         creator: viewer._id
@@ -296,6 +302,16 @@ async function updateChallenge(viewer, challengeId, { name, friends } = {}) {
         const cleanName = String(name || "").trim().slice(0, 80);
         if (!cleanName) return { error: "invalid-name" };
         challenge.name = cleanName;
+    }
+
+    if (endDate !== undefined || noEnd) {
+        const checked = validateChallengeEnd({
+            startDate: challenge.startDate,
+            endDate,
+            noEnd: Boolean(noEnd)
+        }, isoDay());
+        if (checked.error) return { error: checked.error };
+        challenge.endDate = checked.endDate;
     }
 
     const usernames = Array.from(new Set(

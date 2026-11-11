@@ -61,8 +61,44 @@ const DATE_ERROR_MESSAGES = {
   'invalid-period': 'Choose a 10, 30 or 90 day period, or a custom end date.',
   'invalid-end': 'Pick a valid end date.',
   'end-before-start': 'The end date cannot be before the start date.',
+  'end-in-past': 'The end date cannot be in the past.',
   'period-too-long': 'That challenge is too long.',
+  'not-supported': 'This challenge has no window to edit.',
 };
+
+// The later of two ISO keys, used as a date picker's lower bound.
+const laterKey = (a, b) => (a && b ? (a > b ? a : b) : a || b || '');
+
+// Mirrors the server's edit rules. The start is locked, so only the end can be
+// wrong. A finished challenge is normally extended, which is why a new end date
+// must be today or later - shortening into the past would hide days people
+// already logged.
+function validateEndEdit(startDate, endDate, noEnd) {
+  if (noEnd) return '';
+  if (!endDate) return 'Pick an end date, or tick “No end date”.';
+  if (startDate && endDate < startDate) return 'The end date cannot be before the start date.';
+  if (endDate < isoDay()) return 'The end date cannot be in the past.';
+  if (startDate && daysBetweenKeys(startDate, endDate) > 3660) return 'That challenge is too long.';
+  return '';
+}
+
+// A date the user can read but not move. Rendered with the same .app-field shell
+// as DateField so a locked start date sits in the grid without looking broken.
+function LockedDateField({ id, label, value }) {
+  return (
+    <div className="app-field app-field--locked">
+      <label className="app-field-label" htmlFor={id}>{label}</label>
+      <input
+        id={id}
+        className="app-field-control"
+        type="text"
+        value={formatWindowDay(value)}
+        readOnly
+      />
+      <span className="app-field-icon material-symbols-rounded" aria-hidden="true">lock</span>
+    </div>
+  );
+}
 
 // The same window line on personal and friends' cards, so a challenge reads the
 // same wherever it appears.
@@ -80,7 +116,9 @@ function ChallengeWindowLine({ startDate, endDate, status, daysRemaining }) {
       <span className="material-symbols-rounded" aria-hidden="true">calendar_month</span>
       <span className="challenge-window-dates">
         {startDate ? formatWindowDay(startDate) : '—'}
-        {endDate ? ` – ${formatWindowDay(endDate)}` : ''}
+        {endDate
+          ? ` – ${formatWindowDay(endDate)}`
+          : (startDate ? ' – no end date' : '')}
       </span>
       {state && <span className={`challenge-window-state${tone}`}>{state}</span>}
     </p>
@@ -122,11 +160,20 @@ export default function ChallengesPage() {
   const [startDate, setStartDate] = useState(isoDay());
   const [period, setPeriod] = useState('30');
   const [endDate, setEndDate] = useState('');
+  // Open-ended challenge: no end date at all, so it never reaches "Ended".
+  const [noEnd, setNoEnd] = useState(false);
   const [dateError, setDateError] = useState('');
+  // The end date is the only part of an existing challenge's window that can
+  // move; the start is shown locked beside it.
+  const [editEndDate, setEditEndDate] = useState('');
+  const [editNoEnd, setEditNoEnd] = useState(false);
   // Editing a shared challenge adds late friends; only the creator sees it.
   const [editingShared, setEditingShared] = useState(null);
   const [sharedDraft, setSharedDraft] = useState('');
   const [sharedSelected, setSharedSelected] = useState([]);
+  const [sharedEndDate, setSharedEndDate] = useState('');
+  const [sharedNoEnd, setSharedNoEnd] = useState(false);
+  const [sharedDateError, setSharedDateError] = useState('');
   const [sharedSaving, setSharedSaving] = useState(false);
   const [completedOpen, setCompletedOpen] = useState(false);
 
@@ -268,6 +315,7 @@ export default function ChallengesPage() {
     setStartDate(isoDay());
     setPeriod('30');
     setEndDate('');
+    setNoEnd(false);
     setDateError('');
     setOneTimeChallenge(false);
   }
@@ -281,6 +329,8 @@ export default function ChallengesPage() {
 
   function choosePeriod(next) {
     setPeriod(next);
+    // Picking a period means the challenge should have an end date again.
+    setNoEnd(false);
     setDateError('');
     // A custom window needs a concrete date to edit, so seed it with the same
     // 30-day default the preset offers.
@@ -291,8 +341,9 @@ export default function ChallengesPage() {
   function validateWindow() {
     if (!startDate) return 'Pick a start date.';
     if (startDate < earliestStartKey()) return 'A challenge can start today or up to 6 days ago.';
+    if (noEnd) return '';
     if (period === 'custom') {
-      if (!endDate) return 'Pick an end date, or choose a preset period.';
+      if (!endDate) return 'Pick an end date, or tick “No end date”.';
       if (endDate < startDate) return 'The end date cannot be before the start date.';
       if (daysBetweenKeys(startDate, endDate) > 3660) return 'That challenge is too long.';
     }
@@ -316,7 +367,11 @@ export default function ChallengesPage() {
     }
     const windowPayload = noWindow
       ? {}
-      : { startDate, period, ...(period === 'custom' ? { endDate } : {}) };
+      : {
+          startDate,
+          period: noEnd ? 'none' : period,
+          ...(noEnd ? {} : { ...(period === 'custom' ? { endDate } : {}) }),
+        };
 
     setSaving(true);
     setError('');
@@ -351,18 +406,51 @@ export default function ChallengesPage() {
     }
   }
 
+  // Seed the end-date editor from the challenge itself. The start date is shown
+  // read-only, so only this and the open-ended flag can change.
+  function startEdit(challenge) {
+    setEditing(String(challenge._id));
+    setDraft(challenge.challenge);
+    setEditEndDate(challenge.endDate || '');
+    setEditNoEnd(Boolean(challenge.startDate) && !challenge.endDate);
+    setDateError('');
+  }
+
   async function saveEdit() {
     const name = draft.trim();
     if (!name || !editing) return;
+
+    // Only send the window when it actually changed: renaming a challenge that
+    // ended in the past must not trip the "no past end date" rule.
+    const target = editingTarget;
+    const windowEditable = Boolean(target && !target.oneTime && target.startDate);
+    const storedEnd = (target && target.endDate) || '';
+    const storedOpen = windowEditable && !storedEnd;
+    const windowChanged = windowEditable
+      && (editNoEnd !== storedOpen || (!editNoEnd && editEndDate !== storedEnd));
+
+    if (windowChanged) {
+      const invalid = validateEndEdit(target.startDate, editEndDate, editNoEnd);
+      if (invalid) {
+        setDateError(invalid);
+        return;
+      }
+    }
+
     setSaving(true);
+    setDateError('');
     try {
-      await api.rename(editing, name);
+      await api.rename(editing, name, windowChanged
+        ? { endDate: editNoEnd ? '' : editEndDate, noEnd: editNoEnd }
+        : undefined);
       setEditing(null);
       setDraft('');
       await load();
-      toast('Challenge renamed');
+      toast(windowChanged ? 'Challenge updated' : 'Challenge renamed');
     } catch (err) {
-      setError('Could not rename that challenge.');
+      const message = err.status === 400 && err.body && DATE_ERROR_MESSAGES[err.body.error];
+      if (message) setDateError(message);
+      else setError('Could not update that challenge.');
     } finally {
       setSaving(false);
     }
@@ -463,6 +551,9 @@ export default function ChallengesPage() {
     setEditingShared(challenge.id);
     setSharedDraft(challenge.name);
     setSharedSelected([]);
+    setSharedEndDate(challenge.endDate || '');
+    setSharedNoEnd(Boolean(challenge.startDate) && !challenge.endDate);
+    setSharedDateError('');
     setSharedError('');
   }
 
@@ -470,6 +561,7 @@ export default function ChallengesPage() {
     setEditingShared(null);
     setSharedDraft('');
     setSharedSelected([]);
+    setSharedDateError('');
   }
 
   function toggleSharedFriend(handle) {
@@ -483,11 +575,36 @@ export default function ChallengesPage() {
   async function saveSharedEdit(challenge) {
     const name = sharedDraft.trim();
     if (!name) return;
+
+    // Same rule as a personal challenge: the start is locked, so the window is
+    // only sent when the end date actually moved. Renaming an old challenge
+    // that ended in the past stays possible.
+    const windowEditable = Boolean(challenge.startDate);
+    const storedEnd = challenge.endDate || '';
+    const storedOpen = windowEditable && !storedEnd;
+    const windowChanged = windowEditable
+      && (sharedNoEnd !== storedOpen || (!sharedNoEnd && sharedEndDate !== storedEnd));
+
+    if (windowChanged) {
+      const invalid = validateEndEdit(challenge.startDate, sharedEndDate, sharedNoEnd);
+      if (invalid) {
+        setSharedDateError(invalid);
+        return;
+      }
+    }
+
     const invitedCount = sharedSelected.length;
     setSharedSaving(true);
     setSharedError('');
+    setSharedDateError('');
     try {
-      const result = await sharedApi.update(challenge.id, { name, friends: sharedSelected });
+      const result = await sharedApi.update(challenge.id, {
+        name,
+        friends: sharedSelected,
+        ...(windowChanged
+          ? { endDate: sharedNoEnd ? '' : sharedEndDate, noEnd: sharedNoEnd }
+          : {}),
+      });
       setSharedChallenges((current) => current.map((entry) => (
         entry.id === challenge.id ? result.challenge : entry
       )));
@@ -496,7 +613,9 @@ export default function ChallengesPage() {
         ? `Challenge updated · ${invitedCount} invite${invitedCount === 1 ? '' : 's'} sent`
         : 'Challenge updated');
     } catch (err) {
-      setSharedError(err.status === 400
+      const message = err.status === 400 && err.body && DATE_ERROR_MESSAGES[err.body.error];
+      if (message) setSharedDateError(message);
+      else setSharedError(err.status === 400
         ? 'Give the challenge a name before saving.'
         : 'Could not update that challenge.');
     } finally {
@@ -536,6 +655,11 @@ export default function ChallengesPage() {
   const activeCount = list.filter((item) => (Number(item.currentStreak) || 0) > 0).length;
 
   const creating = editing === '__new__';
+  // The record behind an open edit panel, so the form can show its locked start
+  // date and the end date it currently ends on.
+  const editingTarget = creating || !editing
+    ? null
+    : list.find((item) => String(item._id) === String(editing)) || null;
 
   return (
     <>
@@ -621,8 +745,9 @@ export default function ChallengesPage() {
             <label>Challenge</label>
           </div>
 
-          {/* The window is fixed when the challenge is created: moving it
-              later would leave check-ins outside their own dates. */}
+          {/* The start date is fixed once the challenge exists - check-ins
+              already belong to it. Only the end date can move: extending a
+              challenge that is about to finish, or clearing it entirely. */}
           {creating && !(tab === 'self' && oneTimeChallenge) && (
             <div className="challenge-window-form">
               <div className="salah-form-grid">
@@ -633,14 +758,16 @@ export default function ChallengesPage() {
                   min={earliestStartKey()}
                   onChange={chooseStartDate}
                 />
-                <FormSelect
-                  id="challenge-period"
-                  label="Challenge period"
-                  value={period}
-                  options={PERIOD_OPTIONS}
-                  onChange={choosePeriod}
-                />
-                {period === 'custom' && (
+                {!noEnd && (
+                  <FormSelect
+                    id="challenge-period"
+                    label="Challenge period"
+                    value={period}
+                    options={PERIOD_OPTIONS}
+                    onChange={choosePeriod}
+                  />
+                )}
+                {!noEnd && period === 'custom' && (
                   <DateField
                     id="challenge-end"
                     label="End date"
@@ -650,11 +777,62 @@ export default function ChallengesPage() {
                   />
                 )}
               </div>
+              <label className="challenge-type-toggle" htmlFor="challenge-no-end">
+                <input
+                  id="challenge-no-end"
+                  type="checkbox"
+                  checked={noEnd}
+                  onChange={(e) => { setNoEnd(e.target.checked); setDateError(''); }}
+                />
+                <span>No end date</span>
+              </label>
               <p className="challenge-form-hint">
-                {period === 'custom'
-                  ? 'Choose any end date on or after the start date.'
-                  : `Runs ${formatWindowDay(startDate)} – ${formatWindowDay(windowEnd(startDate, period))}.`}
+                {noEnd
+                  ? `Runs from ${formatWindowDay(startDate)}, with no end date.`
+                  : period === 'custom'
+                    ? 'Choose any end date on or after the start date.'
+                    : `Runs ${formatWindowDay(startDate)} – ${formatWindowDay(windowEnd(startDate, period))}.`}
                 {' '}Start today, up to 6 days ago, or in the future.
+              </p>
+              {dateError && (
+                <p className="challenge-form-error" role="alert">{dateError}</p>
+              )}
+            </div>
+          )}
+
+          {!creating && editingTarget && !editingTarget.oneTime && editingTarget.startDate && (
+            <div className="challenge-window-form challenge-window-form--edit">
+              <div className="salah-form-grid">
+                <LockedDateField
+                  id="challenge-edit-start"
+                  label="Start date"
+                  value={editingTarget.startDate}
+                />
+                {!editNoEnd && (
+                  <DateField
+                    id="challenge-edit-end"
+                    label="End date"
+                    value={editEndDate}
+                    min={laterKey(editingTarget.startDate, isoDay())}
+                    onChange={(next) => { setEditEndDate(next); setDateError(''); }}
+                  />
+                )}
+              </div>
+              <label className="challenge-type-toggle" htmlFor="challenge-edit-no-end">
+                <input
+                  id="challenge-edit-no-end"
+                  type="checkbox"
+                  checked={editNoEnd}
+                  onChange={(e) => { setEditNoEnd(e.target.checked); setDateError(''); }}
+                />
+                <span>No end date</span>
+              </label>
+              <p className="challenge-form-hint">
+                The start date is locked.
+                {' '}
+                {editNoEnd
+                  ? 'This challenge will keep running until you give it an end date.'
+                  : 'Pick a later end date to extend it.'}
               </p>
               {dateError && (
                 <p className="challenge-form-error" role="alert">{dateError}</p>
@@ -786,7 +964,7 @@ export default function ChallengesPage() {
                             className="challenge-icon-btn challenge-icon-btn-edit"
                             aria-label="Edit challenge"
                             title="Edit"
-                            onClick={() => { setEditing(String(challenge._id)); setDraft(challenge.challenge); }}
+                            onClick={() => startEdit(challenge)}
                           >
                             <span className="material-symbols-rounded" aria-hidden="true">edit</span>
                           </button>
@@ -998,8 +1176,13 @@ export default function ChallengesPage() {
                     draft={sharedDraft}
                     saving={sharedSaving}
                     selected={sharedSelected}
+                    endDate={sharedEndDate}
+                    noEnd={sharedNoEnd}
+                    dateError={sharedDateError}
                     onDraftChange={setSharedDraft}
                     onToggleFriend={toggleSharedFriend}
+                    onEndDateChange={(next) => { setSharedEndDate(next); setSharedDateError(''); }}
+                    onNoEndChange={(next) => { setSharedNoEnd(next); setSharedDateError(''); }}
                     onStartEdit={startEditShared}
                     onSave={saveSharedEdit}
                     onCancel={cancelSharedEdit}
@@ -1021,7 +1204,9 @@ export default function ChallengesPage() {
 // once accepted.
 function FriendChallengeCard({
   challenge, busy, friends = [], editing, draft, saving, selected = [],
-  onDraftChange, onToggleFriend, onStartEdit, onSave, onCancel,
+  endDate = '', noEnd = false, dateError = '',
+  onDraftChange, onToggleFriend, onEndDateChange, onNoEndChange,
+  onStartEdit, onSave, onCancel,
   onCheckin, onRespond, onRemove,
 }) {
   const { username } = useSession();
@@ -1056,12 +1241,6 @@ function FriendChallengeCard({
             {' · '}
             {challenge.participantCount} {challenge.participantCount === 1 ? 'member' : 'members'}
           </p>
-          <ChallengeWindowLine
-            startDate={challenge.startDate}
-            endDate={challenge.endDate}
-            status={status}
-            daysRemaining={challenge.daysRemaining}
-          />
         </div>
         {!pending && (
           <div className="friend-challenge-top-actions">
@@ -1095,6 +1274,17 @@ function FriendChallengeCard({
         )}
       </div>
 
+      {/* Full width under the title row, exactly like a personal card: keeping
+          it inside the title block made the dates compete with the edit and
+          delete buttons for the same line, so they dropped to their own row on
+          a phone. */}
+      <ChallengeWindowLine
+        startDate={challenge.startDate}
+        endDate={challenge.endDate}
+        status={status}
+        daysRemaining={challenge.daysRemaining}
+      />
+
       {editing ? (
         <form
           className="friend-challenge-edit"
@@ -1115,11 +1305,41 @@ function FriendChallengeCard({
             onChange={(event) => onDraftChange(event.target.value)}
           />
 
-          {challenge.startDate && challenge.endDate && (
-            <p className="friend-challenge-edit-hint">
-              Runs {formatWindowDay(challenge.startDate)} – {formatWindowDay(challenge.endDate)}.
-              The window is fixed when the challenge is created.
-            </p>
+          {challenge.startDate && (
+            <div className="challenge-window-form challenge-window-form--edit">
+              <div className="salah-form-grid">
+                <LockedDateField
+                  id={`friend-start-${challenge.id}`}
+                  label="Start date"
+                  value={challenge.startDate}
+                />
+                {!noEnd && (
+                  <DateField
+                    id={`friend-end-${challenge.id}`}
+                    label="End date"
+                    value={endDate}
+                    min={laterKey(challenge.startDate, isoDay())}
+                    onChange={onEndDateChange}
+                  />
+                )}
+              </div>
+              <label className="challenge-type-toggle" htmlFor={`friend-no-end-${challenge.id}`}>
+                <input
+                  id={`friend-no-end-${challenge.id}`}
+                  type="checkbox"
+                  checked={noEnd}
+                  onChange={(event) => onNoEndChange(event.target.checked)}
+                />
+                <span>No end date</span>
+              </label>
+              <p className="challenge-form-hint">
+                The start date is locked. Pick a later end date to extend the challenge, or
+                remove its end date entirely.
+              </p>
+              {dateError && (
+                <p className="challenge-form-error" role="alert">{dateError}</p>
+              )}
+            </div>
           )}
 
           <p className="friend-challenge-edit-hint">

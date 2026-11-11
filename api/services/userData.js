@@ -14,6 +14,7 @@ const {
   recentDays,
   displayLabel,
   validateChallengeDates,
+  validateChallengeEnd,
   challengeStatus,
   challengeWindow,
   daysRemaining
@@ -234,9 +235,10 @@ function presentChallenge(challenge, today) {
   // A finished challenge keeps the streak it ended with. Anchoring at today
   // would read zero as soon as the window closed.
   const anchor = status === "ended" && endDate ? endDate : today;
-  // Only dated challenges recompute from history. Undated legacy rows keep the
-  // counter they were saved with, so this change does not zero old streaks.
-  const dated = Boolean(startDate || endDate);
+  // Only dated challenges recompute from history. A legacy row has no start
+  // date; giving it an end date later must not replace its saved counter with
+  // zero from an empty history. Undated rows keep the counter they stored.
+  const dated = Boolean(startDate);
   return {
     ...raw,
     startDate,
@@ -314,20 +316,43 @@ async function addChallenge(req, challenge, opts = {}) {
   return guest.challenges;
 }
 
-async function renameChallenge(req, id, name) {
-  if (req.isAuthenticated && req.isAuthenticated()) {
-    const item = req.user.challenges.id(id);
-    if (!item) return false;
-    item.challenge = name;
-    await req.user.save();
-    return true;
+// Renaming and re-windowing share one path. The start date is deliberately not
+// editable: check-ins already sit inside it, so moving it would leave history
+// outside the challenge's own dates. The end date can move forward, or be
+// cleared to make the challenge open-ended.
+async function updateChallenge(req, id, changes = {}) {
+  const authenticated = Boolean(req.isAuthenticated && req.isAuthenticated());
+  // Hold the guest document for the whole call so the write persists the same
+  // object that the edit mutated.
+  const guest = authenticated ? null : readGuest(req);
+  const source = authenticated ? req.user.challenges : (guest.challenges || []);
+  const item = authenticated
+    ? source.id(id)
+    : source.find((entry) => String(entry._id) === String(id));
+  if (!item) return { error: "not-found" };
+
+  const name = changes.challenge === undefined ? undefined : String(changes.challenge || "").trim();
+  if (name !== undefined && !name) return { error: "invalid" };
+
+  let endDate;
+  if (changes.endDate !== undefined || changes.noEnd) {
+    // A one-time task is a checkbox, not a window.
+    if (item.oneTime) return { error: "not-supported" };
+    const checked = validateChallengeEnd({
+      startDate: item.startDate,
+      endDate: changes.endDate,
+      noEnd: Boolean(changes.noEnd)
+    }, isoDay());
+    if (checked.error) return { error: checked.error };
+    endDate = checked.endDate;
   }
-  const guest = readGuest(req);
-  const item = guest.challenges.find((c) => String(c._id) === String(id));
-  if (!item) return false;
-  item.challenge = name;
-  writeGuest(req, res_of(req), guest);
-  return true;
+
+  if (name !== undefined) item.challenge = name;
+  if (endDate !== undefined) item.endDate = endDate;
+
+  if (authenticated) await req.user.save();
+  else writeGuest(req, res_of(req), guest);
+  return { challenge: presentChallenge(item, isoDay()) };
 }
 
 async function deleteChallenge(req, id) {
@@ -893,7 +918,7 @@ module.exports = {
   clearAudioProgress,
   listChallenges,
   addChallenge,
-  renameChallenge,
+  updateChallenge,
   deleteChallenge,
   applyStreakUpdate,
   toggleChallengeCheckin,

@@ -124,7 +124,7 @@ export const challenges = {
       endDate: data.endDate,
     });
   },
-  rename: (id, challenge) => api.post(`/challenges/${id}`, { challenge }),
+  rename: (id, challenge, extra = {}) => api.post(`/challenges/${id}`, { challenge, ...extra }),
   remove: (id) => api.request(`/challenges/${id}`, { method: 'DELETE' }),
   // One challenge, one day: the server decides whether the day is still inside
   // the rolling 7-day window.

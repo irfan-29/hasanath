@@ -1477,12 +1477,15 @@ app.post("/api/challenges/:id", requireLogin, async function(req, res){
     const challenge = String(req.body.challenge || "").trim();
     if (!req.params.id || !challenge) return res.status(400).json({ error: "invalid" });
     try {
-        // renameChallenge is the service method; it takes the id, not a lookup.
-        await userData.renameChallenge(req, req.params.id, challenge);
-        const all = await userData.listChallenges(req);
-        const updated = all.find((c) => String(c._id) === String(req.params.id));
-        if (!updated) return res.status(404).json({ error: "not-found" });
-        res.json({ challenge: updated });
+        // The start date is fixed; the end date may be extended or cleared.
+        const result = await userData.updateChallenge(req, req.params.id, {
+            challenge,
+            endDate: req.body.endDate,
+            noEnd: Boolean(req.body.noEnd)
+        });
+        if (result.error === "not-found") return res.status(404).json({ error: "not-found" });
+        if (result.error) return res.status(400).json({ error: result.error });
+        res.json({ challenge: result.challenge });
     } catch (err) {
         console.error("api/challenges update:", err.message);
         res.status(500).json({ error: "failed" });
@@ -2036,14 +2039,23 @@ app.post("/api/friend-challenges/:id/respond", requireLogin, async function(req,
     }
 });
 
-// Creator-only: rename the challenge and/or invite friends who joined later.
+// Creator-only: rename the challenge, extend its end date, and/or invite
+// friends who joined later.
+const CHALLENGE_EDIT_ERRORS = new Set([
+    "invalid-name", "invalid-end", "end-before-start", "end-in-past", "period-too-long"
+]);
+
 app.patch("/api/friend-challenges/:id", requireLogin, async function(req, res){
     try {
         const result = await friendChallengesService.updateChallenge(req.user, req.params.id, {
             name: req.body.name,
-            friends: req.body.friends
+            friends: req.body.friends,
+            endDate: req.body.endDate,
+            noEnd: Boolean(req.body.noEnd)
         });
-        if (result.error === "invalid-name") return res.status(400).json({ error: "invalid-name" });
+        if (CHALLENGE_EDIT_ERRORS.has(result.error)) {
+            return res.status(400).json({ error: result.error });
+        }
         if (result.error) return res.status(404).json({ error: result.error });
         res.json({
             ok: true,

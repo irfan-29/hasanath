@@ -11915,7 +11915,21 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
-  flex-wrap: wrap;
+  /* The action icons must stay on the title row even on a phone. Before this,
+     wrapping let the dates push them onto a line of their own, left-aligned
+     under the name. The title block shrinks instead. */
+  flex-wrap: nowrap;
+}
+
+.friend-challenge-top > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+  /* A long, unbroken name wraps instead of pushing into the action icons. */
+  overflow-wrap: anywhere;
+}
+
+.friend-challenge-top-actions {
+  flex: 0 0 auto;
 }
 
 .friend-challenge-name {
@@ -12751,6 +12765,32 @@ a.leaderboard-player:hover .leaderboard-name {
 
 .challenge-window-form .salah-form-grid {
   margin: 0;
+}
+
+/* Editing shows only two fields - a locked start and the end date - so the
+   third column of the shared grid would otherwise sit empty. */
+.challenge-window-form--edit .salah-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 768px) {
+  .challenge-window-form--edit .salah-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* A locked date keeps the date-field look but never invites a click. */
+.app-field--locked .app-field-control,
+.app-field--locked .app-field-control:hover {
+  border-color: var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  cursor: default;
+}
+
+.app-field--locked .app-field-icon {
+  color: var(--color-text-muted);
+  font-size: 1rem;
 }
 
 .challenge-form-hint {

@@ -98,11 +98,13 @@ function daysBetween(startDate, endDate) {
 }
 
 /**
- * validateChallengeDates({ startDate, period, endDate }, today)
+ * validateChallengeDates({ startDate, period, endDate, noEnd }, today)
  *
  * A challenge may start today, up to six days ago (the same days a check-in can
  * still repair), or any day in the future. The period is either one of
  * PERIOD_DAYS or "custom", in which case an explicit end date is required.
+ * "none" (or noEnd) means the challenge runs until the user ends it, so it has
+ * no end date at all.
  * Returns { startDate, endDate } or { error }.
  */
 function validateChallengeDates(input = {}, today = isoDay()) {
@@ -111,6 +113,9 @@ function validateChallengeDates(input = {}, today = isoDay()) {
     if (startDate < shiftDay(today, -(BACKFILL_DAYS - 1))) {
         return { error: "start-too-old" };
     }
+
+    // Open-ended: the card says "no end date" and never shows "Ended".
+    if (input.noEnd || input.period === "none") return { startDate, endDate: "" };
 
     // An omitted period behaves like the old 30-day default, so a client that
     // has not been updated yet still creates a complete challenge.
@@ -131,6 +136,30 @@ function validateChallengeDates(input = {}, today = isoDay()) {
         return { error: "period-too-long" };
     }
     return { startDate, endDate };
+}
+
+/**
+ * validateChallengeEnd({ startDate, endDate, noEnd }, today)
+ *
+ * An edit may move the end date but never the start: check-ins already belong
+ * to the original first day, so rewriting it would orphan them. Extending is
+ * the common case. Shortening is allowed down to today, which is how an active
+ * challenge can be closed early, but never into the past - that would silently
+ * hide days people already logged. An empty end date or noEnd makes it
+ * open-ended again. Returns { endDate } or { error }.
+ */
+function validateChallengeEnd(input = {}, today = isoDay()) {
+    const startDate = String(input.startDate || "");
+    const endDate = String(input.endDate || "");
+
+    if (input.noEnd || endDate === "") return { endDate: "" };
+    if (!isRealDay(endDate)) return { error: "invalid-end" };
+    if (startDate && endDate < startDate) return { error: "end-before-start" };
+    if (endDate < today) return { error: "end-in-past" };
+    if (startDate && daysBetween(startDate, endDate) > MAX_CHALLENGE_DAYS) {
+        return { error: "period-too-long" };
+    }
+    return { endDate };
 }
 
 // Where a challenge is in its life today. An undated (legacy) challenge is
@@ -197,6 +226,7 @@ module.exports = {
     bestRunFrom,
     isRealDay,
     validateChallengeDates,
+    validateChallengeEnd,
     challengeStatus,
     challengeWindow,
     daysRemaining,
