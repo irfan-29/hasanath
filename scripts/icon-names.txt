@@ -87,5 +87,8 @@ videocam
 volunteer_activism
 undo
 expand_less
+search
+my_location
+location_on
 android
 download

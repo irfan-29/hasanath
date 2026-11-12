@@ -1,51 +1,104 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../services/api';
 import { useToast } from '../components/ToastProvider';
 import Loader from '../components/Loader';
 import FormSelect from '../components/FormSelect';
-
-const LOCATIONS = ['Coimbatore', 'Hosur', 'Salem', 'Ramanathapuram', 'Bengaluru'];
+import DateField from '../components/DateField';
+import LocationPicker from '../components/LocationPicker';
 
 export default function SalahTimingsPage() {
   const toast = useToast();
-  const [state, setState] = useState({ loading: true, location: '', details: null });
+  const [view, setView] = useState({
+    loading: true,
+    location: '',
+    details: null,
+    methods: [],
+    asrSchools: [],
+  });
+  const [method, setMethod] = useState(2);
+  const [school, setSchool] = useState(0);
+  // The ISO day currently on screen. Empty means "whatever day the server
+  // considers today at the saved place", which is the initial state.
+  const [dateKey, setDateKey] = useState('');
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // Date changes can overlap with the automatic re-fetch after a settings
+  // save; only the newest response may update the page.
+  const requestRef = useRef(0);
 
-  const load = useCallback(async (location) => {
-    setState((s) => ({ ...s, loading: true, error: '' }));
+  const load = useCallback(async (forDate = '') => {
+    const requestId = requestRef.current + 1;
+    requestRef.current = requestId;
+    setView((current) => ({ ...current, loading: true }));
     try {
-      const target = location ? `/salah-timings?location=${encodeURIComponent(location)}` : '/salah-timings';
+      const target = forDate
+        ? `/salah-timings?date=${encodeURIComponent(forDate)}`
+        : '/salah-timings';
       const data = await api.get(target);
-      setState({ loading: false, location: data.location, details: data.details, error: '' });
+      if (requestId !== requestRef.current) return;
+      setView({
+        loading: false,
+        location: data.location,
+        details: data.details,
+        methods: data.methods || [],
+        asrSchools: data.asrSchools || [],
+      });
+      // The server answers with the settings actually in force, so the
+      // selectors always show what the times above were computed with.
+      setMethod(Number(data.method));
+      setSchool(Number(data.school));
+      setDateKey(data.dateKey || data.details?.dateKey || '');
+      setError('');
     } catch (err) {
-      setState({ loading: false, location: '', details: null });
+      if (requestId !== requestRef.current) return;
+      setView((current) => ({ ...current, loading: false }));
       setError('Could not load prayer times.');
     }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  // The API can return a city that is not in the picker's list (an older saved
-  // setting, for example). Add it so the closed trigger still shows the city
-  // that the times above were actually fetched for.
-  const locationOptions = LOCATIONS.includes(state.location)
-    ? LOCATIONS.map((location) => ({ value: location, label: location }))
-    : [
-        ...(state.location ? [{ value: state.location, label: state.location }] : []),
-        ...LOCATIONS.map((location) => ({ value: location, label: location })),
-      ];
+  const busy = saving || view.loading;
 
-  async function changeLocation(value) {
+  // Every change is saved before the times are re-fetched, so the setting and
+  // the cards cannot disagree on the next visit. The chosen day rides along:
+  // changing the method while looking at tomorrow keeps tomorrow on screen.
+  async function save(patch, message) {
+    setSaving(true);
     try {
-      // Saved first so the setting and the displayed times cannot disagree on
-      // the next visit; the widget is re-fetched for the new location.
-      await api.post('/settings', { location: value });
-      await load(value);
-      toast('Location updated');
+      await api.post('/settings', patch);
+      await load(dateKey);
+      toast(message);
     } catch (err) {
-      setError('Could not change location.');
+      // The cards may still be showing, so the inline error slot below is not
+      // always on screen; the toast is what the reader actually sees.
+      toast('Could not save that change.', { kind: 'error' });
+    } finally {
+      setSaving(false);
     }
   }
+
+  async function changeLocation(place) {
+    // Label, coordinates and zone travel together: times are computed from the
+    // coordinates, so saving the name alone would point at the wrong place.
+    await save({
+      location: place.label,
+      locationLat: place.latitude,
+      locationLng: place.longitude,
+      locationTimezone: place.timezone,
+    }, 'Location updated');
+  }
+
+  // Payload only: the day is never written to settings. The next visit opens
+  // on whatever the server calls today again.
+  function changeDate(value) {
+    setDateKey(value);
+    load(value);
+  }
+
+  const details = view.details;
+  const schoolLabel = view.asrSchools.find((entry) => Number(entry.value) === school);
+  const schoolText = schoolLabel ? (schoolLabel.short || schoolLabel.label) : (school === 1 ? 'Hanafi' : 'Standard');
 
   return (
     <>
@@ -54,40 +107,87 @@ export default function SalahTimingsPage() {
       </div>
 
       {/*
-        The date and the city are one context block for the times below: the
-        date first when it is known, then the city trigger, both centred on the
-        same axis as the prayer cards. The city is still the selector - the
-        trailing arrow opens the app's own menu - but it now sits with the
-        date instead of off on the left edge.
+        Date, place and the two calculation choices are one context block for
+        the times below. The place is the selector the same way the day is on
+        the Salah tracker: heading size with a trailing arrow, no field chrome,
+        everything on the cards' centre line.
       */}
       <div className="timings-context">
-        {state.details && (
-          <div className="prayer-meta">
-            <h2>{state.details.date}</h2>
-            <p>{state.details.hijriDate}</p>
-          </div>
-        )}
+        <div className="prayer-meta">
+          <DateField
+            id="timings-date"
+            className="timings-date-picker"
+            triggerIcon="expand_more"
+            value={dateKey}
+            valueLabel={view.loading && !details ? 'Loading…' : (details ? details.date : 'Choose a date')}
+            onChange={changeDate}
+          />
+          {details && <p>{details.hijriDate}</p>}
+        </div>
+
         <div className="timings-location">
           <span className="timings-location-kicker">Location</span>
-          <FormSelect
-            id="timings-location"
+          <LocationPicker
             className="timings-location-picker"
-            ariaLabel="Select location"
-            placeholder={state.loading ? 'Loading…' : 'Choose a city'}
-            value={state.location || ''}
-            disabled={state.loading}
-            onChange={changeLocation}
-            options={locationOptions}
-            compact
+            value={view.location}
+            disabled={busy}
+            onSelect={changeLocation}
           />
         </div>
+
+        {view.methods.length > 0 && (
+          <div className="timings-options">
+            <div className="timings-option">
+              <span className="timings-option-kicker">Method</span>
+              <FormSelect
+                id="timings-method"
+                className="timings-option-select"
+                ariaLabel="Calculation method"
+                placeholder={busy ? 'Loading…' : 'Choose…'}
+                value={String(method)}
+                disabled={busy}
+                onChange={(value) => save({ calculationMethod: Number(value) }, 'Calculation method updated')}
+                options={view.methods.map((entry) => ({
+                  value: String(entry.id),
+                  label: entry.short || entry.label,
+                }))}
+                compact
+              />
+            </div>
+            <div className="timings-option">
+              <span className="timings-option-kicker">Asr</span>
+              <FormSelect
+                id="timings-asr"
+                className="timings-option-select"
+                ariaLabel="Asr calculation"
+                placeholder={busy ? 'Loading…' : 'Choose…'}
+                value={String(school)}
+                disabled={busy}
+                onChange={(value) => save({ asrSchool: Number(value) }, 'Asr calculation updated')}
+                options={view.asrSchools.map((entry) => ({
+                  value: String(entry.value),
+                  label: entry.short || entry.label,
+                }))}
+                compact
+              />
+            </div>
+          </div>
+        )}
+
+        {/* The compact rows only have room for short names; spell out the full
+            convention underneath so "ISNA" is never a mystery. */}
+        {details && (details.methodName || schoolText) && (
+          <p className="timings-method-note">
+            {[details.methodName, `${schoolText} Asr`].filter(Boolean).join(' · ')}
+          </p>
+        )}
       </div>
 
-      {state.loading && !state.details ? (
+      {view.loading && !details ? (
         <Loader variant="inline" label="Loading prayer times" />
-      ) : state.details ? (
+      ) : details ? (
         <div className="prayer-grid">
-          {state.details.prayerTimes.map((prayer, i) => (
+          {details.prayerTimes.map((prayer, i) => (
             <div className="prayer-card" key={`${prayer.timeType}-${i}`}>
               <div className="prayer-name">{prayer.timeType}</div>
               <div className="prayer-time">{prayer.time}</div>

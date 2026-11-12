@@ -28,7 +28,7 @@
   font-style: normal;
   font-weight: 100 700;
   font-display: block;
-  src: url('/fonts/material-symbols-rounded-v3.woff2') format('woff2');
+  src: url('/fonts/material-symbols-rounded-v4.woff2') format('woff2');
 }
 
 .material-symbols-rounded {
@@ -11165,6 +11165,84 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   color: var(--color-primary-light);
 }
 
+/* The date is a selector too: the heading text opens the app's own calendar,
+   with the same stripped chrome and trailing arrow as the location below it.
+   The day is a request parameter only - nothing is stored. */
+.timings-context .timings-date-picker {
+  width: auto;
+  max-width: none;
+  margin: 0;
+}
+
+.timings-context .timings-date-picker .app-date-trigger {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 0.35rem;
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.15;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--transition);
+}
+
+.timings-context .timings-date-picker .app-date-trigger .app-field-value {
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  padding: 0;
+  text-align: inherit;
+}
+
+.timings-context .timings-date-picker .app-date-trigger .app-field-icon {
+  position: static;
+  width: auto;
+  height: auto;
+  align-self: center;
+  font-size: 1.3rem;
+  color: var(--color-text-muted);
+  opacity: 0.75;
+  transform: none;
+  pointer-events: none;
+}
+
+.timings-context .timings-date-picker .app-date-trigger:hover,
+.timings-context .timings-date-picker .app-date-trigger:hover .app-field-value {
+  color: var(--color-primary-dark);
+}
+
+.timings-context .timings-date-picker .app-date-trigger:hover .app-field-icon {
+  color: var(--color-primary-dark);
+  opacity: 1;
+}
+
+.timings-context .timings-date-picker .app-date-trigger[aria-expanded="true"] .app-field-icon {
+  color: var(--color-primary);
+}
+
+.timings-context .timings-date-picker .app-date-trigger:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+[data-theme="dark"] .timings-context .timings-date-picker .app-date-trigger:hover,
+[data-theme="dark"] .timings-context .timings-date-picker .app-date-trigger:hover .app-field-value {
+  color: var(--color-primary-light);
+}
+
 .timings-context .timings-location-picker {
   width: auto;
   max-width: none;
@@ -11256,6 +11334,342 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
     transition: none;
   }
 }
+
+/* Calculation method and Asr school: two quiet inline choices under the place.
+   Short names keep the row on one line; the full convention is written out in
+   .timings-method-note below it. */
+.timings-options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.3rem 1.15rem;
+  margin: 0.1rem 0 0.2rem;
+}
+
+.timings-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.timings-option-kicker {
+  color: var(--color-text-muted);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.timings-context .timings-option-select .app-select-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.timings-context .timings-option-select .app-select-trigger .app-field-value {
+  color: inherit;
+  font: inherit;
+  padding: 0;
+}
+
+.timings-context .timings-option-select .app-select-trigger .app-field-icon {
+  position: static;
+  width: auto;
+  height: auto;
+  color: var(--color-text-muted);
+  font-size: 1rem;
+  transform: none;
+  pointer-events: none;
+}
+
+.timings-context .timings-option-select .app-select-trigger[aria-expanded="true"] .app-field-icon {
+  color: var(--color-primary);
+  transform: rotate(180deg);
+}
+
+.timings-context .timings-option-select .app-select-trigger:hover,
+.timings-context .timings-option-select .app-select-trigger:hover .app-field-value {
+  color: var(--color-primary-dark);
+}
+
+.timings-context .timings-option-select .app-select-trigger:hover .app-field-icon {
+  color: var(--color-primary-dark);
+}
+
+.timings-context .timings-option-select .app-select-trigger:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.timings-context .timings-option-select .app-select-trigger:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+[data-theme="dark"] .timings-context .timings-option-select .app-select-trigger:hover,
+[data-theme="dark"] .timings-context .timings-option-select .app-select-trigger:hover .app-field-value {
+  color: var(--color-primary-light);
+}
+
+.timings-method-note {
+  margin: 0 0 0.4rem;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+/* --- Location picker -------------------------------------------------------
+   Shared by the timings page and Settings. The trigger is supplied by the
+   caller - a stripped heading on timings, a normal field row in Settings - so
+   this block only styles the panel that drops out of it. */
+.location-picker {
+  position: relative;
+  width: 100%;
+}
+
+.location-picker-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 1050;
+  display: grid;
+  gap: 0.6rem;
+  max-height: min(72vh, 520px);
+  padding: 0.75rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  text-align: left;
+}
+
+/* On timings the trigger is only as wide as the city name, so the panel needs
+   its own width and stays centred on it. */
+.timings-location-picker .location-picker-panel {
+  left: 50%;
+  right: auto;
+  width: min(340px, calc(100vw - 2rem));
+  transform: translateX(-50%);
+}
+
+.location-picker-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0 0.7rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.location-picker-search:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px var(--color-primary-glow);
+}
+
+.location-picker-search .material-symbols-rounded {
+  flex: none;
+  font-size: 1.15rem;
+}
+
+.location-picker-search input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.6rem 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.location-picker-search input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.location-picker-busy {
+  flex: none;
+  color: var(--color-text-muted);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.location-picker-gps {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 40px;
+  padding: 0.4rem 0.65rem;
+  border: 1px dashed var(--color-border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--transition), color var(--transition), background var(--transition);
+}
+
+.location-picker-gps:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  background: var(--color-primary-glow);
+  color: var(--color-primary-dark);
+}
+
+.location-picker-gps:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.location-picker-gps .material-symbols-rounded {
+  flex: none;
+  font-size: 1.1rem;
+}
+
+[data-theme="dark"] .location-picker-gps:hover:not(:disabled) {
+  color: var(--color-primary-light);
+}
+
+.location-picker-results {
+  display: grid;
+  gap: 2px;
+  max-height: 240px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.location-picker-results li {
+  margin: 0;
+}
+
+.location-picker-results button {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.55rem 0.6rem;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.location-picker-results button:hover,
+.location-picker-results button:focus-visible {
+  background: var(--color-primary-glow);
+  color: var(--color-primary-dark);
+  outline: none;
+}
+
+.location-picker-results .material-symbols-rounded {
+  flex: none;
+  margin-top: 1px;
+  color: var(--color-text-muted);
+  font-size: 1.05rem;
+}
+
+.location-picker-result-text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.location-picker-result-text strong {
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.location-picker-result-text span {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.location-picker-error,
+.location-picker-empty {
+  margin: 0;
+  padding: 0 0.2rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.location-picker-error {
+  color: var(--color-danger);
+}
+
+.location-picker-empty {
+  color: var(--color-text-muted);
+}
+
+.location-picker-hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+/* Settings reuses the row chrome of the other selects; the extra right padding
+   keeps the value clear of the arrow, which is positioned rather than a flex
+   sibling here. */
+.settings-location-picker {
+  margin-bottom: 1rem;
+}
+
+.settings-location-picker .custom-selector {
+  padding-right: 2.75rem;
+  font: inherit;
+}
+
+/* A geocoded label is longer than the five old city names, so on a phone it is
+   allowed to wrap and sit on two centred lines instead of overflowing. */
+@media (max-width: 600px) {
+  .timings-context .timings-location-picker .app-select-trigger {
+    justify-content: center;
+    font-size: 1.15rem;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .timings-context .timings-location-picker .app-select-trigger .app-field-value {
+    white-space: normal;
+  }
+}
+
 
 /* --- Flat sections ---------------------------------------------------------
    A section that only introduces a list of surfaces does not need a surface

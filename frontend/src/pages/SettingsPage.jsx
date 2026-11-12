@@ -3,6 +3,7 @@ import { api, settings as settingsApi } from '../services/api';
 import { useSession } from '../hooks/useSession.jsx';
 import { useToast } from '../components/ToastProvider';
 import Loader from '../components/Loader';
+import LocationPicker from '../components/LocationPicker';
 
 const TG_ERRORS = {
   'bot-not-configured': "Notifications are off: the app's Telegram bot isn't configured on the server yet.",
@@ -708,11 +709,74 @@ export default function SettingsPage() {
           return `${author || ''} · ${lang || ''}`;
         }} />
 
-      {/* Location */}
-      <SelectRow label="Location" value={s.location}
-        options={(data.locationOptions || []).map((l) => ({ value: l, label: l }))}
+      {/* Location - any place on earth, not just the five old cities. The
+          picker saves the label together with its coordinates and timezone,
+          which is what prayer times are computed from. */}
+      <div className="form-section-title">Location</div>
+      <p className="form-section-hint">Prayer times and the Qibla compass use this place.</p>
+      <LocationPicker
+        className="settings-location-picker"
+        value={s.location}
+        disabled={theme.saving}
+        triggerClassName="custom-selector form-control d-flex align-items-center justify-content-between"
+        onSelect={async (place) => {
+          const ok = await theme.save({
+            location: place.label,
+            locationLat: place.latitude,
+            locationLng: place.longitude,
+            locationTimezone: place.timezone,
+          });
+          if (ok) {
+            setData({
+              ...data,
+              settings: {
+                ...s,
+                location: place.label,
+                locationLat: place.latitude,
+                locationLng: place.longitude,
+                locationTimezone: place.timezone,
+              },
+            });
+          }
+        }} />
+
+      <SelectRow label="Calculation Method"
+        hint="Authorities differ on the solar angles used for Fajr and Isha."
+        value={s.calculationMethod}
+        options={(data.calculationMethods || []).map((m) => ({ value: m.id, label: m.label }))}
         onChange={async (value) => {
-          if (await theme.save({ location: value })) setData({ ...data, settings: { ...s, location: value } });
+          if (await theme.save({ calculationMethod: Number(value) })) {
+            setData({ ...data, settings: { ...s, calculationMethod: Number(value) } });
+          }
+        }}
+        renderLabel={(v) => (data.calculationMethods || []).find((m) => Number(m.id) === Number(v))?.label || 'ISNA'} />
+
+      <SelectRow label="Asr Calculation"
+        hint="Hanafi uses the later, longer shadow."
+        value={s.asrSchool}
+        options={(data.asrSchools || []).map((entry) => ({ value: entry.value, label: entry.label }))}
+        onChange={async (value) => {
+          if (await theme.save({ asrSchool: Number(value) })) {
+            setData({ ...data, settings: { ...s, asrSchool: Number(value) } });
+          }
+        }}
+        renderLabel={(v) => (Number(v) === 1 ? 'Hanafi' : 'Standard (Shafi, Maliki, Hanbali)')} />
+
+      <SelectRow label="Time Format"
+        hint="Applies to prayer times on the timings page and in Telegram messages."
+        value={s.timeFormat}
+        options={(data.timeFormats || []).map((entry) => ({
+          value: entry.value,
+          label: `${entry.label} · ${entry.sample}`,
+        }))}
+        onChange={async (value) => {
+          if (await theme.save({ timeFormat: value })) {
+            setData({ ...data, settings: { ...s, timeFormat: value } });
+          }
+        }}
+        renderLabel={(v) => {
+          const entry = (data.timeFormats || []).find((item) => item.value === v);
+          return entry ? `${entry.label} · ${entry.sample}` : '24-hour · 18:05';
         }} />
 
       {/* ---- Telegram ---- */}

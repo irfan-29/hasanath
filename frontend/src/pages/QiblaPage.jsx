@@ -6,8 +6,8 @@ import Loader from '../components/Loader';
 // bearing from the reader's spot to this point.
 const KAABA = { lat: 21.4224779, lng: 39.8261837 };
 
-// The prayer-time locations the app already offers, so the compass can fall
-// back to the reader's saved city when the browser keeps its GPS to itself.
+// The old fixed city list. Prayer times now carry their own coordinates, so
+// this is only a last resort for a legacy record whose lookup failed.
 const FALLBACK_COORDS = {
   Coimbatore: { lat: 11.0018, lng: 76.9628 },
   Hosur: { lat: 12.7369, lng: 77.6837 },
@@ -76,6 +76,13 @@ export default function QiblaPage() {
     } catch { /* fall through to the reader's saved city */ }
     try {
       const data = await api.get('/salah-timings');
+      // The saved place now arrives as coordinates, so the compass works for
+      // anywhere on earth rather than only the five old city names.
+      const lat = Number(data.latitude);
+      const lng = Number(data.longitude);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        return apply(lat, lng, 'saved');
+      }
       const coords = FALLBACK_COORDS[data.location];
       if (coords) return apply(coords.lat, coords.lng, 'saved');
     } catch { /* and finally the app's default city */ }
@@ -130,7 +137,7 @@ export default function QiblaPage() {
   const aligned = ready && live && Math.abs(normalize(state.bearing - heading + 180) - 180) < 4;
   const sourceNote = state.source === 'gps'
     ? 'Using your current location'
-    : state.source === 'saved' ? 'Approximate - using your saved city' : 'Approximate - using the default city';
+    : state.source === 'saved' ? 'Approximate - using your saved location' : 'Approximate - using the default location';
   const onPhone = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
 
   return (

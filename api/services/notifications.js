@@ -12,7 +12,7 @@
 //     a cron job for exact delivery.
 
 const { sendTelegramMessage, buildStreakSummary } = require("../utils/telegram.js");
-const { cachedJsonOrNull } = require("../utils/quranCache.js");
+const prayerTimes = require("./prayerTimes.js");
 const mongoose = require("mongoose");
 
 const EVENT_KEYS = ["challenges", "salahTracker", "newPost", "salahTimings", "ayahOfTheDay"];
@@ -97,38 +97,39 @@ function escapeHtml(str) {
 }
 
 async function buildSalahTimingsMessage(user) {
-    const location = (user.settings && user.settings.location) || "Coimbatore";
+    const settings = (user && user.settings) || {};
+    const location = settings.location || "Coimbatore";
     try {
-        // timingsByAddress is the one that reliably answers for an Indian city
-        // name; timingsByCity returns 400 for Salem/Coimbatore. It answers with a
-        // 302, so the cache has to follow redirects.
-        const url =
-            "https://api.aladhan.com/v1/timingsByAddress?address=" +
-            encodeURIComponent(`${location}, India`) + "&method=2";
-        const data = await cachedJsonOrNull(url, { followRedirects: true });
-        if (!data || !data.data || !data.data.timings) return null;
+        // Coordinates travel with the saved place, so the message is computed
+        // for exactly the spot the page shows - not an address lookup that may
+        // pick a same-named town. Legacy accounts without coordinates still
+        // resolve through the five old city names or a lookup.
+        const place = await prayerTimes.resolveLocation(settings);
+        const details = await prayerTimes.fetchTimings({
+            latitude: place.latitude,
+            longitude: place.longitude,
+            method: settings.calculationMethod,
+            school: settings.asrSchool,
+            timezone: place.timezone,
+            // The digest follows the same clock convention as the page.
+            timeFormat: settings.timeFormat
+        });
+        if (!details) return null;
 
-        const t = data.data.timings;
-        const hijri = (data.data.date && data.data.date.hijri) || {};
-        const hijriLabel = [
-            String(hijri.day || "").trim(),
-            (hijri.month && (hijri.month.en || hijri.month.number)) || "",
-            hijri.year || "",
-        ].filter(Boolean).join(" ");
+        const hijriLabel = details.hijri
+            ? [details.hijri.day, details.hijri.month, details.hijri.year]
+                .filter(Boolean).join(" ")
+            : "";
 
         const lines = [
-            `<b>Hasanath</b> — ${escapeHtml(location)}`,
+            `<b>Hasanath</b> — ${escapeHtml(place.label || location)}`,
             `Today, ${escapeHtml(hijriLabel)}`,
             ""
         ];
-        const rows = [
-            ["Fajr", t.Fajr], ["Sunrise", t.Sunrise], ["Dhuhr", t.Dhuhr],
-            ["Asr", t.Asr], ["Maghrib", t.Maghrib], ["Isha", t.Isha]
-        ];
-        for (const [label, value] of rows) {
-            // Aladhan returns "05:08 (IST)" - keep just the clock time.
-            const clock = String(value || "").split(" ")[0];
-            if (/^\d{1,2}:\d{2}$/.test(clock)) lines.push(`${label}: ${escapeHtml(clock)}`);
+        for (const entry of details.prayerTimes) {
+            if (/^\d{1,2}:\d{2}(\s?[AP]M)?$/i.test(entry.time)) {
+                lines.push(`${entry.timeType}: ${escapeHtml(entry.time)}`);
+            }
         }
         return lines.join("\n");
     } catch (err) {

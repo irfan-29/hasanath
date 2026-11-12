@@ -192,6 +192,11 @@ export const settings = {
   get: () => api.get('/settings'),
 };
 
+// Place search for the prayer-time location pickers (city, town, any address).
+export const locations = {
+  search: (q) => api.get(`/locations/search?q=${encodeURIComponent(q)}`),
+};
+
 export const charity = {
   list: () => api.get('/charity'),
   create: (payload) => api.post('/charity', payload),

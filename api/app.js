@@ -30,6 +30,7 @@ const statsService = require("./services/stats.js");
 const User = require("./models/User.js");
 const friendsService = require("./services/friends.js");
 const friendChallengesService = require("./services/friendChallenges.js");
+const prayerTimes = require("./services/prayerTimes.js");
 const challengeDays = require("./utils/challengeDays.js");
 const appNotifications = require("./services/appNotifications.js");
 const Friendship = require("./models/Friendship.js");
@@ -298,17 +299,6 @@ function presentPost(post, req) {
 }
 
 // global constants
-
-//add new locations here - for support
-const locationMap = new Map([
-    ["Coimbatore", "1273865"],
-    ["Salem", "1257629"],
-    ["Hosur", "1269934"],
-    ["Ramanathapuram", "1258740"],
-    ["Bengaluru", "1277333"]
-]);
-
-const SKIP_MIDDLEWARE_URLS = ["/hide-audio"];
 
 // Global methods
 
@@ -649,8 +639,6 @@ const HOME_PATHS = {
     posts: "/posts",
     settings: "/settings"
 };
-
-const LOCATION_OPTIONS = ['Coimbatore', 'Hosur', 'Salem', 'Ramanathapuram', 'Bengaluru'];
 
 // POST methods
 
@@ -2187,7 +2175,20 @@ app.get("/api/settings", async function(req, res){
         res.json({
             settings: {
                 defaultHome: settings.defaultHome || "quran",
-                location: settings.location || "Coimbatore",
+                location: settings.location || prayerTimes.DEFAULT_LOCATION.label,
+                // Coordinates and methods travel with the settings so the page
+                // can save a location atomically (label + place) and show the
+                // method actually in use.
+                locationLat: Number.isFinite(Number(settings.locationLat))
+                    ? Number(settings.locationLat)
+                    : prayerTimes.DEFAULT_LOCATION.latitude,
+                locationLng: Number.isFinite(Number(settings.locationLng))
+                    ? Number(settings.locationLng)
+                    : prayerTimes.DEFAULT_LOCATION.longitude,
+                locationTimezone: settings.locationTimezone || prayerTimes.DEFAULT_LOCATION.timezone,
+                calculationMethod: prayerTimes.methodId(settings.calculationMethod),
+                asrSchool: prayerTimes.schoolId(settings.asrSchool),
+                timeFormat: prayerTimes.timeFormatId(settings.timeFormat),
                 favoriteReciter: settings.favoriteReciter || 1,
                 favoriteFont: settings.favoriteFont || "QPC-Hafs",
                 favoriteEdition: getFavoriteEditions(settings),
@@ -2213,7 +2214,11 @@ app.get("/api/settings", async function(req, res){
             reciters: Object.entries(recitersJson || {}).map(([id, name]) => ({ id: String(id), name })),
             fonts: TARTEEL_FONTS,
             homeOptions: HOME_OPTIONS,
-            locationOptions: LOCATION_OPTIONS,
+            // Calculation methods offered for prayer times, from the single
+            // catalogue the backend uses to validate a saved choice.
+            calculationMethods: prayerTimes.METHODS,
+            asrSchools: prayerTimes.ASR_SCHOOLS,
+            timeFormats: prayerTimes.TIME_FORMATS,
             // Language names only. The full catalogue is 98 languages and ~32KB,
             // which was 96% of this response and made the settings page the
             // slowest in the app. Editions are fetched per language on demand -
@@ -2260,6 +2265,15 @@ app.post("/api/settings", async function(req, res){
     if (body.defaultHome !== undefined) patch.defaultHome = String(body.defaultHome);
     if (body.font !== undefined) patch.favoriteFont = String(body.font);
     if (body.location !== undefined) patch.location = String(body.location);
+    // The place is saved as a whole: label, coordinates and IANA zone. A
+    // partial update would leave the label pointing somewhere the times are
+    // not computed for.
+    if (body.locationLat !== undefined) patch.locationLat = Number(body.locationLat);
+    if (body.locationLng !== undefined) patch.locationLng = Number(body.locationLng);
+    if (body.locationTimezone !== undefined) patch.locationTimezone = String(body.locationTimezone);
+    if (body.calculationMethod !== undefined) patch.calculationMethod = Number(body.calculationMethod);
+    if (body.asrSchool !== undefined) patch.asrSchool = Number(body.asrSchool);
+    if (body.timeFormat !== undefined) patch.timeFormat = String(body.timeFormat);
     if (body.primaryTranslation !== undefined) patch.primaryTranslation = String(body.primaryTranslation);
 
     // Interface typography. The font id is one of the fixed ids the settings
@@ -2392,50 +2406,68 @@ app.post("/api/telegram/prefs", requireLogin, async function(req, res){
 // ============================================================================
 // JSON API: salah timings and the Islamic calendar.
 //
-// Both were single-purpose EJS routes whose entire body was "fetch upstream,
-// parse, render". The work is extracted into functions so the HTML route and
-// the JSON route share it, rather than one of them becoming a second copy that
-// quietly rots.
+// Timings come from Aladhan, computed at the reader's coordinates with the
+// calculation method they chose. The old scraper only knew five city ids; this
+// works for any place the geocoder can find.
 // ============================================================================
 
-// Scrape the prayer widget into a plain object. Shared by /salah-timings and
-// /api/salah-timings.
-async function fetchPrayerDetails(location) {
-    const response = await islamicFinderFetch(
-        `https://www.islamicfinder.org/prayer-widget/${locationMap.get(location)}/shafi/3/0/18.0/18.0`
-    );
-    const pageHtml = await response.text();
-    const $ = cheerio.load(pageHtml);
-
-    const prayerTimes = [];
-    $(".d-flex.flex-direction-row").each((index, element) => {
-        prayerTimes.push({
-            timeType: $(element).find("p").first().text().trim(),
-            time: $(element).find("p").last().text().trim()
-        });
-    });
-
-    return {
-        location: $(".table-controller a").first().text().trim(),
-        hijriDate: $(".table-controller div").first().text().trim(),
-        date: new Date().toLocaleDateString("en-US", {
-            weekday: "long", month: "short", day: "2-digit", year: "numeric"
-        }),
-        prayerTimes
-    };
-}
+// City/place search for the location pickers. Public: a signed-out visitor can
+// change the location for the preview without an account.
+app.get("/api/locations/search", async function(req, res){
+    const query = String(req.query.q || "");
+    if (query.trim().length < 2) return res.json({ locations: [] });
+    try {
+        res.json({ locations: await prayerTimes.searchLocations(query) });
+    } catch (err) {
+        console.error("api/locations/search:", err.message);
+        res.status(502).json({ error: "unavailable" });
+    }
+});
 
 app.get("/api/salah-timings", async function(req, res){
     try {
         const settings = await userData.getSettings(req);
-        const saved = settings.location || "Coimbatore";
-        // An override lets the client show a newly chosen location immediately,
-        // rather than waiting for the settings write to be visible on re-read.
-        const requested = String(req.query.location || "");
-        // Only accept a location the app knows how to map, since locationMap is
-        // what turns a name into the widget's city id.
-        const location = requested && locationMap.has(requested) ? requested : saved;
-        res.json({ location, details: await fetchPrayerDetails(location) });
+        const location = await prayerTimes.resolveLocation(settings);
+        const method = prayerTimes.methodId(settings.calculationMethod);
+        const school = prayerTimes.schoolId(settings.asrSchool);
+        const timeFormat = prayerTimes.timeFormatId(settings.timeFormat);
+
+        // The reader's local day, not the server's: a place far from the
+        // deployment must still see its own "today". The client may pin an
+        // explicit day; otherwise it is derived in the location's timezone.
+        const requested = String(req.query.date || "");
+        const dateKey = prayerTimes.isIsoDay(requested)
+            ? requested
+            : prayerTimes.dateKeyInTimeZone(location.timezone);
+
+        const details = await prayerTimes.fetchTimings({
+            latitude: location.latitude,
+            longitude: location.longitude,
+            method,
+            school,
+            dateKey,
+            timezone: location.timezone,
+            timeFormat
+        });
+        if (!details) return res.status(502).json({ error: "unavailable" });
+
+        res.json({
+            location: location.label,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            timezone: details.timezone || location.timezone,
+            method,
+            school,
+            timeFormat,
+            // The ISO day the server resolved or the client pinned, so the date
+            // control can show exactly which day these cards belong to.
+            dateKey: details.dateKey,
+            // The picker renders these without a second round trip.
+            methods: prayerTimes.METHODS,
+            asrSchools: prayerTimes.ASR_SCHOOLS,
+            timeFormats: prayerTimes.TIME_FORMATS,
+            details
+        });
     } catch (err) {
         console.error("api/salah-timings:", err.message);
         res.status(500).json({ error: "failed" });

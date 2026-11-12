@@ -12,6 +12,8 @@ const MAX_CHALLENGES = 25;
 const MAX_SALAH_ENTRIES = 60;
 const MAX_LAST_READ = 5;
 
+const { METHOD_IDS } = require("../services/prayerTimes.js");
+
 function emptyGuest() {
   return {
     lastReadSurahs: [],
@@ -69,7 +71,22 @@ function sanitize(raw) {
     const s = raw.settings;
     out.settings = {
       defaultHome: s.defaultHome ? String(s.defaultHome).slice(0, 40) : undefined,
-      location: s.location ? String(s.location).slice(0, 80) : undefined,
+      location: s.location ? String(s.location).slice(0, 120) : undefined,
+      // Prayer times are computed from these coordinates. Bounded and
+      // normalised here for the same reason as everything else: the cookie is
+      // attacker-writable, so nothing may be trusted verbatim.
+      locationLat: Number.isFinite(Number(s.locationLat))
+        ? Math.min(90, Math.max(-90, Number(s.locationLat)))
+        : undefined,
+      locationLng: Number.isFinite(Number(s.locationLng))
+        ? Math.min(180, Math.max(-180, Number(s.locationLng)))
+        : undefined,
+      locationTimezone: s.locationTimezone ? String(s.locationTimezone).slice(0, 64) : undefined,
+      calculationMethod: METHOD_IDS.includes(Number(s.calculationMethod))
+        ? Number(s.calculationMethod)
+        : undefined,
+      asrSchool: Number(s.asrSchool) === 1 ? 1 : Number(s.asrSchool) === 0 ? 0 : undefined,
+      timeFormat: s.timeFormat === "12h" || s.timeFormat === "24h" ? s.timeFormat : undefined,
       favoriteReciter: Number.isFinite(Number(s.favoriteReciter)) ? Number(s.favoriteReciter) : undefined,
       favoriteFont: s.favoriteFont ? String(s.favoriteFont).slice(0, 40) : undefined,
       favoriteEdition: Array.isArray(s.favoriteEdition)

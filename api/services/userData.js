@@ -24,12 +24,19 @@ const {
 // is the point of using it. models/User.js depends only on mongoose and
 // passport-local-mongoose, so there is no cycle back into here.
 const User = require("../models/User.js");
+const prayerTimes = require("./prayerTimes.js");
 
 // --- Settings ---------------------------------------------------------------
 
 const SETTINGS_FIELDS = [
   "defaultHome",
   "location",
+  "locationLat",
+  "locationLng",
+  "locationTimezone",
+  "calculationMethod",
+  "asrSchool",
+  "timeFormat",
   "favoriteReciter",
   "favoriteFont",
   "favoriteEdition",
@@ -57,7 +64,14 @@ const ACCENT_IDS = ["green", "blue", "violet", "gold", "rose", "ocean"];
 function defaults() {
   return {
     defaultHome: "quran",
-    location: "Coimbatore",
+    location: prayerTimes.DEFAULT_LOCATION.label,
+    // The coordinate fields stay absent until a place is actually picked. A
+    // default here would make every legacy "Salem" record look like it has
+    // Coimbatore's coordinates, which resolveLocation would then prefer over
+    // the legacy name map.
+    calculationMethod: prayerTimes.DEFAULT_METHOD,
+    asrSchool: 0,
+    timeFormat: prayerTimes.DEFAULT_TIME_FORMAT,
     favoriteReciter: 1,
     favoriteFont: "QPC-Hafs",
     theme: "light",
@@ -103,6 +117,44 @@ async function updateSettings(req, patch) {
   // account pointing at a palette that does not exist.
   if (clean.accent !== undefined && !ACCENT_IDS.includes(String(clean.accent))) {
     delete clean.accent;
+  }
+
+  // Prayer-time settings. Coordinates are what the times are computed from, so
+  // they are bounded to real latitudes/longitudes and written as a pair - a
+  // half-updated pair would point at the wrong place. The method must be one
+  // Aladhan actually publishes; the Asr school is only ever 0 or 1.
+  if (clean.locationLat !== undefined || clean.locationLng !== undefined) {
+    const lat = Number(clean.locationLat);
+    const lng = Number(clean.locationLng);
+    if (Number.isFinite(lat) && Number.isFinite(lng)
+        && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      clean.locationLat = lat;
+      clean.locationLng = lng;
+    } else {
+      delete clean.locationLat;
+      delete clean.locationLng;
+    }
+  }
+  if (clean.location !== undefined) {
+    clean.location = String(clean.location).slice(0, 120).trim();
+  }
+  if (clean.locationTimezone !== undefined) {
+    const zone = String(clean.locationTimezone).slice(0, 64);
+    // Shape check only; an unknown zone simply falls back in prayerTimes.
+    clean.locationTimezone = /^[A-Za-z0-9_+\/-]+$/.test(zone) ? zone : "";
+  }
+  if (clean.calculationMethod !== undefined) {
+    const method = Number(clean.calculationMethod);
+    if (prayerTimes.METHOD_IDS.includes(method)) clean.calculationMethod = method;
+    else delete clean.calculationMethod;
+  }
+  if (clean.asrSchool !== undefined) {
+    clean.asrSchool = prayerTimes.schoolId(clean.asrSchool);
+  }
+  if (clean.timeFormat !== undefined) {
+    const format = String(clean.timeFormat);
+    if (prayerTimes.TIME_FORMAT_IDS.includes(format)) clean.timeFormat = format;
+    else delete clean.timeFormat;
   }
 
   if (!Object.keys(clean).length) return getSettings(req);
