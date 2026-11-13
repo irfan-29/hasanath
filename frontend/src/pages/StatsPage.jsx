@@ -224,19 +224,17 @@ export default function StatsPage() {
     return (
       <>
         <div className="page-header"><h1>Stats</h1><p>See where your practice is heading</p></div>
-        <div className="container1 is-flat">
-          <div className="gate-notice">
-            <span className="gate-icon material-symbols-rounded" aria-hidden="true">lock</span>
-            <div className="gate-body">
-              <h2 className="gate-title">Sign in to see your stats</h2>
-              <p className="gate-text">
-                Salah, challenge and charity reports are built from your own history.
-                Sign in to view them.
-              </p>
-              <div className="gate-actions">
-                <a href="/login" className="btn btn-primary">Sign in to continue</a>
-                <a href="/register" className="btn btn-outline">Create account</a>
-              </div>
+        <div className="gate-notice">
+          <span className="gate-icon material-symbols-rounded" aria-hidden="true">lock</span>
+          <div className="gate-body">
+            <h2 className="gate-title">Sign in to see your stats</h2>
+            <p className="gate-text">
+              Salah, challenge and charity reports are built from your own history.
+              Sign in to view them.
+            </p>
+            <div className="gate-actions">
+              <a href="/login" className="btn btn-primary">Sign in to continue</a>
+              <a href="/register" className="btn btn-outline">Create account</a>
             </div>
           </div>
         </div>

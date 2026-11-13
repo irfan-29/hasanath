@@ -74,8 +74,8 @@ const settingsSchema = new mongoose.Schema({
     // shadow school: 0 standard, 1 Hanafi.
     calculationMethod: { type: Number, default: 3 },
     asrSchool: { type: Number, default: 0 },
-    // "24h" or "12h"; changes presentation only, never the stored times.
-    timeFormat: { type: String, default: "24h" },
+    // "12h" or "24h"; changes presentation only, never the stored times.
+    timeFormat: { type: String, default: "12h" },
     favoriteReciter: { type: Number, default: 1 },
     favoriteFont: String,
     favoriteEdition: [String],

@@ -30,14 +30,14 @@ const APP_FONTS = [
 // Accent palettes. The ids and colour stops mirror the html[data-accent]
 // blocks in styles.css; these values only paint the swatch. Each swatch is
 // split diagonally - the accent gradient on one half, that palette's chrome
-// (the header/footer base) on the other - so "blue with black" reads as both
-// colours before it is picked.
+// on the other - so the ring shows both tones. The label is just the colour
+// name; the chrome half is visible in the ring itself.
 const APP_ACCENTS = [
   { value: 'green', label: 'Emerald', from: '#0f766e', to: '#2dd4bf', chrome: '#092b27' },
-  { value: 'blue', label: 'Blue · Black', from: '#2563eb', to: '#60a5fa', chrome: '#05080f' },
-  { value: 'violet', label: 'Violet · Black', from: '#7c3aed', to: '#a78bfa', chrome: '#08050f' },
+  { value: 'blue', label: 'Blue', from: '#2563eb', to: '#60a5fa', chrome: '#05080f' },
+  { value: 'violet', label: 'Violet', from: '#7c3aed', to: '#a78bfa', chrome: '#08050f' },
   { value: 'gold', label: 'Gold', from: '#b45309', to: '#fbbf24', chrome: '#171006' },
-  { value: 'rose', label: 'Rose · Black', from: '#be123c', to: '#fb7185', chrome: '#12050a' },
+  { value: 'rose', label: 'Rose', from: '#be123c', to: '#fb7185', chrome: '#12050a' },
   { value: 'ocean', label: 'Ocean', from: '#0e7490', to: '#22d3ee', chrome: '#041016' },
 ];
 
@@ -777,7 +777,7 @@ export default function SettingsPage() {
         }}
         renderLabel={(v) => {
           const entry = (data.timeFormats || []).find((item) => item.value === v);
-          return entry ? `${entry.label} · ${entry.sample}` : '24-hour · 18:05';
+          return entry ? `${entry.label} · ${entry.sample}` : '12-hour · 6:05 PM';
         }} />
 
       {/* ---- Telegram ---- */}

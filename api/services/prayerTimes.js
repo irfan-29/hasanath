@@ -54,14 +54,14 @@ const ASR_SCHOOLS = [
 ];
 
 // How a clock time is displayed. Stored as an id so the setting names the
-// presentation, not a format string; 24-hour is the default because that is
-// what the page has always shown.
+// presentation, not a format string. Twelve-hour leads both the default and
+// the menu order; 24-hour remains available for readers who prefer it.
 const TIME_FORMATS = [
-    { value: "24h", label: "24-hour", sample: "18:05" },
-    { value: "12h", label: "12-hour", sample: "6:05 PM" }
+    { value: "12h", label: "12-hour", sample: "6:05 PM" },
+    { value: "24h", label: "24-hour", sample: "18:05" }
 ];
 const TIME_FORMAT_IDS = TIME_FORMATS.map((entry) => entry.value);
-const DEFAULT_TIME_FORMAT = "24h";
+const DEFAULT_TIME_FORMAT = "12h";
 
 // The five cities the old picker shipped. Their saved names still resolve
 // without a geocoding request, so existing accounts do not have to re-pick.

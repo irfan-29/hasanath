@@ -45,15 +45,15 @@ const NAV_LINKS = [
 
 // Same six ids and names the Settings picker uses. The swatch is split
 // diagonally - the accent gradient on one half, that palette's chrome on the
-// other - so the round button and the menu preview both colours before the
+// other - so the round button and the menu preview show both tones before the
 // visitor chooses. Kept local because this is the only place outside Settings
 // that needs the labels.
 const ACCENT_OPTIONS = [
   { value: 'green', label: 'Emerald', from: '#0f766e', to: '#2dd4bf', chrome: '#092b27' },
-  { value: 'blue', label: 'Blue · Black', from: '#2563eb', to: '#60a5fa', chrome: '#05080f' },
-  { value: 'violet', label: 'Violet · Black', from: '#7c3aed', to: '#a78bfa', chrome: '#08050f' },
+  { value: 'blue', label: 'Blue', from: '#2563eb', to: '#60a5fa', chrome: '#05080f' },
+  { value: 'violet', label: 'Violet', from: '#7c3aed', to: '#a78bfa', chrome: '#08050f' },
   { value: 'gold', label: 'Gold', from: '#b45309', to: '#fbbf24', chrome: '#171006' },
-  { value: 'rose', label: 'Rose · Black', from: '#be123c', to: '#fb7185', chrome: '#12050a' },
+  { value: 'rose', label: 'Rose', from: '#be123c', to: '#fb7185', chrome: '#12050a' },
   { value: 'ocean', label: 'Ocean', from: '#0e7490', to: '#22d3ee', chrome: '#041016' },
 ];
 

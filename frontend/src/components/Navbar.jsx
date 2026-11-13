@@ -195,6 +195,18 @@ export default function Navbar({ session }) {
               </>
           ) : (
             <div className="header-guest">
+              {/* Guests get the same two shortcuts as signed-in readers:
+                  timings and qibla work without an account. */}
+              <Link to="/qibla" className="header-action-btn" aria-label="Qibla direction">
+                <span className="material-symbols-rounded" aria-hidden="true">explore</span>
+              </Link>
+              <Link to="/salah-timings" className="header-action-btn" aria-label="Salah timings">
+                <span className="material-symbols-rounded" aria-hidden="true">schedule</span>
+              </Link>
+              {/* Guests have no account menu, so Settings needs its own way in. */}
+              <Link to="/settings" className="header-action-btn" aria-label="Settings">
+                <span className="material-symbols-rounded" aria-hidden="true">settings</span>
+              </Link>
               <a href="/login" className="header-guest-btn is-primary">Sign in</a>
             </div>
           )}

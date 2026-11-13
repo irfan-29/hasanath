@@ -73,23 +73,25 @@ export default function ReadTab({ surahs, ayahOfTheDay, lastReadSurahs, favorite
       {shown && (
         <div className="container1 is-flat">
           <div className="featured-head">
-            {isRandom && (
-              <button
-                type="button"
-                className="fav-btn featured-back"
-                onClick={() => setRandomAyah(null)}
-                title="Back to Ayah of the Day"
-                aria-label="Back to Ayah of the Day"
-              >
-                <span className="material-symbols-rounded">arrow_back</span>
-              </button>
-            )}
             <div className="featured-label">{isRandom ? 'Random Ayah' : 'Ayah of the Day'}</div>
 
             {/* The actions sit on the label row rather than under the verse:
                 share, open in the reader and show another verse stay reachable
                 without reading to the bottom of a long ayah. */}
             <div className="featured-ayah-actions">
+              {/* Back to the daily ayah, first in the icon row so it lines up
+                  with the other controls instead of pushing the label aside. */}
+              {isRandom && (
+                <button
+                  type="button"
+                  className="fav-btn featured-back"
+                  onClick={() => setRandomAyah(null)}
+                  title="Back to Ayah of the Day"
+                  aria-label="Back to Ayah of the Day"
+                >
+                  <span className="material-symbols-rounded">arrow_back</span>
+                </button>
+              )}
               <button
                 type="button"
                 className="fav-btn"
@@ -125,21 +127,11 @@ export default function ReadTab({ surahs, ayahOfTheDay, lastReadSurahs, favorite
               card used to imply - share, open in the reader, and show another
               verse. */}
           <div className="featured-surah">
+            {/* One compact reference line - the surah name and the verse
+                number together - instead of a heading plus a second line for
+                the Arabic name. */}
             <div className="featured-ayah-ref">
-              <p className="featured-ayah-cite">Surah {shown.surahNo} · Ayah {shown.ayahNo}</p>
-              <p className="featured-ayah-surah">
-                <span>{shown.surahName}</span>
-                {shown.surahNameArabic && (
-                  <span
-                    className="featured-ayah-surah-arabic"
-                    dir="rtl"
-                    lang="ar"
-                    style={{ fontFamily: `'${favoriteFont}', serif` }}
-                  >
-                    {shown.surahNameArabic}
-                  </span>
-                )}
-              </p>
+              <p className="featured-ayah-cite">{shown.surahName} {shown.surahNo}:{shown.ayahNo}</p>
             </div>
             {shown.arabicText && (
               <p className="featured-ayah-arabic" dir="rtl" lang="ar" style={{ fontFamily: `'${favoriteFont}', serif` }}>

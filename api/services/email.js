@@ -135,7 +135,28 @@ function gmail() {
     return gmailTransport;
 }
 
-function messageFor(code) {
+// Two codes leave this app: the signup confirmation and the password reset.
+// They carry different consequences, so the copy differs - a reset mail that
+// said "no account was created" would be alarming and wrong.
+function messageFor(code, purpose) {
+    if (purpose === "reset") {
+        return {
+            subject: `${code} is your Hasanath password reset code`,
+            text: [
+                `Your password reset code is ${code}.`,
+                "",
+                "It expires in 10 minutes. Enter it in the app to choose a new password.",
+                "If you did not ask to reset your password, you can ignore this email -",
+                "your current password still works.",
+            ].join("\n"),
+            html: [
+                "<p>Your password reset code is:</p>",
+                `<p style="font-size:28px;font-weight:700;letter-spacing:6px;margin:20px 0">${code}</p>`,
+                '<p style="color:#666">It expires in 10 minutes. Enter it in the app to choose a new password. If you did not ask to reset your password, you can ignore this email &mdash; your current password still works.</p>',
+            ].join(""),
+        };
+    }
+
     return {
         subject: `${code} is your Hasanath verification code`,
         text: [
@@ -152,21 +173,21 @@ function messageFor(code) {
     };
 }
 
-async function sendViaGmail({ to, code }) {
+async function sendViaGmail({ to, code, purpose }) {
     const info = await gmail().sendMail({
         from: `"${GMAIL_FROM_NAME}" <${GMAIL_USER}>`,
         to,
-        ...messageFor(code),
+        ...messageFor(code, purpose),
     });
     if (!info || !info.messageId) throw new Error("Gmail accepted the message but returned no id");
     return true;
 }
 
-async function sendViaResend({ to, code }) {
+async function sendViaResend({ to, code, purpose }) {
     const { error } = await resend().emails.send({
         from: RESEND_FROM,
         to: [to],
-        ...messageFor(code),
+        ...messageFor(code, purpose),
     });
     if (error) throw new Error(error.message || "Resend rejected the send");
     return true;
@@ -205,12 +226,12 @@ function devEchoEnabled() {
  *
  * Never throws: the caller can offer a resend but cannot handle an exception.
  */
-async function sendOtpEmail({ to, code }) {
+async function sendOtpEmail({ to, code, purpose }) {
     const provider = resolvedProvider();
 
     if (!isConfigured()) {
         if (devEchoEnabled()) {
-            console.warn(`email: no transport configured - DEV ONLY, code for ${to}: ${code}`);
+            console.warn(`email: no transport configured - DEV ONLY, ${purpose === "reset" ? "reset " : ""}code for ${to}: ${code}`);
             return { ok: true, reason: "dev-echo" };
         }
         const problem = warning() || "no transport configured";
@@ -220,8 +241,8 @@ async function sendOtpEmail({ to, code }) {
 
     try {
         provider === "gmail"
-            ? await sendViaGmail({ to, code })
-            : await sendViaResend({ to, code });
+            ? await sendViaGmail({ to, code, purpose })
+            : await sendViaResend({ to, code, purpose });
         return { ok: true, reason: null };
     } catch (err) {
         // Gmail reports 535 for a wrong/revoked App Password and 534 when 2FA is

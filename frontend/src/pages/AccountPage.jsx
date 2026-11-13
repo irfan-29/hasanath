@@ -14,6 +14,16 @@ const USERNAME_ERRORS = {
   'wrong-password': 'That password is not correct.'
 };
 
+// The password route answers with the same short codes the signup form uses,
+// so the sentences stay consistent with the rest of the auth screens.
+const PASSWORD_ERRORS = {
+  'password-required': 'Enter your current password.',
+  'wrong-password': 'That current password is not correct.',
+  'weak-password': 'Your new password must be at least 6 characters.',
+  mismatch: 'The new passwords do not match.',
+  'same-password': 'Choose a password different from your current one.'
+};
+
 // Markup mirrors views/account.ejs (.account-card, .account-avatar,
 // .account-handle, .username-input, .tg-hint).
 export default function AccountPage() {
@@ -31,6 +41,14 @@ export default function AccountPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  // Password change lives in its own modal with its own three fields, so a
+  // half-typed handle change cannot be submitted alongside it.
+  const [pwOpen, setPwOpen] = useState(false);
+  const [pwCurrent, setPwCurrent] = useState('');
+  const [pwNew, setPwNew] = useState('');
+  const [pwConfirm, setPwConfirm] = useState('');
+  const [pwError, setPwError] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
   const { refresh } = useSession();
   const toast = useToast();
   const navigate = useNavigate();
@@ -95,8 +113,7 @@ export default function AccountPage() {
     setDeleteError('');
   };
 
-  async function deleteAccount(event) {
-    event.preventDefault();
+  async function deleteAccount(event) {    event.preventDefault();
     if (deleting) return;
     setDeleting(true);
     setDeleteError('');
@@ -115,6 +132,35 @@ export default function AccountPage() {
         setDeleteError('Could not delete the account. Try again.');
       }
       setDeleting(false);
+    }
+  }
+
+  const closePassword = () => {
+    setPwOpen(false);
+    setPwCurrent('');
+    setPwNew('');
+    setPwConfirm('');
+    setPwError('');
+  };
+
+  async function savePassword(event) {
+    event.preventDefault();
+    if (pwSaving) return;
+    setPwSaving(true);
+    setPwError('');
+    try {
+      await api.post('/account/password', {
+        currentPassword: pwCurrent,
+        password: pwNew,
+        cpassword: pwConfirm
+      });
+      closePassword();
+      toast('Password updated');
+    } catch (err) {
+      const code = err instanceof ApiError && err.body?.error;
+      setPwError(PASSWORD_ERRORS[code] || 'Could not change your password.');
+    } finally {
+      setPwSaving(false);
     }
   }
 
@@ -218,6 +264,22 @@ export default function AccountPage() {
         </div>
       </section>
 
+      <section className="account-card">
+        <div className="account-field">
+          <label className="account-label">Password</label>
+          <p className="account-hint">
+            Used to sign in. Changing it keeps you signed in on this device, and you
+            will need the new one next time.
+          </p>
+          <button type="button" className="btn btn-outline" onClick={() => {
+            setPwCurrent(''); setPwNew(''); setPwConfirm(''); setPwError(''); setPwOpen(true);
+          }}>
+            <span className="material-symbols-rounded">lock_reset</span>
+            Change password
+          </button>
+        </div>
+      </section>
+
       <section className="account-danger">
         <h3><span className="material-symbols-rounded">delete_forever</span> Delete account</h3>
         <p>
@@ -262,6 +324,63 @@ export default function AccountPage() {
               </button>
               <button type="submit" className="btn btn-primary" disabled={saving || !password}>
                 {saving ? 'Saving…' : 'Update'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {pwOpen && (
+        <div className="confirm-overlay" role="presentation">
+          <form className="confirm-card" role="alertdialog" aria-modal="true" aria-label="Change password"
+                onSubmit={savePassword} onClick={(e) => e.stopPropagation()}>
+            <h3 className="confirm-title">Change your password</h3>
+            <p className="confirm-message">
+              Confirm the password you use now, then choose a new one. At least 6
+              characters.
+            </p>
+            <input
+              className="form-control"
+              type="password"
+              name="currentPassword"
+              value={pwCurrent}
+              autoComplete="current-password"
+              placeholder="Current password"
+              autoFocus
+              onChange={(e) => { setPwCurrent(e.target.value); setPwError(''); }}
+              style={{ marginTop: '0.9rem' }}
+            />
+            <input
+              className="form-control"
+              type="password"
+              name="password"
+              value={pwNew}
+              autoComplete="new-password"
+              placeholder="New password"
+              onChange={(e) => { setPwNew(e.target.value); setPwError(''); }}
+              style={{ marginTop: '0.6rem' }}
+            />
+            <input
+              className="form-control"
+              type="password"
+              name="cpassword"
+              value={pwConfirm}
+              autoComplete="new-password"
+              placeholder="Confirm new password"
+              onChange={(e) => { setPwConfirm(e.target.value); setPwError(''); }}
+              style={{ marginTop: '0.6rem' }}
+            />
+            {pwError && (
+              <p className="confirm-message" role="alert" style={{ color: 'var(--color-danger)' }}>
+                {pwError}
+              </p>
+            )}
+            <div className="confirm-actions">
+              <button type="button" className="btn btn-outline" onClick={closePassword}>
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={pwSaving || !pwCurrent || pwNew.length < 6 || !pwConfirm}>
+                {pwSaving ? 'Saving…' : 'Update password'}
               </button>
             </div>
           </form>

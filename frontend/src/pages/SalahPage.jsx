@@ -119,6 +119,35 @@ export default function SalahPage() {
     return <Loader variant="page" label="Loading Salah Tracker" />;
   }
 
+  // Guests get the same page header + single gate as Challenges, Charity and
+  // Notifications. The logging card belongs to the form only; wrapping the
+  // gate in it produced a card inside a card under a "Log Salah" heading that
+  // had nothing to do with the message.
+  if (isLoggedIn === false) {
+    return (
+      <>
+        <div className="page-header">
+          <h1>Salah Tracker</h1>
+          <p>Log and review your daily prayers</p>
+        </div>
+        <div className="gate-notice">
+          <span className="gate-icon material-symbols-rounded" aria-hidden="true">lock</span>
+          <div className="gate-body">
+            <h2 className="gate-title">Sign in to log your prayers</h2>
+            <p className="gate-text">
+              Recording which prayers you kept is personal, so it needs an account
+              to keep your history safe. Everything else stays open.
+            </p>
+            <div className="gate-actions">
+              <a href="/login" className="btn btn-primary">Sign in to continue</a>
+              <a href="/register" className="btn btn-outline">Create account</a>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   const statusByName = new Map(history.entries.map((entry) => [entry.name, entry.value]));
   const loggedCount = CORE_PRAYERS.filter((prayer) => {
     const status = statusByName.get(prayer);
@@ -181,50 +210,31 @@ export default function SalahPage() {
       <div className="container1">
         <div className="card-header"><h3>Log Salah</h3></div>
 
-        {!isLoggedIn ? (
-          <div className="gate-notice">
-            <span className="gate-icon material-symbols-rounded" aria-hidden="true">lock</span>
-            <div className="gate-body">
-              <h2 className="gate-title">Sign in to log your prayers</h2>
-              <p className="gate-text">
-                Recording which prayers you kept is personal, so it needs an account
-                to keep your history safe. Everything else stays open.
-              </p>
-              <div className="gate-actions">
-                <a href="/login" className="btn btn-primary">Sign in to continue</a>
-                <a href="/register" className="btn btn-outline">Create account</a>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="salah-form-grid">
-              <DateField id="date" label="Date" value={date} onChange={setDate} />
-              <FormSelect
-                id="salah"
-                label="Salah"
-                value={name}
-                onChange={setName}
-                options={PRAYERS.map((p) => ({ value: p, label: p }))}
-              />
-              <FormSelect
-                id="value"
-                label="Status"
-                value={value}
-                onChange={setValue}
-                options={STATUSES.map((s) => ({ value: s, label: s }))}
-              />
-            </div>
+        <div className="salah-form-grid">
+          <DateField id="date" label="Date" value={date} onChange={setDate} />
+          <FormSelect
+            id="salah"
+            label="Salah"
+            value={name}
+            onChange={setName}
+            options={PRAYERS.map((p) => ({ value: p, label: p }))}
+          />
+          <FormSelect
+            id="value"
+            label="Status"
+            value={value}
+            onChange={setValue}
+            options={STATUSES.map((s) => ({ value: s, label: s }))}
+          />
+        </div>
 
-            {error && <div className="auth-alert" role="alert"><span className="material-symbols-rounded">error</span>{error}</div>}
+        {error && <div className="auth-alert" role="alert"><span className="material-symbols-rounded">error</span>{error}</div>}
 
-            <div className="new-task">
-              <button type="button" className="btn btn-primary" onClick={save} disabled={saving}>
-                {saving ? 'Saving…' : 'Save Entry'}
-              </button>
-            </div>
-          </>
-        )}
+        <div className="new-task">
+          <button type="button" className="btn btn-primary" onClick={save} disabled={saving}>
+            {saving ? 'Saving…' : 'Save Entry'}
+          </button>
+        </div>
       </div>
     </>
   );

@@ -674,6 +674,21 @@ function pendingSignup(req) {
     return { ok: true, pending: p };
 }
 
+// A password reset in progress. Same shape as the signup window, but keyed to
+// an existing account instead of a not-yet-created one, so it stores the user
+// id rather than a candidate hash. It lives in the session for the same reason:
+// the code proves the mailbox, and the session that asked is the one allowed to
+// finish the job.
+function pendingReset(req) {
+    const p = req.session.pendingReset;
+    if (!p) return { ok: false, reason: "no-pending" };
+    if (Date.now() > p.expiresAt) {
+        delete req.session.pendingReset;
+        return { ok: false, reason: "expired" };
+    }
+    return { ok: true, pending: p };
+}
+
 // Resolve a free username for an email, querying the users collection directly
 // because `taken` is called in a loop until it finds a gap.
 async function allocateUsername(email, excludeUserId = null) {
@@ -2102,6 +2117,37 @@ app.post("/api/settings/username", requireLogin, async function(req, res){
     }
 });
 
+// Change the password from the account page. The current password is required:
+// a borrowed session must not be able to lock the owner out. The new password
+// goes through the same plugin hash path as signup, so authenticate() keeps
+// working without any special case.
+app.post("/api/account/password", requireLogin, async function(req, res){
+    try {
+        const body = req.body || {};
+        const current = String(body.currentPassword || "");
+        const password = String(body.password || "");
+        const confirm = String(body.cpassword || "");
+
+        if (!current) return res.status(400).json({ error: "password-required" });
+        if (password.length < 6) return res.status(400).json({ error: "weak-password" });
+        if (password !== confirm) return res.status(400).json({ error: "mismatch" });
+        if (password === current) return res.status(400).json({ error: "same-password" });
+
+        const user = await User.findById(req.user._id);
+        if (!user) return res.status(401).json({ error: "login-required" });
+
+        const { user: match } = await user.authenticate(current);
+        if (!match) return res.status(403).json({ error: "wrong-password" });
+
+        await user.setPassword(password);
+        await user.save();
+        res.json({ ok: true });
+    } catch (err) {
+        console.error("api/account/password POST:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
 // Full account deletion. The password re-proves it is the account holder -
 // a hijacked session must not be able to erase the account - and every write
 // the user made is removed, not just the profile row.
@@ -2900,6 +2946,117 @@ app.post("/api/auth/login", function(req, res, next){
             res.json({ ok: true, username: user.username || null });
         });
     })(req, res, next);
+});
+
+// ---- Password reset --------------------------------------------------------
+//
+// Two steps, both in the session that asked for the reset:
+//
+//   /api/auth/forgot - mail a 6-digit code to the address
+//   /api/auth/reset  - the code plus the new password
+//
+// Unlike signup, the account already exists, so /forgot must not become an
+// address book for strangers: it answers the same way whether or not the email
+// is registered, and only sends mail when it is. The cooldown is shared with
+// signup so neither endpoint can be used to mail-bomb an inbox.
+
+app.post("/api/auth/forgot", async function(req, res){
+    const email = String((req.body || {}).email || "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: "invalid-email" });
+
+    const previous = req.session.pendingReset;
+    if (previous && previous.email === email) {
+        const elapsed = Date.now() - (previous.sentAt || 0);
+        if (elapsed < OTP_RESEND_COOLDOWN_MS) {
+            return res.status(429).json({
+                error: 'cooldown',
+                wait: Math.ceil((OTP_RESEND_COOLDOWN_MS - elapsed) / 1000)
+            });
+        }
+    }
+
+    let account = null;
+    try {
+        account = await User.findOne({ email }).select("_id email").lean();
+    } catch (err) {
+        console.error("api/auth/forgot lookup:", err.message);
+        return res.status(500).json({ error: "failed" });
+    }
+
+    // Deliberately indistinguishable from the success path: telling an
+    // anonymous caller "no such account" would leak who has an account here.
+    if (!account) return res.json({ ok: true });
+
+    const code = emailService.makeOtp();
+    req.session.pendingReset = {
+        userId: String(account._id),
+        email,
+        otpHash: emailService.hashOtp(code),
+        expiresAt: Date.now() + 10 * 60 * 1000,
+        attempts: 0,
+        sentAt: Date.now()
+    };
+
+    const sent = await emailService.sendOtpEmail({ to: email, code, purpose: "reset" });
+    if (!sent.ok) {
+        // Leave nothing behind that could be completed without the code.
+        delete req.session.pendingReset;
+        return res.status(502).json({ error: "email-not-sent" });
+    }
+
+    res.json({ ok: true });
+});
+
+app.post("/api/auth/reset", async function(req, res){
+    const body = req.body || {};
+    const code = String(body.code || "").replace(/\D/g, "");
+    const password = String(body.password || "");
+    const confirm = String(body.cpassword || "");
+
+    // Validate the new password before spending an attempt on the code, so a
+    // mistyped confirmation does not count against the six digits.
+    if (password.length < 6) return res.status(400).json({ error: "weak-password" });
+    if (password !== confirm) return res.status(400).json({ error: "mismatch" });
+
+    const { ok, pending, reason } = pendingReset(req);
+    if (!ok) return res.status(400).json({ error: reason === "expired" ? "expired" : "no-pending" });
+    if (code.length !== 6) return res.status(400).json({ error: "invalid-code" });
+
+    if (!emailService.otpMatches(pending.otpHash, code)) {
+        pending.attempts = (pending.attempts || 0) + 1;
+        if (pending.attempts >= OTP_MAX_ATTEMPTS) {
+            delete req.session.pendingReset;
+            return res.status(429).json({ error: "too-many-attempts" });
+        }
+        req.session.pendingReset = pending;
+        return res.status(400).json({
+            error: "invalid-code",
+            attemptsLeft: OTP_MAX_ATTEMPTS - pending.attempts
+        });
+    }
+
+    try {
+        const user = await User.findById(pending.userId);
+        if (!user) {
+            delete req.session.pendingReset;
+            return res.status(400).json({ error: "no-pending" });
+        }
+
+        await user.setPassword(password);
+        await user.save();
+        delete req.session.pendingReset;
+
+        // The mailbox just proved ownership, so signing in here is the same
+        // promise the login form makes - no extra round trip through /login.
+        req.logIn(user, (err) => {
+            if (err) return res.status(500).json({ error: "failed" });
+            userData.clearGuestCookie(req, res);
+            res.json({ ok: true, username: user.username || null });
+        });
+    } catch (err) {
+        console.error("api/auth/reset:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
 });
 
 // Sign out. The React app cannot POST to /logout: the frontend's vercel.json

@@ -304,19 +304,17 @@ export default function CharityPage() {
     return (
       <>
         <div className="page-header"><h1>Charity</h1><p>Set goals and track your giving</p></div>
-        <div className="container1 is-flat">
-          <div className="gate-notice">
-            <span className="gate-icon material-symbols-rounded" aria-hidden="true">lock</span>
-            <div className="gate-body">
-              <h2 className="gate-title">Sign in to track charity</h2>
-              <p className="gate-text">
-                Charity targets and giving history are private, so they need an account.
-                Everything else stays open.
-              </p>
-              <div className="gate-actions">
-                <a href="/login" className="btn btn-primary">Sign in to continue</a>
-                <a href="/register" className="btn btn-outline">Create account</a>
-              </div>
+        <div className="gate-notice">
+          <span className="gate-icon material-symbols-rounded" aria-hidden="true">lock</span>
+          <div className="gate-body">
+            <h2 className="gate-title">Sign in to track charity</h2>
+            <p className="gate-text">
+              Charity targets and giving history are private, so they need an account.
+              Everything else stays open.
+            </p>
+            <div className="gate-actions">
+              <a href="/login" className="btn btn-primary">Sign in to continue</a>
+              <a href="/register" className="btn btn-outline">Create account</a>
             </div>
           </div>
         </div>

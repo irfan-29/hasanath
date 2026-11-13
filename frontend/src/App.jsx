@@ -24,7 +24,7 @@ import SettingsPage from './pages/SettingsPage';
 import SalahTimingsPage from './pages/SalahTimingsPage';
 import QiblaPage from './pages/QiblaPage';
 import CalendarPage from './pages/CalendarPage';
-import { LoginPage, RegisterPage, VerifyPage } from './pages/AuthPage';
+import { LoginPage, RegisterPage, VerifyPage, ForgotPasswordPage, ResetPasswordPage } from './pages/AuthPage';
 import LandingPage from './pages/LandingPage';
 import AccountPage from './pages/AccountPage';
 import NotificationsPage from './pages/NotificationsPage';
@@ -47,7 +47,7 @@ export default function App() {
 // Auth routes are standalone cards, not part of the app shell - exactly as the
 // EJS pages were. Routing them through <Routes> inside the shell meant the
 // sidebar and the .main-content offset rendered around the sign-in card.
-const AUTH_PATHS = ['/login', '/register', '/verify-email'];
+const AUTH_PATHS = ['/login', '/register', '/verify-email', '/forgot-password', '/reset-password'];
 
 function Shell() {
   const { pathname } = useLocation();
@@ -194,6 +194,8 @@ function Shell() {
         <Route path="/login" element={<div className="auth-body"><LoginPage /></div>} />
         <Route path="/register" element={<div className="auth-body"><RegisterPage /></div>} />
         <Route path="/verify-email" element={<div className="auth-body"><VerifyPage /></div>} />
+        <Route path="/forgot-password" element={<div className="auth-body"><ForgotPasswordPage /></div>} />
+        <Route path="/reset-password" element={<div className="auth-body"><ResetPasswordPage /></div>} />
       </Routes>
     );
   }

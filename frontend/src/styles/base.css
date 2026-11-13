@@ -1214,7 +1214,9 @@ body:has(.global-audio-bar) .main-content {
 /* --- Prayer Times --- */
 .prayer-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  /* Three per row at every width above the phone breakpoint. The six prayers
+     then always make two even rows instead of a lone pair under a row of four. */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.75rem;
   max-width: 640px;
   margin: 1.5rem auto;
@@ -1957,25 +1959,13 @@ body:has(.global-audio-bar) .main-content {
 }
 
 .featured-ayah-cite {
-  font-size: 1.25rem;
+  font-size: 0.9rem;
   font-weight: 800;
   letter-spacing: 0.02em;
   color: var(--color-primary);
   line-height: 1.2;
   margin: 0;
   font-variant-numeric: tabular-nums;
-}
-
-.featured-ayah-surah {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--color-text);
-  margin: 0;
-  line-height: 1.4;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
 }
 
 .featured-ayah-num {
@@ -3067,6 +3057,10 @@ hr {
   text-align: left;
   margin: -0.5rem 0 1rem;
 }
+
+/* "Forgot password?" sits under the password field, right-aligned so it reads
+   as an aside to that field rather than another line of the form. */
+.auth-forgot { text-align: right; }
 
 .auth-submit {
   width: 100%;
@@ -10246,7 +10240,10 @@ body:has(.global-audio-bar) .main-content {
   right: 0;
   bottom: 0;
   z-index: 899;
-  grid-template-columns: 1fr 1fr 4.3rem 1fr 1fr;
+  /* Five equal slots, so the gaps between Challenges, Salah, Quran, Posts and
+     More are identical at every width. The Quran column used to be a fixed
+     narrow width, which pulled its neighbours together on wider screens. */
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: stretch;
   height: calc(4.2rem + env(safe-area-inset-bottom, 0px));
   padding: 0.3rem 0.5rem env(safe-area-inset-bottom, 0px);
@@ -11058,16 +11055,17 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   gap: 0.5rem 0.75rem;
   flex-wrap: wrap;
   margin-bottom: 0.75rem;
+  /* The card below has 1.75rem of its own padding, so the label starts on the
+     same vertical line as the ayah reference instead of the card's outer edge. */
+  padding-left: 1.75rem;
 }
 
 .featured-head .featured-label { margin-bottom: 0; }
 
-/* Back to the daily ayah while a refreshed one is showing. It is icon-only
-   because the full "Back to Ayah of the Day" label competed with the label
-   and action buttons for the row and wrapped them onto a second line. */
+/* Back to the daily ayah while a refreshed one is showing. It leads the icon
+   row so it aligns with share / open / refresh instead of competing with the
+   label for space. */
 .featured-back {
-  margin-left: -0.4rem;
-  margin-right: -0.15rem;
   color: var(--color-primary);
 }
 
@@ -11104,14 +11102,8 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   .featured-ayah-actions .is-spinning { animation: none; }
 }
 
-/* The Arabic surah name sits beside the Latin one and follows the reader's
-   chosen Qur'an face, the same as the ayah text below it. */
-.featured-ayah-surah-arabic {
-  font-size: 1.05rem;
-  color: var(--color-primary);
-  direction: rtl;
-}
-
+/* The Arabic surah name follows the reader's chosen Qur'an face where the
+   favourites list shows a surah reference. */
 .favourite-ref-arabic { color: var(--color-primary); }
 
 /* --- One column width on Challenges ---------------------------------------
