@@ -2175,17 +2175,23 @@ app.get("/api/settings", async function(req, res){
         res.json({
             settings: {
                 defaultHome: settings.defaultHome || "quran",
-                location: settings.location || prayerTimes.DEFAULT_LOCATION.label,
+                // Empty until the reader picks a place. The picker shows its
+                // own "Choose location" prompt rather than a pre-filled city.
+                location: settings.location || "",
                 // Coordinates and methods travel with the settings so the page
                 // can save a location atomically (label + place) and show the
-                // method actually in use.
-                locationLat: Number.isFinite(Number(settings.locationLat))
-                    ? Number(settings.locationLat)
-                    : prayerTimes.DEFAULT_LOCATION.latitude,
-                locationLng: Number.isFinite(Number(settings.locationLng))
-                    ? Number(settings.locationLng)
-                    : prayerTimes.DEFAULT_LOCATION.longitude,
-                locationTimezone: settings.locationTimezone || prayerTimes.DEFAULT_LOCATION.timezone,
+                // method actually in use. Null means "not picked yet".
+                locationLat: settings.locationLat === null || settings.locationLat === undefined || settings.locationLat === ""
+                    ? null
+                    : Number.isFinite(Number(settings.locationLat))
+                        ? Number(settings.locationLat)
+                        : null,
+                locationLng: settings.locationLng === null || settings.locationLng === undefined || settings.locationLng === ""
+                    ? null
+                    : Number.isFinite(Number(settings.locationLng))
+                        ? Number(settings.locationLng)
+                        : null,
+                locationTimezone: settings.locationTimezone || "",
                 calculationMethod: prayerTimes.methodId(settings.calculationMethod),
                 asrSchool: prayerTimes.schoolId(settings.asrSchool),
                 timeFormat: prayerTimes.timeFormatId(settings.timeFormat),
@@ -2268,8 +2274,8 @@ app.post("/api/settings", async function(req, res){
     // The place is saved as a whole: label, coordinates and IANA zone. A
     // partial update would leave the label pointing somewhere the times are
     // not computed for.
-    if (body.locationLat !== undefined) patch.locationLat = Number(body.locationLat);
-    if (body.locationLng !== undefined) patch.locationLng = Number(body.locationLng);
+    if (body.locationLat !== undefined) patch.locationLat = body.locationLat;
+    if (body.locationLng !== undefined) patch.locationLng = body.locationLng;
     if (body.locationTimezone !== undefined) patch.locationTimezone = String(body.locationTimezone);
     if (body.calculationMethod !== undefined) patch.calculationMethod = Number(body.calculationMethod);
     if (body.asrSchool !== undefined) patch.asrSchool = Number(body.asrSchool);
@@ -2379,7 +2385,9 @@ app.post("/api/telegram/test", requireLogin, async function(req, res){
         const text = module
             ? await notify.buildModulePreview(req.user, module, { dateLabel })
             : `<b>Hasanath</b> — test message\n\nTelegram notifications are connected.`;
-        if (!text) return res.status(400).json({ error: "unknown-module" });
+        // The preview is only null when the salah-timings module has no saved
+        // place to calculate for; the module name itself is validated above.
+        if (!text) return res.status(400).json({ error: "no-location" });
 
         const result = await sendTelegramMessage({ chatId, text });
         if (!result.sent) return res.status(502).json({ error: result.code || "send-failed" });
@@ -2432,6 +2440,27 @@ app.get("/api/salah-timings", async function(req, res){
         const school = prayerTimes.schoolId(settings.asrSchool);
         const timeFormat = prayerTimes.timeFormatId(settings.timeFormat);
 
+        // A new account has no saved place. Answer with the catalogues alone and
+        // let the page ask for one, rather than silently calculating times for
+        // a city the reader never chose.
+        if (!location) {
+            return res.json({
+                needsLocation: true,
+                location: "",
+                latitude: null,
+                longitude: null,
+                timezone: "",
+                method,
+                school,
+                timeFormat,
+                dateKey: null,
+                methods: prayerTimes.METHODS,
+                asrSchools: prayerTimes.ASR_SCHOOLS,
+                timeFormats: prayerTimes.TIME_FORMATS,
+                details: null
+            });
+        }
+
         // The reader's local day, not the server's: a place far from the
         // deployment must still see its own "today". The client may pin an
         // explicit day; otherwise it is derived in the location's timezone.
@@ -2452,6 +2481,7 @@ app.get("/api/salah-timings", async function(req, res){
         if (!details) return res.status(502).json({ error: "unavailable" });
 
         res.json({
+            needsLocation: false,
             location: location.label,
             latitude: location.latitude,
             longitude: location.longitude,

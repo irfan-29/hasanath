@@ -98,13 +98,15 @@ function escapeHtml(str) {
 
 async function buildSalahTimingsMessage(user) {
     const settings = (user && user.settings) || {};
-    const location = settings.location || "Coimbatore";
+    const location = settings.location || "";
     try {
         // Coordinates travel with the saved place, so the message is computed
         // for exactly the spot the page shows - not an address lookup that may
         // pick a same-named town. Legacy accounts without coordinates still
         // resolve through the five old city names or a lookup.
         const place = await prayerTimes.resolveLocation(settings);
+        // No place saved yet: there is nothing to send until one is picked.
+        if (!place) return null;
         const details = await prayerTimes.fetchTimings({
             latitude: place.latitude,
             longitude: place.longitude,

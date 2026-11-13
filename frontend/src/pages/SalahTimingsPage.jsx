@@ -10,18 +10,22 @@ export default function SalahTimingsPage() {
   const toast = useToast();
   const [view, setView] = useState({
     loading: true,
+    needsLocation: false,
     location: '',
     details: null,
     methods: [],
     asrSchools: [],
   });
-  const [method, setMethod] = useState(2);
+  const [method, setMethod] = useState(3);
   const [school, setSchool] = useState(0);
   // The ISO day currently on screen. Empty means "whatever day the server
   // considers today at the saved place", which is the initial state.
   const [dateKey, setDateKey] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // The empty state can open the same picker as the heading, so a reader with
+  // no place yet is not hunting for the control above.
+  const [pickerOpen, setPickerOpen] = useState(false);
   // Date changes can overlap with the automatic re-fetch after a settings
   // save; only the newest response may update the page.
   const requestRef = useRef(0);
@@ -38,7 +42,8 @@ export default function SalahTimingsPage() {
       if (requestId !== requestRef.current) return;
       setView({
         loading: false,
-        location: data.location,
+        needsLocation: Boolean(data.needsLocation),
+        location: data.location || '',
         details: data.details,
         methods: data.methods || [],
         asrSchools: data.asrSchools || [],
@@ -113,17 +118,21 @@ export default function SalahTimingsPage() {
         everything on the cards' centre line.
       */}
       <div className="timings-context">
-        <div className="prayer-meta">
-          <DateField
-            id="timings-date"
-            className="timings-date-picker"
-            triggerIcon="expand_more"
-            value={dateKey}
-            valueLabel={view.loading && !details ? 'Loading…' : (details ? details.date : 'Choose a date')}
-            onChange={changeDate}
-          />
-          {details && <p>{details.hijriDate}</p>}
-        </div>
+        {/* Without a place there is no day to name yet, so the date heading and
+            its Hijri line stay out of the way until one is picked. */}
+        {!view.needsLocation && (
+          <div className="prayer-meta">
+            <DateField
+              id="timings-date"
+              className="timings-date-picker"
+              triggerIcon="expand_more"
+              value={dateKey}
+              valueLabel={view.loading && !details ? 'Loading…' : (details ? details.date : 'Choose a date')}
+              onChange={changeDate}
+            />
+            {details && <p>{details.hijriDate}</p>}
+          </div>
+        )}
 
         <div className="timings-location">
           <span className="timings-location-kicker">Location</span>
@@ -131,6 +140,8 @@ export default function SalahTimingsPage() {
             className="timings-location-picker"
             value={view.location}
             disabled={busy}
+            open={pickerOpen}
+            onOpenChange={setPickerOpen}
             onSelect={changeLocation}
           />
         </div>
@@ -175,7 +186,7 @@ export default function SalahTimingsPage() {
         )}
 
         {/* The compact rows only have room for short names; spell out the full
-            convention underneath so "ISNA" is never a mystery. */}
+            convention underneath so "MWL" is never a mystery. */}
         {details && (details.methodName || schoolText) && (
           <p className="timings-method-note">
             {[details.methodName, `${schoolText} Asr`].filter(Boolean).join(' · ')}
@@ -193,6 +204,23 @@ export default function SalahTimingsPage() {
               <div className="prayer-time">{prayer.time}</div>
             </div>
           ))}
+        </div>
+      ) : view.needsLocation ? (
+        /* A new reader has no saved place, so the page asks for one instead of
+           calculating times for a city they never chose. */
+        <div className="timings-empty">
+          <span className="material-symbols-rounded timings-empty-icon" aria-hidden="true">location_on</span>
+          <h2 className="timings-empty-title">Choose your location</h2>
+          <p className="timings-empty-text">
+            Prayer times are calculated for the exact place you pick, anywhere in the world.
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary timings-empty-action"
+            onClick={() => setPickerOpen(true)}
+          >
+            Choose location
+          </button>
         </div>
       ) : (
         <div className="container1"><p className="post-empty">{error || 'No prayer times available.'}</p></div>

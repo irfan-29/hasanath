@@ -75,12 +75,16 @@ function sanitize(raw) {
       // Prayer times are computed from these coordinates. Bounded and
       // normalised here for the same reason as everything else: the cookie is
       // attacker-writable, so nothing may be trusted verbatim.
-      locationLat: Number.isFinite(Number(s.locationLat))
-        ? Math.min(90, Math.max(-90, Number(s.locationLat)))
-        : undefined,
-      locationLng: Number.isFinite(Number(s.locationLng))
-        ? Math.min(180, Math.max(-180, Number(s.locationLng)))
-        : undefined,
+      locationLat: s.locationLat === null || s.locationLat === undefined || s.locationLat === ""
+        ? undefined
+        : Number.isFinite(Number(s.locationLat))
+          ? Math.min(90, Math.max(-90, Number(s.locationLat)))
+          : undefined,
+      locationLng: s.locationLng === null || s.locationLng === undefined || s.locationLng === ""
+        ? undefined
+        : Number.isFinite(Number(s.locationLng))
+          ? Math.min(180, Math.max(-180, Number(s.locationLng)))
+          : undefined,
       locationTimezone: s.locationTimezone ? String(s.locationTimezone).slice(0, 64) : undefined,
       calculationMethod: METHOD_IDS.includes(Number(s.calculationMethod))
         ? Number(s.calculationMethod)

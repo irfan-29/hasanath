@@ -12,6 +12,7 @@ const TG_ERRORS = {
   'unknown': 'Could not connect that chat. Try again.',
   'missing-chat': 'Connect your Telegram chat first.',
   'send-failed': 'Telegram did not accept that message.',
+  'no-location': 'Choose your location on the Salah Timings page first.',
 };
 
 // App Font choices: the current face kept as default plus five widely used
@@ -749,7 +750,7 @@ export default function SettingsPage() {
             setData({ ...data, settings: { ...s, calculationMethod: Number(value) } });
           }
         }}
-        renderLabel={(v) => (data.calculationMethods || []).find((m) => Number(m.id) === Number(v))?.label || 'ISNA'} />
+        renderLabel={(v) => (data.calculationMethods || []).find((m) => Number(m.id) === Number(v))?.label || 'Muslim World League (MWL)'} />
 
       <SelectRow label="Asr Calculation"
         hint="Hanafi uses the later, longer shadow."

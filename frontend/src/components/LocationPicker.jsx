@@ -37,9 +37,19 @@ export default function LocationPicker({
   disabled = false,
   className = '',
   triggerClassName = 'app-field-control app-select-trigger',
+  open: openProp,
+  onOpenChange,
   children,
 }) {
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  // Controlled when the page needs to open the panel from elsewhere (the
+  // empty-state button on the timings page); self-managed otherwise.
+  const open = openProp === undefined ? uncontrolledOpen : openProp;
+  const setOpen = (next) => {
+    const value = typeof next === 'function' ? next(open) : next;
+    if (openProp === undefined) setUncontrolledOpen(value);
+    if (onOpenChange) onOpenChange(value);
+  };
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -149,7 +159,7 @@ export default function LocationPicker({
         disabled={disabled}
         onClick={() => setOpen((current) => !current)}
       >
-        <span className="app-field-value">{value || 'Choose a location'}</span>
+        <span className="app-field-value">{value || 'Choose location'}</span>
         <span className="app-field-icon material-symbols-rounded" aria-hidden="true">expand_more</span>
       </button>
 

@@ -42,7 +42,10 @@ const METHODS = [
     { id: 23, label: "Ministry of Awqaf, Jordan", short: "Jordan" }
 ];
 const METHOD_IDS = METHODS.map((entry) => entry.id);
-const DEFAULT_METHOD = 2;
+// The Muslim World League convention. It is the most widely followed outside
+// the countries that publish their own, so it is the least surprising starting
+// point; the reader can still switch it on either settings surface.
+const DEFAULT_METHOD = 3;
 
 // 0 is the standard (Shafi, Maliki, Hanbali) shadow calculation; 1 is Hanafi.
 const ASR_SCHOOLS = [
@@ -60,17 +63,10 @@ const TIME_FORMATS = [
 const TIME_FORMAT_IDS = TIME_FORMATS.map((entry) => entry.value);
 const DEFAULT_TIME_FORMAT = "24h";
 
-// Used until someone picks a place. Same city the app has always defaulted to,
-// now with coordinates so no lookup is needed.
-const DEFAULT_LOCATION = {
-    label: "Coimbatore",
-    latitude: 11.00555,
-    longitude: 76.96612,
-    timezone: "Asia/Kolkata"
-};
-
 // The five cities the old picker shipped. Their saved names still resolve
 // without a geocoding request, so existing accounts do not have to re-pick.
+// A new account has no place at all until the reader picks one, so no times
+// are ever calculated for a city they never chose.
 const LEGACY_LOCATIONS = {
     Coimbatore: { latitude: 11.0018, longitude: 76.9628, timezone: "Asia/Kolkata" },
     Hosur: { latitude: 12.7369, longitude: 77.6837, timezone: "Asia/Kolkata" },
@@ -110,8 +106,16 @@ function formatClock(value, timeFormat) {
 }
 
 function hasCoordinates(location = {}) {
-    const lat = Number(location.latitude);
-    const lng = Number(location.longitude);
+    const rawLat = location.latitude;
+    const rawLng = location.longitude;
+    // null/"" is "not set", not the coordinate zero: Number(null) is 0, which
+    // would otherwise put a reader with no saved place on Null Island.
+    if (rawLat === null || rawLat === undefined || rawLat === ""
+        || rawLng === null || rawLng === undefined || rawLng === "") {
+        return false;
+    }
+    const lat = Number(rawLat);
+    const lng = Number(rawLng);
     return Number.isFinite(lat) && Number.isFinite(lng)
         && lat >= -90 && lat <= 90
         && lng >= -180 && lng <= 180;
@@ -173,17 +177,17 @@ async function searchLocations(rawQuery, { limit = 6 } = {}) {
 }
 
 // Turns stored settings into coordinates. Coordinates win; then the five old
-// city names; then a live lookup of whatever text was saved; then the default.
+// city names; then a live lookup of whatever text was saved. Returns null when
+// nothing has been chosen yet - the caller asks the reader for a place rather
+// than inventing one.
 async function resolveLocation(settings = {}) {
     const label = String(settings.location || "").trim();
-    const latitude = Number(settings.locationLat);
-    const longitude = Number(settings.locationLng);
 
-    if (hasCoordinates({ latitude, longitude })) {
+    if (hasCoordinates({ latitude: settings.locationLat, longitude: settings.locationLng })) {
         return {
             label: label || "My location",
-            latitude,
-            longitude,
+            latitude: Number(settings.locationLat),
+            longitude: Number(settings.locationLng),
             timezone: settings.locationTimezone || ""
         };
     }
@@ -204,7 +208,7 @@ async function resolveLocation(settings = {}) {
         }
     }
 
-    return { ...DEFAULT_LOCATION };
+    return null;
 }
 
 function formatHijri(hijri) {
@@ -285,7 +289,6 @@ module.exports = {
     METHOD_IDS,
     ASR_SCHOOLS,
     DEFAULT_METHOD,
-    DEFAULT_LOCATION,
     LEGACY_LOCATIONS,
     TIME_FORMATS,
     TIME_FORMAT_IDS,

@@ -11172,13 +11172,16 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   width: auto;
   max-width: none;
   margin: 0;
+  /* .app-field is left-aligned for form rows; here the inline trigger has to
+     centre inside the wrapper, whose width follows the Hijri line below. */
+  text-align: center;
 }
 
 .timings-context .timings-date-picker .app-date-trigger {
+  position: relative;
   display: inline-flex;
   align-items: baseline;
-  justify-content: flex-start;
-  gap: 0.35rem;
+  justify-content: center;
   width: auto;
   min-height: 0;
   padding: 0;
@@ -11206,16 +11209,23 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   text-align: inherit;
 }
 
+/* Absolute rather than a flex sibling: an in-flow arrow widened the button and
+   the centring then counted it, pushing the date text left of the Hijri line
+   and of the location below. Out of flow, the text itself is what centres. */
 .timings-context .timings-date-picker .app-date-trigger .app-field-icon {
-  position: static;
+  position: absolute;
+  top: 50%;
+  right: auto;
+  left: 100%;
   width: auto;
   height: auto;
-  align-self: center;
+  margin-left: 0.3rem;
+  align-self: auto;
   font-size: 1.3rem;
   color: var(--color-text-muted);
   opacity: 0.75;
-  transform: none;
-  pointer-events: none;
+  transform: translateY(-50%);
+  pointer-events: auto;
 }
 
 .timings-context .timings-date-picker .app-date-trigger:hover,
@@ -11250,10 +11260,10 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 }
 
 .timings-context .timings-location-picker .app-select-trigger {
+  position: relative;
   display: inline-flex;
   align-items: baseline;
-  justify-content: flex-start;
-  gap: 0.35rem;
+  justify-content: center;
   width: auto;
   min-height: 0;
   padding: 0;
@@ -11281,19 +11291,23 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   text-align: inherit;
 }
 
-/* The arrow stays inline at the end of the city name rather than pinned to a
-   field edge, and turns over while the menu is open. */
+/* Out of flow for the same reason as the date arrow: the label text has to be
+   the thing that centres, not text-plus-arrow. */
 .timings-context .timings-location-picker .app-select-trigger .app-field-icon {
-  position: static;
+  position: absolute;
+  top: 50%;
+  right: auto;
+  left: 100%;
   width: auto;
   height: auto;
-  align-self: center;
+  margin-left: 0.3rem;
+  align-self: auto;
   font-size: 1.3rem;
   color: var(--color-text-muted);
   opacity: 0.75;
-  transform: none;
+  transform: translateY(-50%);
   transition: transform 0.18s ease, color var(--transition), opacity var(--transition);
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .timings-context .timings-location-picker .app-select-trigger:hover,
@@ -11309,7 +11323,7 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 .timings-context .timings-location-picker .app-select-trigger[aria-expanded="true"] .app-field-icon {
   color: var(--color-primary);
   opacity: 1;
-  transform: rotate(180deg);
+  transform: translateY(-50%) rotate(180deg);
 }
 
 .timings-context .timings-location-picker .app-select-trigger:focus-visible {
@@ -11429,6 +11443,58 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   color: var(--color-text-muted);
   font-size: 0.75rem;
   line-height: 1.45;
+}
+
+/* First visit: no place saved yet. The page asks for one instead of showing
+   times for a city the reader never picked. */
+.timings-empty {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  max-width: 420px;
+  margin: 1.35rem auto 0;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.timings-empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 0.15rem;
+  border-radius: 50%;
+  background: var(--color-primary-glow);
+  color: var(--color-primary-dark);
+  font-size: 1.55rem;
+}
+
+.timings-empty-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.timings-empty-text {
+  margin: 0;
+  max-width: 32ch;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.timings-empty-action {
+  margin-top: 0.45rem;
+}
+
+[data-theme="dark"] .timings-empty-icon {
+  color: var(--color-primary-light);
 }
 
 /* --- Location picker -------------------------------------------------------
@@ -11660,6 +11726,9 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 @media (max-width: 600px) {
   .timings-context .timings-location-picker .app-select-trigger {
     justify-content: center;
+    /* Reserve room for the out-of-flow arrow on the right, so a full-width
+       wrapped label cannot push it past the page padding. */
+    max-width: calc(100% - 1.6rem);
     font-size: 1.15rem;
     text-align: center;
     white-space: normal;

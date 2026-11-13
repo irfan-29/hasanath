@@ -101,12 +101,16 @@ async function runDueForUser(user, now = new Date()) {
 
     if (isDue(user, "salahTimings", now)) {
         const text = await notify.buildSalahTimingsMessage(user);
-        const ok = await notify.safeDeliver(user, text);
-        // Only stamp on real delivery, so a transient failure retries next check
-        // instead of silently dropping the day's timings.
-        if (ok) {
-            notify.markSent(user, "salahTimings", notify.localDateKey(now, prefs.timezone));
-            fired.push("salahTimings");
+        // No saved place yet: there is nothing to calculate. Deliberately not
+        // stamped, so the digest starts as soon as a location is chosen.
+        if (text) {
+            const ok = await notify.safeDeliver(user, text);
+            // Only stamp on real delivery, so a transient failure retries next
+            // check instead of silently dropping the day's timings.
+            if (ok) {
+                notify.markSent(user, "salahTimings", notify.localDateKey(now, prefs.timezone));
+                fired.push("salahTimings");
+            }
         }
     }
 

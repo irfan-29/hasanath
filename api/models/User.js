@@ -58,8 +58,9 @@ const challengeSchema = new mongoose.Schema({
 const settingsSchema = new mongoose.Schema({
     defaultHome: { type: String, default: "quran" },
     // The displayed place name. Prayer times are computed from the coordinates
-    // below, so this is a label, not a lookup key.
-    location: { type: String, default: "Coimbatore" },
+    // below, so this is a label, not a lookup key. No default: a new account
+    // has not chosen a place yet, and the timings page asks for one.
+    location: String,
     // Deliberately no defaults: a schema default here would hydrate Coimbatore's
     // coordinates onto a record whose saved city is "Salem", and the coordinate
     // branch in prayerTimes.resolveLocation would then win over the legacy name
@@ -71,7 +72,7 @@ const settingsSchema = new mongoose.Schema({
     locationTimezone: String,
     // Aladhan calculation method id (see api/services/prayerTimes.js) and Asr
     // shadow school: 0 standard, 1 Hanafi.
-    calculationMethod: { type: Number, default: 2 },
+    calculationMethod: { type: Number, default: 3 },
     asrSchool: { type: Number, default: 0 },
     // "24h" or "12h"; changes presentation only, never the stored times.
     timeFormat: { type: String, default: "24h" },

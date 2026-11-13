@@ -64,9 +64,10 @@ const ACCENT_IDS = ["green", "blue", "violet", "gold", "rose", "ocean"];
 function defaults() {
   return {
     defaultHome: "quran",
-    location: prayerTimes.DEFAULT_LOCATION.label,
+    // No location default: a new account has not picked a place, and the
+    // timings page invites the reader to choose one instead of guessing.
     // The coordinate fields stay absent until a place is actually picked. A
-    // default here would make every legacy "Salem" record look like it has
+    // default there would make every legacy "Salem" record look like it has
     // Coimbatore's coordinates, which resolveLocation would then prefer over
     // the legacy name map.
     calculationMethod: prayerTimes.DEFAULT_METHOD,
@@ -124,9 +125,15 @@ async function updateSettings(req, patch) {
   // half-updated pair would point at the wrong place. The method must be one
   // Aladhan actually publishes; the Asr school is only ever 0 or 1.
   if (clean.locationLat !== undefined || clean.locationLng !== undefined) {
-    const lat = Number(clean.locationLat);
-    const lng = Number(clean.locationLng);
-    if (Number.isFinite(lat) && Number.isFinite(lng)
+    // null/"" means "not picked yet" and must clear the pair rather than
+    // becoming 0,0 - Number(null) is 0.
+    const rawLat = clean.locationLat;
+    const rawLng = clean.locationLng;
+    const present = (value) => value !== undefined && value !== null && value !== "";
+    const lat = Number(rawLat);
+    const lng = Number(rawLng);
+    if (present(rawLat) && present(rawLng)
+        && Number.isFinite(lat) && Number.isFinite(lng)
         && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
       clean.locationLat = lat;
       clean.locationLng = lng;

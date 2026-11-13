@@ -1,20 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../services/api';
 import Loader from '../components/Loader';
 
 // The Kaaba's coordinates - every Qibla bearing is the initial great-circle
 // bearing from the reader's spot to this point.
 const KAABA = { lat: 21.4224779, lng: 39.8261837 };
-
-// The old fixed city list. Prayer times now carry their own coordinates, so
-// this is only a last resort for a legacy record whose lookup failed.
-const FALLBACK_COORDS = {
-  Coimbatore: { lat: 11.0018, lng: 76.9628 },
-  Hosur: { lat: 12.7369, lng: 77.6837 },
-  Salem: { lat: 11.6643, lng: 78.1462 },
-  Ramanathapuram: { lat: 9.3639, lng: 78.8392 },
-  Bengaluru: { lat: 12.9716, lng: 77.5946 },
-};
 
 const rad = (deg) => (deg * Math.PI) / 180;
 const normalize = (deg) => ((deg % 360) + 360) % 360;
@@ -77,16 +68,17 @@ export default function QiblaPage() {
     try {
       const data = await api.get('/salah-timings');
       // The saved place now arrives as coordinates, so the compass works for
-      // anywhere on earth rather than only the five old city names.
-      const lat = Number(data.latitude);
-      const lng = Number(data.longitude);
+      // anywhere on earth rather than only the five old city names. A new
+      // account has none, and null must not become 0,0.
+      const lat = data.latitude === null || data.latitude === undefined ? NaN : Number(data.latitude);
+      const lng = data.longitude === null || data.longitude === undefined ? NaN : Number(data.longitude);
       if (Number.isFinite(lat) && Number.isFinite(lng)) {
         return apply(lat, lng, 'saved');
       }
-      const coords = FALLBACK_COORDS[data.location];
-      if (coords) return apply(coords.lat, coords.lng, 'saved');
-    } catch { /* and finally the app's default city */ }
-    apply(FALLBACK_COORDS.Coimbatore.lat, FALLBACK_COORDS.Coimbatore.lng, 'default');
+    } catch { /* no saved place to fall back to */ }
+    // No GPS and no saved place: ask for one instead of aiming at a city the
+    // reader never chose.
+    setState({ status: 'needs-location' });
   }, []);
 
   useEffect(() => { locate(); }, [locate]);
@@ -137,7 +129,7 @@ export default function QiblaPage() {
   const aligned = ready && live && Math.abs(normalize(state.bearing - heading + 180) - 180) < 4;
   const sourceNote = state.source === 'gps'
     ? 'Using your current location'
-    : state.source === 'saved' ? 'Approximate - using your saved location' : 'Approximate - using the default location';
+    : 'Approximate - using your saved location';
   const onPhone = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
 
   return (
@@ -148,6 +140,12 @@ export default function QiblaPage() {
       {state.status === 'locating' && (
         <div className="qibla-card">
           <Loader variant="inline" label="Finding your location" />
+        </div>
+      )}
+      {state.status === 'needs-location' && (
+        <div className="qibla-card">
+          <p className="post-empty">Choose a location to see the Qibla direction from where you are.</p>
+          <Link to="/salah-timings" className="btn">Choose location</Link>
         </div>
       )}
       {ready && (
