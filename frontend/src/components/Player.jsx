@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useAudio } from './AudioProvider';
+import { useAudio, PLAYBACK_RATES, SLEEP_OPTIONS } from './AudioProvider';
 import { quran } from '../services/api';
 
 function formatTime(seconds) {
@@ -11,7 +11,7 @@ function formatTime(seconds) {
 }
 
 // Countdown shown inside the sleep-timer button while a timer runs. Hours flip
-// the label to h:mm:ss so even a 5h setting fits one line.
+// the label to h:mm:ss so even a long setting fits one line.
 function formatRemaining(ms) {
   const total = Math.max(0, Math.ceil(ms / 1000));
   const h = Math.floor(total / 3600);
@@ -21,83 +21,49 @@ function formatRemaining(ms) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-const SLEEP_OPTIONS = [
-  { id: 'off', label: 'Timer off', ms: 0 },
-  { id: '15m', label: '15 minutes', ms: 15 * 60 * 1000 },
-  { id: '30m', label: '30 minutes', ms: 30 * 60 * 1000 },
-  { id: '1h', label: '1 hour', ms: 60 * 60 * 1000 },
-  { id: '2h', label: '2 hours', ms: 2 * 60 * 60 * 1000 },
-  { id: '3h', label: '3 hours', ms: 3 * 60 * 60 * 1000 },
-  { id: '5h', label: '5 hours', ms: 5 * 60 * 60 * 1000 },
-];
-const SLEEP_MENU_WIDTH = 200;
-// Seven rows at the app dropdown's row height, used for the flip-above check.
-const SLEEP_MENU_HEIGHT = 332;
+const MENU_WIDTH = 200;
+// Six rows plus the header, used for the flip-above check. The speed list has
+// the same row count, so one height serves both menus.
+const MENU_HEIGHT = 296;
 
 // Same class names and structure as the old audio bar, so the stylesheet
 // renders it identically. The difference is where it lives: here it is mounted
 // above the router, which is why playback survives navigation.
 export default function Player() {
-  const { track, playing, position, duration, toggle, pause, seek, close, load, hasTrack,
-          skip, canSkipBack, canSkipForward, loop, loopsLeft, cycleLoop } = useAudio();
+  const { track, playing, position, duration, toggle, seek, close, load, hasTrack,
+          skip, canSkipBack, canSkipForward, loop, loopsLeft, cycleLoop,
+          rate, changeRate, sleepMode, sleepRemaining, chooseSleep } = useAudio();
   const [restored, setRestored] = useState(false);
   const [scrubPct, setScrubPct] = useState(null);
   const trackRef = useRef(null);
   const rangeRef = useRef(null);
   const dragging = useRef(false);
 
-  // --- Sleep timer ---------------------------------------------------------
-  // One absolute deadline rather than a paused "time left" counter, so the
-  // countdown keeps running whether playback pauses or moves to another surah.
-  // When it fires the audio pauses; the track stays loaded, so pressing play
-  // resumes and the timer simply reads "off" until it is set again. The
-  // countdown lives only in this component - close() clears it so the next
-  // session starts fresh.
-  const [sleepOpen, setSleepOpen] = useState(false);
-  const [sleepActiveMs, setSleepActiveMs] = useState(0);
-  const [sleepMenuPos, setSleepMenuPos] = useState(null);
-  const sleepEndsAt = useRef(0);
+  // --- Popover menus ---------------------------------------------------------
+  // Speed and sleep share one panel and one set of placement rules; `menu`
+  // says which button owns it. Positioning is measured from that button, so
+  // the panel opens upward from the dock as it always has.
+  const [menu, setMenu] = useState(null);
+  const [menuPos, setMenuPos] = useState(null);
   const sleepBtnRef = useRef(null);
-  const sleepMenuRef = useRef(null);
+  const speedBtnRef = useRef(null);
+  const menuRef = useRef(null);
 
-  useEffect(() => {
-    if (!sleepActiveMs) return undefined;
-    const id = window.setInterval(() => {
-      const remaining = sleepEndsAt.current - Date.now();
-      if (remaining <= 0) {
-        sleepEndsAt.current = 0;
-        setSleepActiveMs(0);
-        pause();
-        return;
-      }
-      setSleepActiveMs(remaining);
-    }, 500);
-    return () => window.clearInterval(id);
-  }, [sleepActiveMs, pause]);
+  const toggleMenu = (name) => setMenu((open) => (open === name ? null : name));
 
-  const chooseSleep = (option) => {
-    if (!option.ms) {
-      sleepEndsAt.current = 0;
-      setSleepActiveMs(0);
-    } else {
-      sleepEndsAt.current = Date.now() + option.ms;
-      setSleepActiveMs(option.ms);
-    }
-    setSleepOpen(false);
-    sleepBtnRef.current?.focus();
-  };
-
-  // Outside pointer (or Escape) closes the sleep menu: the same contract the
+  // Outside pointer (or Escape) closes the panel: the same contract the
   // app-wide FormSelect listbox follows.
   useEffect(() => {
-    if (!sleepOpen) return undefined;
+    if (!menu) return undefined;
     const closeOnOutside = (event) => {
-      if (!sleepBtnRef.current?.contains(event.target) && !sleepMenuRef.current?.contains(event.target)) {
-        setSleepOpen(false);
+      if (!sleepBtnRef.current?.contains(event.target)
+        && !speedBtnRef.current?.contains(event.target)
+        && !menuRef.current?.contains(event.target)) {
+        setMenu(null);
       }
     };
     const closeOnKey = (event) => {
-      if (event.key === 'Escape') setSleepOpen(false);
+      if (event.key === 'Escape') setMenu(null);
     };
     document.addEventListener('pointerdown', closeOnOutside);
     document.addEventListener('keydown', closeOnKey);
@@ -105,24 +71,24 @@ export default function Player() {
       document.removeEventListener('pointerdown', closeOnOutside);
       document.removeEventListener('keydown', closeOnKey);
     };
-  }, [sleepOpen]);
+  }, [menu]);
 
-  // Positioned from the button's rect, right-aligned to it (the button sits at
-  // the right end of the bar) and flipped above the bar when there is not
-  // enough room underneath - the dock sits low, so the usual case is up.
+  // Right-aligned to the owning button and flipped above the dock when there is
+  // not enough room underneath - the dock sits low, so the usual case is up.
   useEffect(() => {
-    if (!sleepOpen) return undefined;
+    if (!menu) return undefined;
     const place = () => {
-      const rect = sleepBtnRef.current?.getBoundingClientRect();
+      const anchor = (menu === 'speed' ? speedBtnRef : sleepBtnRef).current;
+      const rect = anchor?.getBoundingClientRect();
       if (!rect) return;
       const gap = 8;
-      const width = Math.min(SLEEP_MENU_WIDTH, window.innerWidth - 16);
+      const width = Math.min(MENU_WIDTH, window.innerWidth - 16);
       const right = Math.min(rect.right, window.innerWidth - 8);
       const left = Math.max(8, right - width);
       const below = window.innerHeight - rect.bottom - gap;
-      const openUp = below < SLEEP_MENU_HEIGHT && rect.top > SLEEP_MENU_HEIGHT;
-      setSleepMenuPos({
-        top: openUp ? Math.max(8, rect.top - SLEEP_MENU_HEIGHT - gap) : rect.bottom + gap,
+      const openUp = below < MENU_HEIGHT && rect.top > MENU_HEIGHT;
+      setMenuPos({
+        top: openUp ? Math.max(8, rect.top - MENU_HEIGHT - gap) : rect.bottom + gap,
         left,
         width,
       });
@@ -134,7 +100,7 @@ export default function Player() {
       window.removeEventListener('resize', place);
       window.removeEventListener('scroll', place, true);
     };
-  }, [sleepOpen]);
+  }, [menu]);
 
   useEffect(() => {
     let cancelled = false;
@@ -150,14 +116,11 @@ export default function Player() {
 
   if (!restored || !hasTrack) return null;
 
-  const sleepLabel = sleepActiveMs
-    ? `Sleep timer: about ${Math.ceil(sleepActiveMs / 60000)} minutes remaining`
-    : 'Sleep timer';
-  const isActiveSleepOption = (option) => (
-    option.ms === 0
-      ? sleepActiveMs === 0
-      : sleepActiveMs > 0 && Math.round(sleepActiveMs / 60000) === Math.round(option.ms / 60000)
-  );
+  const sleepLabel = sleepMode === 'surah'
+    ? 'Sleep timer: stops at the end of this surah'
+    : sleepRemaining > 0
+      ? `Sleep timer: about ${Math.ceil(sleepRemaining / 60000)} minutes remaining`
+      : 'Sleep timer';
 
   const pct = duration > 0
     ? (scrubPct !== null ? scrubPct : Math.min(100, Math.max(0, (position / duration) * 100)))
@@ -222,6 +185,13 @@ export default function Player() {
     setScrubPct(null);
   };
 
+  const menuStyle = {
+    top: menuPos ? `${menuPos.top}px` : undefined,
+    left: menuPos ? `${menuPos.left}px` : undefined,
+    width: menuPos ? `${menuPos.width}px` : undefined,
+    visibility: menuPos ? 'visible' : 'hidden',
+  };
+
   return (
     <div className={`global-audio-bar${playing ? ' is-playing' : ''}`} id="globalAudioBar">
       <div className="audio-bar-inner">
@@ -256,33 +226,52 @@ export default function Player() {
             </button>
           </div>
 
-          {/* Loop: cycles repeat-1, 2, 3 times, then off. The repeat glyph
-              stays visible the whole time and the count rides ON the icon as
-              a small badge, so the mode reads at a glance. */}
-          <button
-            type="button"
-            className={`audio-btn audio-loop-btn${loop ? ' is-on' : ''}`}
-            onClick={cycleLoop}
-            aria-label={loop ? `Repeat surah: ${loop} time${loop === 1 ? '' : 's'}` : 'Repeat surah: off'}
-            title={loop ? `Repeats remaining: ${loopsLeft}` : 'Repeat surah (1-3 times)'}
-          >
-            <span className="material-symbols-rounded" aria-hidden="true">repeat</span>
-            {loop > 0 && <span className="audio-loop-badge">{loopsLeft}</span>}
-          </button>
+          {/* The two things you arm on the dock, side by side: repeat and
+              speed. Both read their state off the button itself. */}
+          <div className="audio-modes">
+            {/* Loop cycles repeat-1, 2, 3 times, then off. The repeat glyph
+                stays visible the whole time and the count rides ON the icon as
+                a small badge, so the mode reads at a glance. */}
+            <button
+              type="button"
+              className={`audio-btn audio-loop-btn${loop ? ' is-on' : ''}`}
+              onClick={cycleLoop}
+              aria-label={loop ? `Repeat surah: ${loop} time${loop === 1 ? '' : 's'}` : 'Repeat surah: off'}
+              title={loop ? `Repeats remaining: ${loopsLeft}` : 'Repeat surah (1-3 times)'}
+            >
+              <span className="material-symbols-rounded" aria-hidden="true">repeat</span>
+              {loop > 0 && <span className="audio-loop-badge">{loopsLeft}</span>}
+            </button>
+
+            <button
+              ref={speedBtnRef}
+              type="button"
+              className={`audio-btn audio-speed-btn${rate !== 1 ? ' is-on' : ''}`}
+              aria-label={`Playback speed ${rate}×`}
+              aria-haspopup="menu"
+              aria-expanded={menu === 'speed'}
+              title={`Playback speed: ${rate}×`}
+              onClick={() => toggleMenu('speed')}
+            >
+              <span className="audio-speed-label">{rate}×</span>
+            </button>
+          </div>
 
           <button
             ref={sleepBtnRef}
             type="button"
-            className={`audio-btn audio-sleep-btn${sleepActiveMs ? ' is-on' : ''}`}
+            className={`audio-btn audio-sleep-btn${sleepMode !== 'off' ? ' is-on' : ''}`}
             aria-label={sleepLabel}
             aria-haspopup="menu"
-            aria-expanded={sleepOpen}
+            aria-expanded={menu === 'sleep'}
             title={sleepLabel}
-            onClick={() => setSleepOpen((open) => !open)}
+            onClick={() => toggleMenu('sleep')}
           >
-            {sleepActiveMs
-              ? <span className="audio-sleep-count">{formatRemaining(sleepActiveMs)}</span>
-              : <span className="material-symbols-rounded" aria-hidden="true">bedtime</span>}
+            {sleepMode === 'surah'
+              ? <span className="audio-sleep-count">Surah</span>
+              : sleepRemaining > 0
+                ? <span className="audio-sleep-count">{formatRemaining(sleepRemaining)}</span>
+                : <span className="material-symbols-rounded" aria-hidden="true">bedtime</span>}
           </button>
 
           <button type="button" className="audio-btn audio-close-btn" onClick={close} aria-label="Close audio">
@@ -326,20 +315,15 @@ export default function Player() {
         </div>
       </div>
 
-      {sleepOpen && createPortal(
+      {menu === 'sleep' && createPortal(
         <div
-          ref={sleepMenuRef}
-          className="audio-sleep-menu"
+          ref={menuRef}
+          className="audio-menu"
           role="menu"
           aria-label="Sleep timer"
-          style={{
-            top: sleepMenuPos ? `${sleepMenuPos.top}px` : undefined,
-            left: sleepMenuPos ? `${sleepMenuPos.left}px` : undefined,
-            width: sleepMenuPos ? `${sleepMenuPos.width}px` : undefined,
-            visibility: sleepMenuPos ? 'visible' : 'hidden',
-          }}
+          style={menuStyle}
         >
-          <div className="audio-sleep-head">
+          <div className="audio-menu-head">
             <span className="material-symbols-rounded" aria-hidden="true">bedtime</span>
             Sleep timer
           </div>
@@ -347,14 +331,55 @@ export default function Player() {
             <button
               key={option.id}
               type="button"
-              role="menuitem"
-              className={`audio-sleep-option${isActiveSleepOption(option) ? ' is-selected' : ''}`}
+              role="menuitemradio"
+              aria-checked={sleepMode === option.id}
+              className={`audio-menu-option${sleepMode === option.id ? ' is-selected' : ''}`}
               onPointerEnter={(event) => event.currentTarget.classList.add('is-active')}
               onPointerLeave={(event) => event.currentTarget.classList.remove('is-active')}
-              onClick={() => chooseSleep(option)}
+              onClick={() => {
+                chooseSleep(option.id);
+                setMenu(null);
+                sleepBtnRef.current?.focus();
+              }}
             >
               <span>{option.label}</span>
-              {isActiveSleepOption(option)
+              {sleepMode === option.id
+                && <span className="material-symbols-rounded" aria-hidden="true">check</span>}
+            </button>
+          ))}
+        </div>,
+        document.body,
+      )}
+
+      {menu === 'speed' && createPortal(
+        <div
+          ref={menuRef}
+          className="audio-menu"
+          role="menu"
+          aria-label="Playback speed"
+          style={menuStyle}
+        >
+          <div className="audio-menu-head">
+            <span className="material-symbols-rounded" aria-hidden="true">speed</span>
+            Playback speed
+          </div>
+          {PLAYBACK_RATES.map((value) => (
+            <button
+              key={value}
+              type="button"
+              role="menuitemradio"
+              aria-checked={rate === value}
+              className={`audio-menu-option${rate === value ? ' is-selected' : ''}`}
+              onPointerEnter={(event) => event.currentTarget.classList.add('is-active')}
+              onPointerLeave={(event) => event.currentTarget.classList.remove('is-active')}
+              onClick={() => {
+                changeRate(value);
+                setMenu(null);
+                speedBtnRef.current?.focus();
+              }}
+            >
+              <span>{value}×{value === 1 ? ' (default)' : ''}</span>
+              {rate === value
                 && <span className="material-symbols-rounded" aria-hidden="true">check</span>}
             </button>
           ))}

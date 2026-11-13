@@ -11,6 +11,22 @@ import { quran } from '../services/api';
 
 const AudioContext = createContext(null);
 
+// Playback speeds offered by the dock. 1 is the default; the button label and
+// the list both read this array, so adding a speed is a one-line change.
+export const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
+// Sleep timer modes. `ms: 0` means "no countdown": 'off' disarms the timer,
+// while 'surah' is a rule the ended handler applies - it stops the recitation
+// instead of rolling into the next surah.
+export const SLEEP_OPTIONS = [
+  { id: 'off', label: 'Timer off', ms: 0 },
+  { id: '15m', label: '15 minutes', ms: 15 * 60 * 1000 },
+  { id: '30m', label: '30 minutes', ms: 30 * 60 * 1000 },
+  { id: '45m', label: '45 minutes', ms: 45 * 60 * 1000 },
+  { id: '1h', label: '1 hour', ms: 60 * 60 * 1000 },
+  { id: 'surah', label: 'End of surah', ms: 0 },
+];
+
 export function AudioProvider({ children }) {
   const audioRef = useRef(null);
   if (audioRef.current === null && typeof Audio !== 'undefined') {
@@ -23,6 +39,13 @@ export function AudioProvider({ children }) {
   const [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(0);
+
+  // The current track as the 'ended' handler sees it. That handler is
+  // registered once for the element's lifetime, so it cannot close over a
+  // track that is only known after the first click.
+  const trackRef = useRef(null);
+  trackRef.current = track;
+  const skipRef = useRef(null);
 
   // --- Loop (repeat the recitation) ------------------------------------------
   //
@@ -52,6 +75,49 @@ export function AudioProvider({ children }) {
     // setters, so batched clicks advance one mode per tap.
     setLoopCount((loopState.current.mode + 1) % 4);
   }, [setLoopCount]);
+
+  // --- Playback speed ---------------------------------------------------------
+  // The element holds the rate; `rate` mirrors it for the button label and the
+  // menu's tick. A new source resets playbackRate in some browsers, so play()
+  // and load() re-apply the ref before handing over the URL.
+  const [rate, setRate] = useState(1);
+  const rateRef = useRef(1);
+
+  const changeRate = useCallback((next) => {
+    const value = Number(next);
+    if (!PLAYBACK_RATES.includes(value)) return;
+    rateRef.current = value;
+    setRate(value);
+    if (audio) {
+      audio.defaultPlaybackRate = value;
+      audio.playbackRate = value;
+    }
+  }, [audio]);
+
+  // --- Sleep timer ------------------------------------------------------------
+  // Owned here rather than in the dock because "end of surah" is a rule the
+  // ended handler has to apply: without it, auto-advance would pick up the next
+  // surah the listener asked not to hear. Countdowns keep an absolute deadline
+  // so pausing, seeking or changing surah cannot lose time.
+  const [sleepMode, setSleepMode] = useState('off');
+  const [sleepRemaining, setSleepRemaining] = useState(0);
+  const sleepModeRef = useRef('off');
+  const sleepEndsAt = useRef(0);
+
+  const chooseSleep = useCallback((id) => {
+    const option = SLEEP_OPTIONS.find((item) => item.id === id) || SLEEP_OPTIONS[0];
+    sleepModeRef.current = option.id;
+    sleepEndsAt.current = option.ms ? Date.now() + option.ms : 0;
+    setSleepMode(option.id);
+    setSleepRemaining(option.ms);
+  }, []);
+
+  const clearSleep = useCallback(() => {
+    sleepModeRef.current = 'off';
+    sleepEndsAt.current = 0;
+    setSleepMode('off');
+    setSleepRemaining(0);
+  }, []);
 
   // Persist the position so a full page load or a return visit resumes where
   // the user stopped. Throttled while playing, and forced on pause/unload -
@@ -90,6 +156,8 @@ export function AudioProvider({ children }) {
     const changed = !track || track.url !== next.url;
 
     setTrack({ ...next, surahNo: Number(next.surahNo) });
+    audio.defaultPlaybackRate = rateRef.current;
+    audio.playbackRate = rateRef.current;
     audio.src = next.url;
     if (changed) {
       audio.currentTime = Number(next.startAt) || 0;
@@ -119,6 +187,22 @@ export function AudioProvider({ children }) {
     if (audio && !audio.paused) audio.pause();
   }, [audio]);
 
+  // A running countdown pauses the recitation where the listener dozed off and
+  // disarms; the track stays loaded, so pressing play resumes it.
+  useEffect(() => {
+    if (!sleepRemaining) return undefined;
+    const id = window.setInterval(() => {
+      const remaining = sleepEndsAt.current - Date.now();
+      if (remaining <= 0) {
+        clearSleep();
+        pause();
+        return;
+      }
+      setSleepRemaining(remaining);
+    }, 500);
+    return () => window.clearInterval(id);
+  }, [sleepRemaining, clearSleep, pause]);
+
   // Load a track into the bar WITHOUT starting it. Separate from play() because
   // conflating them meant restoring a saved position auto-played, which browsers
   // refuse anyway and which is intrusive when it does not.
@@ -128,6 +212,8 @@ export function AudioProvider({ children }) {
     // load, and it must not inherit a guard left standing by an earlier close.
     dismissing.current = false;
     setTrack({ ...next, surahNo: Number(next.surahNo) });
+    audio.defaultPlaybackRate = rateRef.current;
+    audio.playbackRate = rateRef.current;
     audio.src = next.url;
     audio.load();
     const startAt = Number(next.startAt) || 0;
@@ -166,6 +252,8 @@ export function AudioProvider({ children }) {
     setTrack(null);
     setPosition(0);
     setDuration(0);
+    // The timer belongs to the session that was playing, not to the next one.
+    clearSleep();
 
     // Memory alone is not enough. The previous version of this function cleared
     // local state and stopped there, so the server still held the last saved
@@ -176,7 +264,7 @@ export function AudioProvider({ children }) {
     // trip, and a failed clear leaves the position merely resume-able rather
     // than broken. Fire-and-forget with the failure logged by the client.
     quran.clearProgress().catch(() => {});
-  }, [audio]);
+  }, [audio, clearSleep]);
 
   useEffect(() => {
     if (!audio) return undefined;
@@ -205,12 +293,31 @@ export function AudioProvider({ children }) {
         setLoopsLeft(info.left);
         if (info.left === 0) {
           // Spent: the badge resets to off while this last replay runs, and
-          // its own 'ended' falls through to the normal stop below.
+          // its own 'ended' falls through to the normal handling below.
           info.mode = 0;
           setLoop(0);
         }
         return;
       }
+
+      // "End of surah" sleep timer: the listener asked to stop here, so this
+      // is where a session ends - no replay, no next surah.
+      if (sleepModeRef.current === 'surah') {
+        clearSleep();
+        setPlaying(false);
+        savePosition(true);
+        return;
+      }
+
+      // Otherwise the next surah follows on its own. Before this, a finished
+      // recitation simply stopped, so a long listen died in silence at a random
+      // surah boundary. Reaching An-Nas is the only real end.
+      const current = trackRef.current;
+      if (current && Number(current.surahNo) < 114 && skipRef.current) {
+        skipRef.current(1);
+        return;
+      }
+
       setPlaying(false);
       savePosition(true);
     };
@@ -235,7 +342,7 @@ export function AudioProvider({ children }) {
       window.removeEventListener('pagehide', onHide);
       document.removeEventListener('visibilitychange', onHide);
     };
-  }, [audio, savePosition]);
+  }, [audio, savePosition, clearSleep]);
 
   // Previous / next surah.
   //
@@ -267,6 +374,10 @@ export function AudioProvider({ children }) {
       // current track simply keeps playing.
     }
   }, [track, play]);
+
+  // The ended handler reaches the transport through this ref: skip() is defined
+  // after the listener is registered.
+  skipRef.current = skip;
 
   // System media controls: lock screen, notification shade, headphone and
   // Bluetooth buttons, car displays.
@@ -385,10 +496,12 @@ export function AudioProvider({ children }) {
     track, playing, position, duration,
     play, load, toggle, pause, seek, close, savePosition, skip,
     loop, loopsLeft, cycleLoop, setLoopCount,
+    rate, changeRate,
+    sleepMode, sleepRemaining, chooseSleep, clearSleep,
     hasTrack: Boolean(track),
     canSkipBack: Boolean(track) && Number(track.surahNo) > 1,
     canSkipForward: Boolean(track) && Number(track.surahNo) < 114,
-  }), [track, playing, position, duration, play, load, toggle, pause, seek, close, savePosition, skip, loop, loopsLeft, cycleLoop, setLoopCount]);
+  }), [track, playing, position, duration, play, load, toggle, pause, seek, close, savePosition, skip, loop, loopsLeft, cycleLoop, setLoopCount, rate, changeRate, sleepMode, sleepRemaining, chooseSleep, clearSleep]);
 
   return <AudioContext.Provider value={value}>{children}</AudioContext.Provider>;
 }

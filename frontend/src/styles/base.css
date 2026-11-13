@@ -9732,7 +9732,34 @@ select.form-control option,
   box-shadow: 0 1px 3px rgba(8, 47, 42, 0.55);
 }
 
-.audio-sleep-menu {
+/* --- Playback speed -------------------------------------------------------
+   Sits beside the repeat button in a single "modes" cluster: the pair reads as
+   the two things you arm on the dock. The label carries the value (1x), so this
+   one is wider than an icon button and grows with the text. */
+.audio-modes {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.audio-bar-actions .audio-speed-btn {
+  width: auto;
+  min-width: 40px;
+  padding: 0 0.42rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.audio-speed-btn.is-on { color: var(--accent-brightest); }
+
+.audio-speed-label {
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.audio-menu {
   position: fixed;
   z-index: 1250;
   padding: 0.4rem;
@@ -9750,7 +9777,7 @@ select.form-control option,
 
 /* The menu belongs to the dock, so it wears the same deep-teal glass as the
    player in both themes; the header anchors it to the sleep-timer button. */
-.audio-sleep-head {
+.audio-menu-head {
   display: flex;
   align-items: center;
   gap: 0.45rem;
@@ -9764,13 +9791,13 @@ select.form-control option,
   text-transform: uppercase;
 }
 
-.audio-sleep-head .material-symbols-rounded {
+.audio-menu-head .material-symbols-rounded {
   flex: 0 0 auto;
   font-size: 1.05rem;
   color: var(--accent-2);
 }
 
-.audio-sleep-option {
+.audio-menu-option {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -9790,17 +9817,17 @@ select.form-control option,
   transition: background var(--transition), color var(--transition);
 }
 
-.audio-sleep-option:hover,
-.audio-sleep-option.is-active {
+.audio-menu-option:hover,
+.audio-menu-option.is-active {
   background: rgb(var(--accent-rgb) / 0.12);
   color: var(--accent-brightest);
 }
 
-.audio-sleep-option.is-selected {
+.audio-menu-option.is-selected {
   color: var(--accent-brightest);
 }
 
-.audio-sleep-option .material-symbols-rounded {
+.audio-menu-option .material-symbols-rounded {
   flex: 0 0 auto;
   font-size: 1rem;
   color: var(--accent-bright);
@@ -9812,7 +9839,7 @@ select.form-control option,
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .audio-sleep-menu { animation: none; }
+  .audio-menu { animation: none; }
 }
 
 body:has(.global-audio-bar) .main-content {
@@ -9888,13 +9915,16 @@ body:has(.global-audio-bar) .main-content {
     gap: 0.4rem;
   }
 
-  .audio-bar-actions .audio-loop-btn {
+  .audio-bar-actions .audio-modes {
     grid-column: 1;
     grid-row: 1;
     justify-self: start;
-    /* Mirrors the sleep pill's 0.8rem pull-in, so the two lane buttons sit at
-       matching distances from their dock edges. */
+    /* Mirrors the sleep pill's 0.8rem pull-in, so the two lanes sit at matching
+       distances from their dock edges. */
     margin-left: 0.8rem;
+  }
+
+  .audio-bar-actions .audio-loop-btn {
     height: 34px;
     min-width: 34px;
   }
@@ -9986,7 +10016,9 @@ body:has(.global-audio-bar) .main-content {
   .audio-btn { width: 30px; height: 30px; }
   .audio-btn-play { width: 40px; height: 40px; }
   .audio-bar-actions { gap: 0.45rem; }
-  .audio-bar-actions .audio-loop-btn { height: 32px; min-width: 32px; margin-left: 0.6rem; }
+  .audio-bar-actions .audio-modes { margin-left: 0.6rem; }
+  .audio-bar-actions .audio-loop-btn { height: 32px; min-width: 32px; }
+  .audio-bar-actions .audio-speed-btn { min-width: 36px; padding: 0 0.32rem; font-size: 0.68rem; }
   .audio-bar-actions .audio-loop-badge { bottom: 0.18rem; font-size: 0.46rem; line-height: 0.72rem; min-width: 0.66rem; }
   .audio-bar-actions .audio-sleep-btn { height: 32px; width: auto; min-width: 46px; padding: 0 0.5rem; margin-right: 0.6rem; }
   .audio-bar-actions .audio-sleep-btn.is-on { padding: 0 0.5rem; }

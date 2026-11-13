@@ -92,3 +92,4 @@ my_location
 location_on
 android
 download
+speed

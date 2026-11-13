@@ -155,7 +155,7 @@ export default function AuthPage({ mode: initialMode = 'login' }) {
       <div className="auth-card">
         <div className="auth-brand">
           <span className="auth-logo material-symbols-rounded">
-            {mode === 'verify' ? 'mark_email_read' : mode === 'forgot' || mode === 'reset' ? 'lock_reset' : 'mosque'}
+            {mode === 'verify' ? 'mark_email_read' : mode === 'forgot' || mode === 'reset' ? 'lock' : 'mosque'}
           </span>
           <h1 className="auth-title">
             {mode === 'verify' ? 'Check your email' : mode === 'forgot' || mode === 'reset' ? 'Reset password' : 'Hasanath'}
