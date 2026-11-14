@@ -3,24 +3,14 @@
 // (fawazahmed0, served over jsDelivr), but a whole book is far too large to
 // fetch per request the way surah files are: Bukhari's Arabic edition alone is
 // ~9MB. Instead each edition is split once into per-section documents and
-// stored in the same immutable-JSON cache the Quran module uses (QuranCache).
+// stored in the same immutable-JSON cache the Quran module uses (cacheStore).
 // The seed script (scripts/seed-hadiths.js) warms every collection; the routes
 // only ever read small per-section documents.
 
 const fetch = require("node-fetch");
-const mongoose = require("mongoose");
+const { readCache, writeCache } = require("./cacheStore");
 
 const FETCH_TIMEOUT_MS = 30000; // whole-edition downloads are megabytes
-
-// Same collection and document shape as quranCache.js - immutable JSON keyed
-// by string. Registering the same model name returns the existing model when
-// the app already created it.
-const cacheSchema = new mongoose.Schema({
-    key: { type: String, required: true },
-    value: mongoose.Schema.Types.Mixed,
-    fetchedAt: { type: Date, default: Date.now }
-}, { _id: false, versionKey: false });
-const Cache = mongoose.models.QuranCache || mongoose.model("QuranCache", cacheSchema);
 
 // Display order is also reading order: the two Saheehs first, then the other
 // four canonical books, then the curated forties people actually memorise.
@@ -92,16 +82,11 @@ async function fetchEdition(id, lang) {
 }
 
 async function putCache(key, value) {
-    await Cache.updateOne(
-        { key },
-        { $set: { value, fetchedAt: new Date() } },
-        { upsert: true }
-    );
+    await writeCache(key, value);
 }
 
 async function getCache(key) {
-    const hit = await Cache.findOne({ key }).lean();
-    return hit?.value || null;
+    return (await readCache(key)) || null;
 }
 
 // One-collection seed: downloads every language edition that exists (English

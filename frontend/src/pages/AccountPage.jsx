@@ -274,7 +274,7 @@ export default function AccountPage() {
           <button type="button" className="btn btn-outline" onClick={() => {
             setPwCurrent(''); setPwNew(''); setPwConfirm(''); setPwError(''); setPwOpen(true);
           }}>
-            <span className="material-symbols-rounded">lock_reset</span>
+            <span className="material-symbols-rounded">lock</span>
             Change password
           </button>
         </div>

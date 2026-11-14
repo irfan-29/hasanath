@@ -1,22 +1,12 @@
 const fetch = require("node-fetch");
-const mongoose = require("mongoose");
+const { readCache, writeCache } = require("./cacheStore");
 
 // Surah text and translations are immutable, but every page view was re-fetching
 // them from two upstreams. On Vercel that stack of sequential external calls is
 // what pushed /surah/:no past the 10s invocation limit. Cache them in Mongo
 // instead, with a bounded timeout so a slow upstream degrades instead of
 // hanging the function.
-const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const FETCH_TIMEOUT_MS = 5000;
-
-const cacheSchema = new mongoose.Schema({
-    key: { type: String, required: true },
-    value: mongoose.Schema.Types.Mixed,
-    fetchedAt: { type: Date, default: Date.now }
-}, { _id: false, versionKey: false });
-
-cacheSchema.index({ fetchedAt: 1 }, { expireAfterSeconds: CACHE_TTL_MS / 1000 });
-const Cache = mongoose.models.QuranCache || mongoose.model("QuranCache", cacheSchema);
 
 // Per-instance memo so a warm function doesn't hit Mongo either.
 const memo = new Map();
@@ -38,10 +28,10 @@ async function cachedJson(url, opts = {}) {
     if (hot && Date.now() - hot.at < MEMO_TTL_MS) return hot.value;
 
     try {
-        const hit = await Cache.findOne({ key }).lean();
-        if (hit && hit.value) {
-            memo.set(key, { value: hit.value, at: Date.now() });
-            return hit.value;
+        const hit = await readCache(key);
+        if (hit) {
+            memo.set(key, { value: hit, at: Date.now() });
+            return hit;
         }
     } catch (err) {
         // Cache unavailable (e.g. slow start-up) - fall through to the network.
@@ -52,11 +42,7 @@ async function cachedJson(url, opts = {}) {
 
     memo.set(key, { value, at: Date.now() });
     try {
-        await Cache.updateOne(
-            { key },
-            { $set: { value, fetchedAt: new Date() } },
-            { upsert: true }
-        );
+        await writeCache(key, value);
     } catch (err) {
         console.error("quranCache: write failed -", err.message);
     }
