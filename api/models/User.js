@@ -107,6 +107,12 @@ const userSchema = new mongoose.Schema({
     // sparse so an account that predates this field does not collide with
     // every other account at the single null value.
     username: { type: String, unique: true, sparse: true },
+    // Profile photo. avatarUrl is what every view renders; avatarPath is the
+    // blob pathname in Vercel Blob, kept only so the file can be deleted when
+    // it is replaced or the account goes away. Both are absent on an account
+    // that never uploaded one, which is what the letter fallback keys off.
+    avatarUrl: String,
+    avatarPath: String,
     // Set once the emailed OTP is confirmed. Signup does not create a User at
     // all until then, so this is a backstop rather than the primary gate.
     emailVerifiedAt: Date,

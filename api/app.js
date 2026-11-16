@@ -23,6 +23,8 @@ const notify = require("./services/notifications.js");
 const scheduler = require("./services/notifyScheduler.js");
 const qstash = require("./utils/qstash.js");
 const usernameUtil = require("./utils/username.js");
+const avatarStore = require("./utils/avatarStore.js");
+const avatarUpload = require("./utils/avatarUpload.js");
 const emailService = require("./services/email.js");
 const passwordUtil = require("./utils/password.js");
 const favourites = require("./services/favourites.js");
@@ -1228,7 +1230,10 @@ app.get("/api/app/meta", async function(req, res){
     res.json({
         session: {
             isLoggedIn,
-            username: (isLoggedIn && req.user.username) || null
+            username: (isLoggedIn && req.user.username) || null,
+            // Carried on the boot payload so the navbar can paint the real
+            // photo immediately, without waiting for the account page.
+            avatarUrl: (isLoggedIn && req.user.avatarUrl) || null
         },
         theme: settings.theme === "dark" ? "dark" : "light",
         // Accent palette id. The shell writes it to <html data-accent>; an
@@ -1654,7 +1659,7 @@ app.get("/api/stats", requireLogin, async function(req, res){
 
 app.get("/api/posts", async function(req, res){
     try {
-        const post = await Posts.find({}).sort({ _id: -1 }).populate("author", "name username");
+        const post = await Posts.find({}).sort({ _id: -1 }).populate("author", "name username avatarUrl");
         res.json({ posts: post.map((entry) => presentPost(entry, req)), permalinkBase: originOf(req) });
     } catch (err) {
         console.error("api/posts:", err.message);
@@ -1699,7 +1704,7 @@ app.post("/api/posts", requireLogin, async function(req, res){
 app.get("/api/posts/:id", async function(req, res){
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "not-found" });
     try {
-        const post = await Posts.findById(req.params.id).populate("author", "username name");
+        const post = await Posts.findById(req.params.id).populate("author", "username name avatarUrl");
         if (!post) return res.status(404).json({ error: "not-found" });
         res.json({ post: presentPost(post, req), permalinkBase: originOf(req) });
     } catch (err) {
@@ -1754,7 +1759,7 @@ app.patch("/api/posts/:id", requireLogin, async function(req, res){
         post.reference = String(req.body.reference || "").trim();
         await post.save();
 
-        const populated = await post.populate("author", "username name");
+        const populated = await post.populate("author", "username name avatarUrl");
         res.json({ post: presentPost(populated, req) });
     } catch (err) {
         console.error("api/posts/:id PATCH:", err.message);
@@ -1786,7 +1791,7 @@ app.delete("/api/posts/:id", requireLogin, async function(req, res){
 app.get("/api/u/:username", async function(req, res){
     try {
         const author = await User.findOne({ username: String(req.params.username || "").toLowerCase() })
-            .select("username name createdAt");
+            .select("username name createdAt avatarUrl");
         if (!author) return res.status(404).json({ error: "not-found" });
 
         const posts = await Posts.find({ author: author._id }).sort({ _id: -1 });
@@ -2076,6 +2081,8 @@ app.get("/api/account", requireLogin, function(req, res){
         username,
         displayName: username || user.name || (user.email || "?").split("@")[0],
         email: user.email,
+        // Null for an account without a photo; the client renders the initial.
+        avatarUrl: user.avatarUrl || null,
         // emailVerifiedAt only exists on accounts created since OTP signup.
         verified: Boolean(user.emailVerifiedAt)
     });
@@ -2148,6 +2155,69 @@ app.post("/api/account/password", requireLogin, async function(req, res){
     }
 });
 
+// Profile photo. The browser crops and re-encodes to a 512px square JPEG before
+// sending, so this receives one small image rather than an arbitrary camera
+// file. Storage is optional at boot (see utils/avatarStore): without credentials
+// the route says so, and the rest of the app keeps working.
+app.post("/api/account/avatar", requireLogin, avatarUpload.singleAvatar, async function(req, res){
+    if (!avatarStore.isConfigured()) return res.status(503).json({ error: "storage-not-configured" });
+    if (!req.file) return res.status(400).json({ error: "no-file" });
+
+    const uploaded = await avatarStore.uploadAvatar({
+        buffer: req.file.buffer,
+        mimetype: req.file.mimetype,
+        userId: String(req.user._id)
+    });
+    if (uploaded.error) {
+        const status = uploaded.error === "invalid-type" ? 400
+            : uploaded.error === "storage-not-configured" ? 503
+                : 502;
+        return res.status(status).json({ error: uploaded.error });
+    }
+
+    try {
+        const user = await User.findById(req.user._id);
+        if (!user) {
+            await avatarStore.deleteAvatar(uploaded.path);
+            return res.status(401).json({ error: "login-required" });
+        }
+
+        const previous = user.avatarPath;
+        user.avatarUrl = uploaded.url;
+        user.avatarPath = uploaded.path;
+        await user.save();
+
+        // The old object is unreachable now. Deleting it is housekeeping, not
+        // part of the save the user was promised.
+        if (previous && previous !== uploaded.path) await avatarStore.deleteAvatar(previous);
+
+        res.json({ ok: true, avatarUrl: user.avatarUrl });
+    } catch (err) {
+        // The upload landed but the record did not: drop the orphan.
+        await avatarStore.deleteAvatar(uploaded.path);
+        console.error("api/account/avatar POST:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.delete("/api/account/avatar", requireLogin, async function(req, res){
+    try {
+        const user = await User.findById(req.user._id);
+        if (!user) return res.status(401).json({ error: "login-required" });
+
+        const previous = user.avatarPath;
+        user.avatarUrl = null;
+        user.avatarPath = null;
+        await user.save();
+
+        await avatarStore.deleteAvatar(previous);
+        res.json({ ok: true });
+    } catch (err) {
+        console.error("api/account/avatar DELETE:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
 // Full account deletion. The password re-proves it is the account holder -
 // a hijacked session must not be able to erase the account - and every write
 // the user made is removed, not just the profile row.
@@ -2179,6 +2249,10 @@ app.delete("/api/account", requireLogin, async function(req, res){
             { $pull: { participants: { user: user._id } } }
         );
         await appNotifications.removeForUser(user._id);
+
+        // The photo lives outside Mongo; without this the object would stay in
+        // the bucket forever with no account pointing at it.
+        await avatarStore.deleteAvatar(user.avatarPath);
 
         req.logout((err) => {
             const finish = () => {

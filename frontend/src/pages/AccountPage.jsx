@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, ApiError } from '../services/api';
+import { api, account, ApiError } from '../services/api';
 import { useSession } from '../hooks/useSession.jsx';
 import { useToast } from '../components/ToastProvider';
 import Loader from '../components/Loader';
+import Avatar from '../components/Avatar';
+import AvatarUploader from '../components/AvatarUploader';
 
 // Map the username route's error codes to plain sentences - the raw codes
 // ("taken", "invalid-username") are for programs, not for people.
@@ -49,6 +51,11 @@ export default function AccountPage() {
   const [pwConfirm, setPwConfirm] = useState('');
   const [pwError, setPwError] = useState('');
   const [pwSaving, setPwSaving] = useState(false);
+  // The picked file only exists to feed the cropper. Nothing is uploaded until
+  // the crop modal says so, and cancelling simply drops it.
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const avatarInputRef = useRef(null);
   const { refresh } = useSession();
   const toast = useToast();
   const navigate = useNavigate();
@@ -164,6 +171,52 @@ export default function AccountPage() {
     }
   }
 
+  // Pick the source file, then hand it to the cropper. Only the cropped result
+  // is uploaded, so an enormous original costs nothing on the wire.
+  function pickAvatar(event) {
+    const file = event.target.files && event.target.files[0];
+    // Reset first so picking the same file again still fires onChange.
+    event.target.value = '';
+    if (!file) return;
+    if (!file.type || !file.type.startsWith('image/')) {
+      toast('Choose an image file.', { kind: 'error' });
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      toast('That image is too large. Pick one under 15MB.', { kind: 'error' });
+      return;
+    }
+    setAvatarFile(file);
+  }
+
+  async function avatarUploaded(url) {
+    setAvatarFile(null);
+    setState((current) => (current.data
+      ? { ...current, data: { ...current.data, avatarUrl: url } }
+      : current));
+    // The navbar and every other screen read the session copy, so refresh it
+    // rather than waiting for the next full page load.
+    await refresh();
+    toast('Profile photo updated');
+  }
+
+  async function removeAvatar() {
+    if (avatarBusy) return;
+    setAvatarBusy(true);
+    try {
+      await account.removeAvatar();
+      setState((current) => (current.data
+        ? { ...current, data: { ...current.data, avatarUrl: null } }
+        : current));
+      await refresh();
+      toast('Profile photo removed');
+    } catch (err) {
+      toast('Could not remove your photo. Try again.', { kind: 'error' });
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
   if (state.loading) return <Loader variant="page" label="Loading account" />;
   if (!state.data) {
     return <><div className="page-header"><h1>Account</h1></div>
@@ -191,7 +244,7 @@ export default function AccountPage() {
       )}
 
       <section className="account-card">
-        <div className="account-avatar" aria-hidden="true">{d.displayName.charAt(0).toUpperCase()}</div>
+        <Avatar className="account-avatar" src={d.avatarUrl} name={d.displayName} />
         <div className="account-body">
           <div className="account-handle">{d.displayName}</div>
           <div className="account-sub">
@@ -200,6 +253,35 @@ export default function AccountPage() {
             ) : (
               'No username yet - set one below to get a shareable profile link.'
             )}
+          </div>
+          <div className="account-photo-actions">
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={() => avatarInputRef.current && avatarInputRef.current.click()}
+              disabled={avatarBusy}
+            >
+              <span className="material-symbols-rounded" aria-hidden="true">photo_camera</span>
+              {d.avatarUrl ? 'Change photo' : 'Add photo'}
+            </button>
+            {d.avatarUrl && (
+              <button
+                type="button"
+                className="btn btn-danger-outline btn-sm"
+                onClick={removeAvatar}
+                disabled={avatarBusy}
+              >
+                <span className="material-symbols-rounded" aria-hidden="true">delete</span>
+                Remove
+              </button>
+            )}
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              hidden
+              onChange={pickAvatar}
+            />
           </div>
         </div>
       </section>
@@ -420,6 +502,14 @@ export default function AccountPage() {
             </div>
           </form>
         </div>
+      )}
+
+      {avatarFile && (
+        <AvatarUploader
+          file={avatarFile}
+          onCancel={() => setAvatarFile(null)}
+          onUploaded={avatarUploaded}
+        />
       )}
     </>
   );

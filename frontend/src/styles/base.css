@@ -32,7 +32,7 @@
   font-style: normal;
   font-weight: 100 700;
   font-display: block;
-  src: url('/fonts/material-symbols-rounded-v4.woff2') format('woff2');
+  src: url('/fonts/material-symbols-rounded-v5.woff2') format('woff2');
 }
 
 .material-symbols-rounded {
@@ -13470,3 +13470,71 @@ a.leaderboard-player:hover .leaderboard-name {
 .challenge-card.is-closed .challenge-card-title{text-decoration:line-through;color:var(--color-text-secondary)}
 .challenge-toggle-done{align-self:center;flex:0 0 auto;padding:.35rem .7rem;border:1px solid var(--color-border);border-radius:var(--radius-sm);background:var(--color-surface);color:var(--color-text-secondary);font:inherit;font-size:.8125rem;cursor:pointer}
 .challenge-toggle-done:hover{color:var(--color-text);border-color:var(--color-primary)}
+
+/* ---- Profile photos ---- */
+/* Every avatar is a circle whose content is either an initial or an <img>.
+   The image fills the box it is given, so the existing size classes keep
+   working unchanged; only the letter fallback and the photo share a box. */
+.avatar-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* Used when the circle is a link's content (.friend-suggestion-avatar): the
+   avatar needs to fill the already-sized link instead of sizing itself. */
+.avatar-fill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+}
+
+.account-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+/* Crop dialog. The stage is the positioning context react-easy-crop needs,
+   and its height is capped so the dialog still fits a phone viewport. */
+.avatar-crop-card {
+  width: min(420px, calc(100vw - 3rem));
+  max-width: min(420px, calc(100vw - 3rem));
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+}
+
+.avatar-crop-stage {
+  position: relative;
+  width: 100%;
+  height: min(62vw, 300px);
+  margin-top: 0.9rem;
+  overflow: hidden;
+  border-radius: 0.9rem;
+  background: #111;
+}
+
+.avatar-crop-zoom {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.avatar-crop-zoom input {
+  flex: 1;
+  accent-color: var(--color-primary);
+}
+
+.avatar-crop-zoom .material-symbols-rounded {
+  font-size: 1.15rem;
+}

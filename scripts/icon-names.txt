@@ -93,3 +93,6 @@ location_on
 android
 download
 speed
+photo_camera
+zoom_in
+zoom_out

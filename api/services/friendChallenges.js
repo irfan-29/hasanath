@@ -52,6 +52,7 @@ function present(doc, viewerId) {
         return {
             id: String(user._id),
             username: user.username || "",
+            avatarUrl: user.avatarUrl || "",
             status: entry.status,
             currentStreak: dated
                 ? computeStreak(history, anchor)
@@ -81,7 +82,7 @@ function present(doc, viewerId) {
     return {
         id: String(raw._id),
         name: raw.name || "",
-        creator: { id: String(creator._id || ""), username: creator.username || "" },
+        creator: { id: String(creator._id || ""), username: creator.username || "", avatarUrl: creator.avatarUrl || "" },
         createdAt: raw.createdAt,
         startDate,
         endDate,
@@ -105,15 +106,15 @@ function present(doc, viewerId) {
         })),
         invited: participants
             .filter((entry) => entry.status === "pending")
-            .map((entry) => ({ id: entry.id, username: entry.username, isYou: entry.isYou })),
+            .map((entry) => ({ id: entry.id, username: entry.username, avatarUrl: entry.avatarUrl, isYou: entry.isYou })),
         participantCount: accepted.length
     };
 }
 
 function populated(id) {
     return FriendChallenge.findById(id)
-        .populate("creator", "username")
-        .populate("participants.user", "username");
+        .populate("creator", "username avatarUrl")
+        .populate("participants.user", "username avatarUrl");
 }
 
 async function listChallenges(viewerId) {
@@ -123,8 +124,8 @@ async function listChallenges(viewerId) {
             $elemMatch: { user: viewerId, status: { $in: ["pending", "accepted"] } }
         }
     })
-        .populate("creator", "username")
-        .populate("participants.user", "username")
+        .populate("creator", "username avatarUrl")
+        .populate("participants.user", "username avatarUrl")
         .sort({ createdAt: -1 });
 
     return docs.map((doc) => present(doc, viewerId));

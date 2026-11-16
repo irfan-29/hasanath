@@ -9,6 +9,7 @@ import { useConfirm } from '../components/ConfirmProvider';
 import { useToast } from '../components/ToastProvider';
 import { useSession } from '../hooks/useSession.jsx';
 import Loader from '../components/Loader';
+import Avatar from '../components/Avatar';
 import DateField from '../components/DateField';
 import FormSelect from '../components/FormSelect';
 
@@ -875,9 +876,7 @@ export default function ChallengesPage() {
                         checked={selectedFriends.includes(friend.username)}
                         onChange={() => toggleFriend(friend.username)}
                       />
-                      <span className="friend-avatar" aria-hidden="true">
-                        {friend.username.charAt(0).toUpperCase()}
-                      </span>
+                      <Avatar className="friend-avatar" src={friend.avatarUrl} name={friend.username} />
                       <span className="friend-picker-name">{friend.username}</span>
                     </label>
                   ))}
@@ -1358,9 +1357,7 @@ function FriendChallengeCard({
                     checked={selected.includes(friend.username)}
                     onChange={() => onToggleFriend(friend.username)}
                   />
-                  <span className="friend-avatar" aria-hidden="true">
-                    {friend.username.charAt(0).toUpperCase()}
-                  </span>
+                  <Avatar className="friend-avatar" src={friend.avatarUrl} name={friend.username} />
                   <span className="friend-picker-name">{friend.username}</span>
                 </label>
               ))}
@@ -1508,7 +1505,7 @@ function ChallengeLeaderboard({ entries }) {
                 className="podium-avatar"
                 aria-label={`Open ${entry.username}'s profile`}
               >
-                {entry.username.charAt(0).toUpperCase()}
+                <Avatar className="avatar-fill" src={entry.avatarUrl} name={entry.username} />
               </Link>
               <Link to={`/u/${entry.username}`} className="podium-name">
                 <span className="podium-name-text">{entry.username}</span>
@@ -1535,9 +1532,7 @@ function ChallengeLeaderboard({ entries }) {
                 className="leaderboard-player"
                 aria-label={`Open ${entry.username}'s profile`}
               >
-                <span className="friend-avatar" aria-hidden="true">
-                  {entry.username.charAt(0).toUpperCase()}
-                </span>
+                <Avatar className="friend-avatar" src={entry.avatarUrl} name={entry.username} />
                 <span className="leaderboard-name">
                   {entry.username}
                   {entry.isYou && <span className="leaderboard-you">You</span>}

@@ -22,6 +22,7 @@ const SessionContext = createContext(null);
 const FALLBACK = {
   isLoggedIn: null,
   username: null,
+  avatarUrl: null,
   homePath: null,
   theme: null,
   accent: null,

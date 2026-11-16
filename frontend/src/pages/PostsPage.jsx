@@ -6,6 +6,7 @@ import { useConfirm } from '../components/ConfirmProvider';
 import { useToast } from '../components/ToastProvider';
 import { useSession } from '../hooks/useSession';
 import Loader from '../components/Loader';
+import Avatar from '../components/Avatar';
 import NotFound from './NotFound';
 
 // Reuses views/post-card.ejs's markup, which the shared stylesheet already
@@ -226,7 +227,7 @@ export function PostCard({ post, permalinkBase = '', canManage, onChanged, onDel
       <div className="post-card-head">
         {handle ? (
           <Link className="post-author" to={`/u/${handle}`}>
-            <span className="post-author-avatar" aria-hidden="true">{handle.charAt(0).toUpperCase()}</span>
+            <Avatar className="post-author-avatar" src={post.author && post.author.avatarUrl} name={handle} />
             <span className="post-author-name">{handle}</span>
           </Link>
         ) : post.authorName ? (
@@ -482,7 +483,7 @@ export function PostPage() {
         <p>
           {post.author && post.author.username ? (
             <Link className="post-author" to={`/u/${post.author.username}`}>
-              <span className="post-author-avatar" aria-hidden="true">{post.author.username.charAt(0).toUpperCase()}</span>
+              <Avatar className="post-author-avatar" src={post.author.avatarUrl} name={post.author.username} />
               <span className="post-author-name">{post.author.username}</span>
             </Link>
           ) : post.authorName ? (
@@ -721,7 +722,7 @@ export function ProfilePage() {
         >
           <span className="material-symbols-rounded" aria-hidden="true">share</span>
         </button>
-        <div className="profile-avatar" aria-hidden="true">{owner.username.charAt(0).toUpperCase()}</div>
+        <Avatar className="profile-avatar" src={owner.avatarUrl} name={owner.username} />
         <div className="profile-meta">
           <h1 className="profile-handle">{owner.username}</h1>
           <p className="profile-stats">
@@ -836,7 +837,7 @@ export function ProfilePage() {
                           to={`/u/${entry.username}`}
                           aria-label={`Open ${entry.username}’s profile`}
                         >
-                          {entry.username.charAt(0).toUpperCase()}
+                          <Avatar className="avatar-fill" src={entry.avatarUrl} name={entry.username} />
                         </Link>
                         <Link className="friend-suggestion-handle" to={`/u/${entry.username}`}>
                           {entry.username}
@@ -884,9 +885,7 @@ export function ProfilePage() {
                   ) : (
                     results.map((entry) => (
                       <div className="friend-result" key={entry.id}>
-                        <span className="friend-avatar" aria-hidden="true">
-                          {entry.username.charAt(0).toUpperCase()}
-                        </span>
+                        <Avatar className="friend-avatar" src={entry.avatarUrl} name={entry.username} />
                         <div className="friend-identity">
                           <Link className="friend-handle" to={`/u/${entry.username}`}>{entry.username}</Link>
                           {entry.name && <span className="friend-since">{entry.name}</span>}
@@ -927,9 +926,7 @@ export function ProfilePage() {
                   <div className="friends-list">
                     {pending.incoming.map((entry) => (
                       <div className="friend-row" key={entry.friendshipId}>
-                        <span className="friend-avatar" aria-hidden="true">
-                          {entry.username.charAt(0).toUpperCase()}
-                        </span>
+                        <Avatar className="friend-avatar" src={entry.avatarUrl} name={entry.username} />
                         <div className="friend-identity">
                           <Link className="friend-handle" to={`/u/${entry.username}`}>{entry.username}</Link>
                           <span className="friend-since">Wants to be friends</span>
@@ -964,9 +961,7 @@ export function ProfilePage() {
                   <div className="friends-list">
                     {pending.outgoing.map((entry) => (
                       <div className="friend-row" key={entry.friendshipId}>
-                        <span className="friend-avatar" aria-hidden="true">
-                          {entry.username.charAt(0).toUpperCase()}
-                        </span>
+                        <Avatar className="friend-avatar" src={entry.avatarUrl} name={entry.username} />
                         <div className="friend-identity">
                           <Link className="friend-handle" to={`/u/${entry.username}`}>{entry.username}</Link>
                           <span className="friend-since">Request sent</span>
@@ -1003,9 +998,7 @@ export function ProfilePage() {
               <div className="friends-list">
                 {friends.map((friend) => (
                   <div className="friend-row" key={friend.id}>
-                    <span className="friend-avatar" aria-hidden="true">
-                      {friend.username.charAt(0).toUpperCase()}
-                    </span>
+                    <Avatar className="friend-avatar" src={friend.avatarUrl} name={friend.username} />
                     <div className="friend-identity">
                       <Link className="friend-handle" to={`/u/${friend.username}`}>{friend.username}</Link>
                       <span className="friend-since">

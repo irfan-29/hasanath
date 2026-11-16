@@ -21,14 +21,17 @@ class ApiError extends Error {
   }
 }
 
-async function request(path, { method = 'GET', body, signal, retried = false } = {}) {
+async function request(path, { method = 'GET', body, formData, signal, retried = false } = {}) {
   const response = await fetch(BASE + path, {
     method,
     // Explicit even though same-origin: it documents the requirement and keeps
     // this working if the backend is ever called cross-origin.
     credentials: 'same-origin',
+    // A FormData body must not get a Content-Type header: the browser adds the
+    // multipart boundary itself, and overriding it would make the upload
+    // unparseable on the server.
     headers: body ? { 'Content-Type': 'application/json' } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
+    body: formData || (body ? JSON.stringify(body) : undefined),
     signal,
   });
 
@@ -50,7 +53,7 @@ async function request(path, { method = 'GET', body, signal, retried = false } =
     // slightly slower page. Writes are never retried: they may have landed.
     if (!retried && method === 'GET' && [502, 503, 504].includes(response.status)) {
       await new Promise((resolve) => setTimeout(resolve, 700));
-      return request(path, { method, body, signal, retried: true });
+      return request(path, { method, body, formData, signal, retried: true });
     }
 
     // Prefer the server's human-readable message; fall back to something that
@@ -186,6 +189,15 @@ export const friendChallenges = {
 
 export const account = {
   me: () => api.get('/account'),
+  // `file` is the square JPEG the cropper produced, not the file the user
+  // picked. FormData carries the multipart boundary; the server validates the
+  // type and size again.
+  uploadAvatar: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.request('/account/avatar', { method: 'POST', formData });
+  },
+  removeAvatar: () => api.request('/account/avatar', { method: 'DELETE' }),
 };
 
 export const settings = {

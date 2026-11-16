@@ -175,6 +175,9 @@ function Shell() {
   const resolved = useMemo(() => ({
     isLoggedIn: meta && meta.session ? meta.session.isLoggedIn : null,
     username: meta && meta.session ? meta.session.username : null,
+    // The navbar renders this straight away; every other avatar comes from the
+    // payload that already owns it (posts, profile, friends).
+    avatarUrl: meta && meta.session ? meta.session.avatarUrl : null,
     // Where a signed-in reader lands from "/", and where the landing page's
     // guest CTA enters the app. Null only if the boot request failed.
     homePath: meta ? meta.homePath : null,

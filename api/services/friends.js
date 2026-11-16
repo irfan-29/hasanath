@@ -15,7 +15,8 @@ function publicSummary(user) {
     return {
         id: String(user._id),
         username: user.username || "",
-        name: user.name || ""
+        name: user.name || "",
+        avatarUrl: user.avatarUrl || ""
     };
 }
 
@@ -25,7 +26,7 @@ async function findUser(rawUsername) {
     const handle = usernameUtil.sanitize(String(rawUsername || ""));
     if (!handle) return null;
     // telegram fields are selected because the push below needs them.
-    return User.findOne({ username: handle }).select("username name telegram telegramChatId");
+    return User.findOne({ username: handle }).select("username name avatarUrl telegram telegramChatId");
 }
 
 async function relationship(viewerId, targetId) {
@@ -130,7 +131,7 @@ async function respond(viewer, friendshipId, action) {
         "data.friendshipId": String(friendship._id)
     });
 
-    const requester = await User.findById(friendship.requester).select("username name");
+    const requester = await User.findById(friendship.requester).select("username name avatarUrl");
     if (requester) {
         await appNotifications.push({
             userId: requester._id,
@@ -162,7 +163,7 @@ async function listFriends(userId) {
     const otherIds = rows.map((row) => (
         String(row.requester) === String(userId) ? row.recipient : row.requester
     ));
-    const users = await User.find({ _id: { $in: otherIds } }).select("username name").lean();
+    const users = await User.find({ _id: { $in: otherIds } }).select("username name avatarUrl").lean();
     const byId = new Map(users.map((user) => [String(user._id), user]));
 
     return rows
@@ -187,7 +188,7 @@ async function pendingList(userId, field) {
     if (!rows.length) return [];
 
     const otherIds = rows.map((row) => row[field === "recipient" ? "requester" : "recipient"]);
-    const users = await User.find({ _id: { $in: otherIds } }).select("username name").lean();
+    const users = await User.find({ _id: { $in: otherIds } }).select("username name avatarUrl").lean();
     const byId = new Map(users.map((user) => [String(user._id), user]));
 
     return rows
@@ -253,7 +254,7 @@ async function search(viewerId, rawQuery, { limit = 8 } = {}) {
     const users = await User.find({
         _id: { $ne: viewerId },
         username: { $regex: safe, $options: "i" }
-    }).select("username name").limit(limit).lean();
+    }).select("username name avatarUrl").limit(limit).lean();
 
     if (!users.length) return [];
 
@@ -321,7 +322,7 @@ async function suggestions(viewerId, { limit = 12 } = {}) {
     const picked = [];
     if (mutuals.size) {
         const users = await User.find({ _id: { $in: [...mutuals.keys()] } })
-            .select("username name").lean();
+            .select("username name avatarUrl").lean();
         users.sort((a, b) => (
             (mutuals.get(String(b._id)) || 0) - (mutuals.get(String(a._id)) || 0)
             || String(a.username).localeCompare(String(b.username))
@@ -340,7 +341,7 @@ async function suggestions(viewerId, { limit = 12 } = {}) {
         // An ObjectId's hex form starts with its creation time, so descending
         // _id is newest-account order. No extra timestamp field needed.
         const users = await User.find({ _id: { $nin: [...excluded] } })
-            .select("username name")
+            .select("username name avatarUrl")
             .sort({ _id: -1 })
             .limit(limit - picked.length)
             .lean();

@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { api } from '../services/api';
 import { useUnreadNotifications } from '../hooks/useNotifications.jsx';
+import Avatar from './Avatar';
 
 // Emits the same markup and class names as views/navbar.ejs, so the shared
 // stylesheet applies unchanged. The first React version defined a parallel set
@@ -167,13 +168,13 @@ export default function Navbar({ session }) {
                 aria-haspopup="dialog"
                 onClick={() => setAccountOpen((open) => !open)}
               >
-                <span className="nav-avatar" aria-hidden="true">{(handle || '?').charAt(0).toUpperCase()}</span>
+                <Avatar className="nav-avatar" src={session.avatarUrl} name={handle || '?'} />
               </button>
 
               {accountOpen && createPortal(
                 <div className="header-account-menu" ref={accountMenuRef} role="dialog" aria-label="Account menu">
                   <Link to={profilePath} className="header-account-head" aria-label="Open your profile">
-                    <span className="nav-avatar" aria-hidden="true">{(handle || '?').charAt(0).toUpperCase()}</span>
+                    <Avatar className="nav-avatar" src={session.avatarUrl} name={handle || '?'} />
                     <span className="header-account-title">{handle}</span>
                   </Link>
                   <Link to="/account" className="header-account-item">
@@ -227,7 +228,7 @@ export default function Navbar({ session }) {
             <>
               <li className="nav-item nav-user-chip">
                 <Link to={profilePath} className="nav-user" title="Open your profile">
-                  <span className="nav-avatar">{(handle || '?').charAt(0).toUpperCase()}</span>
+                  <Avatar className="nav-avatar" src={session.avatarUrl} name={handle || '?'} />
                   <span className="nav-label nav-user-name">{handle}</span>
                 </Link>
                 <span className="nav-tooltip">My profile</span>
