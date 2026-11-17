@@ -32,7 +32,7 @@
   font-style: normal;
   font-weight: 100 700;
   font-display: block;
-  src: url('/fonts/material-symbols-rounded-v5.woff2') format('woff2');
+  src: url('/fonts/material-symbols-rounded-v6.woff2') format('woff2');
 }
 
 .material-symbols-rounded {
@@ -13401,6 +13401,32 @@ a.leaderboard-player:hover .leaderboard-name {
   font-weight: 700;
   line-height: 1.4;
   text-align: left;
+}
+
+/* A later start date deletes the check-ins before it. The edit form says so
+   before saving instead of letting the history vanish silently. The text uses
+   the normal colour so it stays readable in both themes; amber is the frame. */
+.challenge-form-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  margin: 0.55rem 0 0;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  border-radius: 10px;
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--color-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.challenge-form-warning .material-symbols-rounded {
+  flex: 0 0 auto;
+  color: var(--color-accent);
+  font-size: 1.05rem;
+  line-height: 1.35;
 }
 
 /* The one-time help line was the only hint without a rule. */

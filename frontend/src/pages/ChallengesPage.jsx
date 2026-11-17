@@ -70,10 +70,19 @@ const DATE_ERROR_MESSAGES = {
 // The later of two ISO keys, used as a date picker's lower bound.
 const laterKey = (a, b) => (a && b ? (a > b ? a : b) : a || b || '');
 
-// Mirrors the server's edit rules. The start is locked, so only the end can be
-// wrong. A finished challenge is normally extended, which is why a new end date
-// must be today or later - shortening into the past would hide days people
-// already logged.
+// Mirrors the server's start-date rule: the same seven-day window a new
+// challenge gets, and never after the end date it will be stored with. A later
+// start deletes the check-ins that fall before it, which the form warns about.
+function validateStartEdit(startDate, endDate) {
+  if (!startDate) return 'Pick a start date.';
+  if (startDate < earliestStartKey()) return 'A challenge can start today or up to 6 days ago.';
+  if (endDate && startDate > endDate) return 'The start date cannot be after the end date.';
+  return '';
+}
+
+// Mirrors the server's end rules. A finished challenge is normally extended,
+// which is why a new end date must be today or later - shortening into the past
+// would hide days people already logged.
 function validateEndEdit(startDate, endDate, noEnd) {
   if (noEnd) return '';
   if (!endDate) return 'Pick an end date, or tick “No end date”.';
@@ -164,8 +173,10 @@ export default function ChallengesPage() {
   // Open-ended challenge: no end date at all, so it never reaches "Ended".
   const [noEnd, setNoEnd] = useState(false);
   const [dateError, setDateError] = useState('');
-  // The end date is the only part of an existing challenge's window that can
-  // move; the start is shown locked beside it.
+  // The end date and the start date are the parts of an existing challenge's
+  // window that can move. A later start drops the check-ins before it, so the
+  // form warns before saving.
+  const [editStartDate, setEditStartDate] = useState('');
   const [editEndDate, setEditEndDate] = useState('');
   const [editNoEnd, setEditNoEnd] = useState(false);
   // Editing a shared challenge adds late friends; only the creator sees it.
@@ -407,11 +418,11 @@ export default function ChallengesPage() {
     }
   }
 
-  // Seed the end-date editor from the challenge itself. The start date is shown
-  // read-only, so only this and the open-ended flag can change.
+  // Seed the window editors from the challenge itself.
   function startEdit(challenge) {
     setEditing(String(challenge._id));
     setDraft(challenge.challenge);
+    setEditStartDate(challenge.startDate || '');
     setEditEndDate(challenge.endDate || '');
     setEditNoEnd(Boolean(challenge.startDate) && !challenge.endDate);
     setDateError('');
@@ -427,27 +438,44 @@ export default function ChallengesPage() {
     const windowEditable = Boolean(target && !target.oneTime && target.startDate);
     const storedEnd = (target && target.endDate) || '';
     const storedOpen = windowEditable && !storedEnd;
-    const windowChanged = windowEditable
+    const startChanged = windowEditable && editStartDate !== target.startDate;
+    const endChanged = windowEditable
       && (editNoEnd !== storedOpen || (!editNoEnd && editEndDate !== storedEnd));
+    // When only the start moves, the stored end date stays as it is - including
+    // one in the past, which is why the end rules are skipped in that case.
+    const endForStart = endChanged ? (editNoEnd ? '' : editEndDate) : storedEnd;
 
-    if (windowChanged) {
-      const invalid = validateEndEdit(target.startDate, editEndDate, editNoEnd);
+    if (startChanged) {
+      const invalid = validateStartEdit(editStartDate, endForStart);
       if (invalid) {
         setDateError(invalid);
         return;
       }
     }
 
+    if (endChanged) {
+      const invalid = validateEndEdit(editStartDate, editEndDate, editNoEnd);
+      if (invalid) {
+        setDateError(invalid);
+        return;
+      }
+    }
+
+    const window = {};
+    if (startChanged) window.startDate = editStartDate;
+    if (endChanged) {
+      window.endDate = editNoEnd ? '' : editEndDate;
+      window.noEnd = editNoEnd;
+    }
+
     setSaving(true);
     setDateError('');
     try {
-      await api.rename(editing, name, windowChanged
-        ? { endDate: editNoEnd ? '' : editEndDate, noEnd: editNoEnd }
-        : undefined);
+      await api.rename(editing, name, startChanged || endChanged ? window : undefined);
       setEditing(null);
       setDraft('');
       await load();
-      toast(windowChanged ? 'Challenge updated' : 'Challenge renamed');
+      toast(startChanged || endChanged ? 'Challenge updated' : 'Challenge renamed');
     } catch (err) {
       const message = err.status === 400 && err.body && DATE_ERROR_MESSAGES[err.body.error];
       if (message) setDateError(message);
@@ -662,6 +690,16 @@ export default function ChallengesPage() {
     ? null
     : list.find((item) => String(item._id) === String(editing)) || null;
 
+  // Moving the start later pushes earlier check-ins outside the challenge and
+  // the server deletes them, so the form counts them for its warning.
+  const editStartMoved = Boolean(
+    editingTarget && editStartDate && editingTarget.startDate
+    && editStartDate > editingTarget.startDate
+  );
+  const editDroppedCheckins = editStartMoved
+    ? (editingTarget.history || []).filter((day) => day && day < editStartDate).length
+    : 0;
+
   return (
     <>
       <div className="page-header page-header-with-action">
@@ -804,17 +842,19 @@ export default function ChallengesPage() {
           {!creating && editingTarget && !editingTarget.oneTime && editingTarget.startDate && (
             <div className="challenge-window-form challenge-window-form--edit">
               <div className="salah-form-grid">
-                <LockedDateField
+                <DateField
                   id="challenge-edit-start"
                   label="Start date"
-                  value={editingTarget.startDate}
+                  value={editStartDate}
+                  min={earliestStartKey()}
+                  onChange={(next) => { setEditStartDate(next); setDateError(''); }}
                 />
                 {!editNoEnd && (
                   <DateField
                     id="challenge-edit-end"
                     label="End date"
                     value={editEndDate}
-                    min={laterKey(editingTarget.startDate, isoDay())}
+                    min={laterKey(editStartDate, isoDay())}
                     onChange={(next) => { setEditEndDate(next); setDateError(''); }}
                   />
                 )}
@@ -829,12 +869,22 @@ export default function ChallengesPage() {
                 <span>No end date</span>
               </label>
               <p className="challenge-form-hint">
-                The start date is locked.
+                The start can be today, one of the last 6 days, or later.
                 {' '}
                 {editNoEnd
                   ? 'This challenge will keep running until you give it an end date.'
                   : 'Pick a later end date to extend it.'}
               </p>
+              {editStartMoved && (
+                <p className="challenge-form-warning" role="status">
+                  <span className="material-symbols-rounded" aria-hidden="true">warning</span>
+                  <span>
+                    {editDroppedCheckins > 0
+                      ? `${editDroppedCheckins} check-in${editDroppedCheckins === 1 ? '' : 's'} before ${formatWindowDay(editStartDate)} will be removed when you save, and your streak will be recalculated.`
+                      : `No check-ins fall before ${formatWindowDay(editStartDate)}, so nothing is removed.`}
+                  </span>
+                </p>
+              )}
               {dateError && (
                 <p className="challenge-form-error" role="alert">{dateError}</p>
               )}

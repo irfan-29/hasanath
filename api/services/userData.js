@@ -13,6 +13,7 @@ const {
   isRealDay,
   recentDays,
   validateChallengeDates,
+  validateChallengeStart,
   validateChallengeEnd,
   challengeStatus,
   challengeWindow,
@@ -374,10 +375,14 @@ async function addChallenge(req, challenge, opts = {}) {
   return guest.challenges;
 }
 
-// Renaming and re-windowing share one path. The start date is deliberately not
-// editable: check-ins already sit inside it, so moving it would leave history
-// outside the challenge's own dates. The end date can move forward, or be
-// cleared to make the challenge open-ended.
+// Renaming, re-windowing and moving the start date share one path.
+//
+// The start date is allowed to move inside the same window a new challenge
+// gets. Moving it later means check-ins before the new first day are no longer
+// inside the challenge, so they are removed from history (and the streaks are
+// recomputed from what remains). Moving it earlier keeps every entry: nothing
+// that used to be inside the window falls outside it. The end date can move
+// forward, or be cleared to make the challenge open-ended.
 async function updateChallenge(req, id, changes = {}) {
   const authenticated = Boolean(req.isAuthenticated && req.isAuthenticated());
   // Hold the guest document for the whole call so the write persists the same
@@ -392,12 +397,26 @@ async function updateChallenge(req, id, changes = {}) {
   const name = changes.challenge === undefined ? undefined : String(changes.challenge || "").trim();
   if (name !== undefined && !name) return { error: "invalid" };
 
+  let startDate;
+  if (changes.startDate !== undefined) {
+    // A one-time task is a checkbox, not a window.
+    if (item.oneTime) return { error: "not-supported" };
+    const checked = validateChallengeStart({
+      startDate: changes.startDate,
+      endDate: item.endDate
+    }, isoDay());
+    if (checked.error) return { error: checked.error };
+    startDate = checked.startDate;
+  }
+
   let endDate;
   if (changes.endDate !== undefined || changes.noEnd) {
     // A one-time task is a checkbox, not a window.
     if (item.oneTime) return { error: "not-supported" };
     const checked = validateChallengeEnd({
-      startDate: item.startDate,
+      // Validate against the start that will be stored, not the old one, so
+      // moving both dates in one request cannot leave end < start.
+      startDate: startDate !== undefined ? startDate : item.startDate,
       endDate: changes.endDate,
       noEnd: Boolean(changes.noEnd)
     }, isoDay());
@@ -406,6 +425,22 @@ async function updateChallenge(req, id, changes = {}) {
   }
 
   if (name !== undefined) item.challenge = name;
+
+  if (startDate !== undefined && startDate !== item.startDate) {
+    const previousStart = item.startDate || "";
+    item.startDate = startDate;
+    // Only a later start can strand check-ins. Entries are ISO keys, so a
+    // string comparison is the same as a date comparison.
+    if (previousStart && startDate > previousStart) {
+      item.history = Array.from(item.history || [])
+        .filter((day) => day && day >= startDate);
+      const status = challengeStatus(isoDay(), item.startDate, item.endDate);
+      const anchor = status === "ended" && item.endDate ? item.endDate : isoDay();
+      item.currentStreak = computeStreak(item.history, anchor);
+      item.maxStreak = bestRunFrom(item.history).best;
+    }
+  }
+
   if (endDate !== undefined) item.endDate = endDate;
 
   if (authenticated) await req.user.save();

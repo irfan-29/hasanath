@@ -1444,9 +1444,11 @@ app.post("/api/challenges/:id", requireLogin, async function(req, res){
     const challenge = String(req.body.challenge || "").trim();
     if (!req.params.id || !challenge) return res.status(400).json({ error: "invalid" });
     try {
-        // The start date is fixed; the end date may be extended or cleared.
+        // The start date may move inside the same seven-day window a new
+        // challenge gets; the end date may be extended or cleared.
         const result = await userData.updateChallenge(req, req.params.id, {
             challenge,
+            startDate: req.body.startDate,
             endDate: req.body.endDate,
             noEnd: Boolean(req.body.noEnd)
         });
@@ -3004,10 +3006,36 @@ app.post("/api/auth/verify", async function(req, res){
     }
 });
 
-app.post("/api/auth/login", function(req, res, next){
-    const email = String(req.body.email || "").trim().toLowerCase();
+app.post("/api/auth/login", async function(req, res, next){
+    // Sign-in accepts either the email address or the public username. The
+    // local strategy is keyed on the plugin's usernameField (email), so a
+    // username is resolved to its address first and the strategy still sees an
+    // email. `email` alone is the old request shape; the SPA sends `identifier`.
+    if (!req.body) req.body = {};
+    const body = req.body;
+    const identifier = String(body.identifier || body.email || "").trim().toLowerCase();
+    if (!identifier) return res.status(401).json({ error: "invalid-credentials" });
 
-    passport.authenticate("local", function(err, user, info){
+    let email = identifier;
+    // Usernames are [a-z0-9._] only, so an "@" means this is an address.
+    if (!identifier.includes("@")) {
+        try {
+            const account = await User.findOne({ username: identifier }).select("email").lean();
+            // The same answer as a wrong password, so this cannot be used to
+            // probe which usernames exist.
+            if (!account) return res.status(401).json({ error: "invalid-credentials" });
+            email = account.email;
+        } catch (err) {
+            console.error("api/auth/login lookup:", err.message);
+            return res.status(500).json({ error: "failed" });
+        }
+    }
+
+    // createStrategy() reads req.body[usernameField]; align it with the resolved
+    // account so the password check runs against that user.
+    body.email = email;
+
+    passport.authenticate("local", function(err, user){
         if (err) return next(err);
         if (!user) return res.status(401).json({ error: "invalid-credentials" });
 

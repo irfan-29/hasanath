@@ -139,14 +139,36 @@ function validateChallengeDates(input = {}, today = isoDay()) {
 }
 
 /**
+ * validateChallengeStart({ startDate, endDate }, today)
+ *
+ * An edit may move the start date, but only inside the same window a new
+ * challenge gets: today or the six days before it, and future days. A start
+ * after the stored end date is rejected rather than silently shortening the
+ * window to nothing. Returns { startDate } or { error }.
+ */
+function validateChallengeStart(input = {}, today = isoDay()) {
+    const startDate = String(input.startDate || "");
+    const endDate = String(input.endDate || "");
+    if (!isRealDay(startDate)) return { error: "invalid-start" };
+    if (startDate < shiftDay(today, -(BACKFILL_DAYS - 1))) {
+        return { error: "start-too-old" };
+    }
+    if (endDate && startDate > endDate) return { error: "end-before-start" };
+    if (endDate && daysBetween(startDate, endDate) > MAX_CHALLENGE_DAYS) {
+        return { error: "period-too-long" };
+    }
+    return { startDate };
+}
+
+/**
  * validateChallengeEnd({ startDate, endDate, noEnd }, today)
  *
- * An edit may move the end date but never the start: check-ins already belong
- * to the original first day, so rewriting it would orphan them. Extending is
- * the common case. Shortening is allowed down to today, which is how an active
- * challenge can be closed early, but never into the past - that would silently
- * hide days people already logged. An empty end date or noEnd makes it
- * open-ended again. Returns { endDate } or { error }.
+ * The end may move, but never into the past - that would silently hide days
+ * people already logged. Extending is the common case; shortening to today is
+ * how an active challenge is closed early. The caller passes the start date
+ * that will be stored, so moving both in one edit validates against the new
+ * first day. An empty end date or noEnd makes it open-ended again.
+ * Returns { endDate } or { error }.
  */
 function validateChallengeEnd(input = {}, today = isoDay()) {
     const startDate = String(input.startDate || "");
@@ -226,6 +248,7 @@ module.exports = {
     bestRunFrom,
     isRealDay,
     validateChallengeDates,
+    validateChallengeStart,
     validateChallengeEnd,
     challengeStatus,
     challengeWindow,

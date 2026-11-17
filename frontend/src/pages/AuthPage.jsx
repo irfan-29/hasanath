@@ -15,7 +15,7 @@ const MESSAGES = {
   'weak-password': 'Password must be at least 6 characters.',
   'mismatch': 'Passwords do not match.',
   duplicate: 'That email is already registered.',
-  'invalid-credentials': 'Invalid email or password.',
+  'invalid-credentials': 'Invalid email, username or password.',
   'invalid-code': 'That code is not correct.',
   expired: 'That code has expired. Please start again.',
   'no-pending': 'That request has expired. Please start again.',
@@ -27,6 +27,9 @@ const MESSAGES = {
 export default function AuthPage({ mode: initialMode = 'login' }) {
   const [mode, setMode] = useState(initialMode); // login | register | verify | forgot | reset
   const [email, setEmail] = useState('');
+  // Sign-in takes an email or a username. Kept apart from `email` so switching
+  // to the register form does not carry a username into its address field.
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [code, setCode] = useState('');
@@ -57,7 +60,7 @@ export default function AuthPage({ mode: initialMode = 'login' }) {
     e.preventDefault();
     setBusy(true); setError('');
     try {
-      await api.post('/auth/login', { email, password });
+      await api.post('/auth/login', { identifier, password });
       done();
     } catch (err) {
       setError(MESSAGES[err.body?.error] || 'Could not sign you in.');
@@ -181,10 +184,10 @@ export default function AuthPage({ mode: initialMode = 'login' }) {
         {mode === 'login' && (
           <form onSubmit={submitLogin} className="auth-form">
             <div className="form-floating">
-              <input className="form-control" type="email" id="email" name="email" required
-                     autoComplete="email" placeholder="you@example.com"
-                     value={email} onChange={(e) => setEmail(e.target.value)} />
-              <label htmlFor="email">Email address</label>
+              <input className="form-control" type="text" id="identifier" name="identifier" required
+                     autoComplete="username" placeholder="you@example.com or username"
+                     value={identifier} onChange={(e) => setIdentifier(e.target.value)} />
+              <label htmlFor="identifier">Email or username</label>
             </div>
 
             <div className="form-floating">
