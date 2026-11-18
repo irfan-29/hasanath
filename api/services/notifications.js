@@ -224,7 +224,13 @@ async function buildModulePreview(user, module, { dateLabel } = {}) {
         case "newPost": {
             const Posts = mongoose.models.Posts;
             if (Posts) {
-                const latest = await Posts.find({}).sort({ _id: -1 }).limit(1).lean();
+                // Only a post that is actually in the feed can be the sample.
+                // A held or rejected post has not been announced, so showing it
+                // here would leak content the feed is deliberately hiding.
+                const latest = await Posts.find({ status: { $nin: ["pending", "rejected"] } })
+                    .sort({ _id: -1 })
+                    .limit(1)
+                    .lean();
                 if (latest.length) return buildNewPostMessage(latest[0]);
             }
             return "<b>Hasanath</b> — New post\n\nNo posts yet. This is what subscribers will be sent when you add one.";

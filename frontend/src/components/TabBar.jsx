@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
+import { useSession } from '../hooks/useSession.jsx';
 
 // The phone navigation: a fixed five-slot footer like the native apps this
 // shell replaces the drawer with. Four slots go straight to the busiest
@@ -34,9 +35,17 @@ function isActive(pathname, linkPath) {
 
 export default function TabBar() {
   const { pathname } = useLocation();
+  const { isAdmin } = useSession();
   const [sheetOpen, setSheetOpen] = useState(false);
   const sheetRef = useRef(null);
   const moreBtnRef = useRef(null);
+
+  // An admin entry is appended only for an administrator (ADMIN_EMAILS or an
+  // account granted the flag), so the portal stays invisible to everyone else
+  // on a phone as well as the sidebar.
+  const more = isAdmin
+    ? [...MORE, { to: '/admin', path: '/admin', icon: 'admin_panel_settings', label: 'Admin' }]
+    : MORE;
 
   // A route change closes the sheet, the same contract the drawer had.
   useEffect(() => {
@@ -120,7 +129,7 @@ export default function TabBar() {
             <div className="tabbar-sheet-grip" aria-hidden="true" />
             <div className="tabbar-sheet-title">More modules</div>
             <div className="tabbar-sheet-grid">
-              {MORE.map((tab) => (
+              {more.map((tab) => (
                 <Link
                   key={tab.to}
                   to={tab.to}

@@ -100,6 +100,13 @@ const settingsSchema = new mongoose.Schema({
 
 const userSchema = new mongoose.Schema({
     name: String,
+    // When the account was created. Legacy accounts have no value here; the
+    // admin report falls back to the ObjectId timestamp rather than backfilling.
+    createdAt: { type: Date, default: Date.now },
+    // Last time the shell booted for this account. Written at most once every
+    // few minutes by /api/app/meta, which is what the admin "active users"
+    // figures are based on.
+    lastSeenAt: { type: Date, default: null, index: true },
     // Public handle, derived from the email local-part at signup and used in
     // /u/<username>. Unique because two people may share a local-part across
     // different providers (irfan@gmail.com vs irfan@yahoo.com) - the collision
@@ -107,6 +114,11 @@ const userSchema = new mongoose.Schema({
     // sparse so an account that predates this field does not collide with
     // every other account at the single null value.
     username: { type: String, unique: true, sparse: true },
+    // Portal administrator. ADMIN_EMAILS addresses are always admins; this
+    // column is how an existing admin hands the same access to another account
+    // without a redeploy. Revoking it takes effect on the target's next request
+    // because deserializeUser reloads the document from Mongo every time.
+    isAdmin: { type: Boolean, default: false, index: true },
     // Profile photo. avatarUrl is what every view renders; avatarPath is the
     // blob pathname in Vercel Blob, kept only so the file can be deleted when
     // it is replaced or the account goes away. Both are absent on an account
@@ -136,6 +148,10 @@ const userSchema = new mongoose.Schema({
     charities: [charitySchema],
     salahLog: [salahEntrySchema],
     settings: { type: settingsSchema, default: () => ({}) },
+    // Accounts this person has blocked. Blocking is one-directional and local:
+    // it hides their posts from this viewer's feed and profile, and prevents
+    // liking those posts. The other account is untouched and is not told.
+    blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     // Chat the app-level Hasanath bot should notify. Never a bot token:
     // one shared bot, many subscribers.
     telegramChatId: String,

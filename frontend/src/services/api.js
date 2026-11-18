@@ -150,6 +150,52 @@ export const posts = {
   remove: (id) => api.request(`/posts/${id}`, { method: 'DELETE' }),
   toggleLike: (id) => api.post(`/posts/${id}/like`),
   profile: (username) => api.get(`/u/${encodeURIComponent(username)}`),
+  // One report per account per post; repeats are accepted and change nothing.
+  report: (id, payload) => api.post(`/posts/${id}/report`, payload),
+  block: (userId) => api.post(`/users/${userId}/block`, {}),
+  unblock: (userId) => api.request(`/users/${userId}/block`, { method: 'DELETE' }),
+  blocks: () => api.get('/account/blocks'),
+};
+
+// Moderation is server-gated by the admin check (ADMIN_EMAILS plus accounts
+// granted the flag); these calls answer 403 for every other account, so the
+// client page is a convenience rather than the guard.
+export const moderation = {
+  queue: () => api.get('/admin/moderation'),
+  approve: (id) => api.post(`/admin/posts/${id}/approve`, {}),
+  reject: (id) => api.post(`/admin/posts/${id}/reject`, {}),
+};
+
+// The admin portal. Same gate as moderation, split by task so each panel only
+// asks for what it draws.
+export const admin = {
+  // The portal's own sign-in. Rejects a valid non-admin account with 403
+  // `not-admin` instead of establishing a session.
+  login: (identifier, password) => api.post('/admin/login', { identifier, password }),
+  stats: () => api.get('/admin/stats'),
+  users: ({ q = '', page = 1, limit = 25 } = {}) => {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (page) params.set('page', page);
+    if (limit) params.set('limit', limit);
+    const qs = params.toString();
+    return api.get(`/admin/users${qs ? `?${qs}` : ''}`);
+  },
+  // Grants or revokes the portal flag. ADMIN_EMAILS addresses always stay
+  // admins, and the server refuses a change to your own account.
+  setUserAdmin: (id, isAdmin) => api.request(`/admin/users/${id}`, { method: 'PATCH', body: { isAdmin } }),
+  banners: () => api.get('/admin/banners'),
+  createBanner: (payload) => api.post('/admin/banners', payload),
+  updateBanner: (id, payload) => api.request(`/admin/banners/${id}`, { method: 'PATCH', body: payload }),
+  removeBanner: (id) => api.request(`/admin/banners/${id}`, { method: 'DELETE' }),
+  broadcasts: () => api.get('/admin/broadcasts'),
+  sendBroadcast: (payload) => api.post('/admin/broadcasts', payload),
+};
+
+// Acknowledgement for the one-time popup. Deliberately not under /admin: every
+// signed-in reader calls it.
+export const banners = {
+  seen: (id) => api.post(`/banners/${id}/seen`, {}),
 };
 
 // ---- Friends, notifications and shared challenges ----

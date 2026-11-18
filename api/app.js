@@ -13,7 +13,8 @@ const { MongoStore } = require("connect-mongo");
 // internal
 const { islamicFinderFetch } = require("../api/utils/islamic-finder.js");
 const { sendTelegramMessage, claimChatByCode, makeVerifyCode, buildStreakSummary, normalizeChatId, normalizeToken, extractToken, isValidToken, botIsConfigured, ERROR_MESSAGES } = require("../api/utils/telegram.js");
-const { passport, requireLogin } = require("./middleware/auth.js");
+const { passport, requireLogin, resolveLoginIdentifier } = require("./middleware/auth.js");
+const { loginIpLimiter, loginAccountLimiter, otpIpLimiter, otpEmailLimiter, postIpLimiter, postAccountLimiter, postGapLimiter, resolveOtpTarget } = require("./middleware/rateLimits.js");
 // Named `userData` rather than `data`: several routes bind a local `data` to a
 // fetched surah/prayer payload, which would shadow the service module.
 const userData = require("./services/userData.js");
@@ -35,8 +36,15 @@ const friendChallengesService = require("./services/friendChallenges.js");
 const prayerTimes = require("./services/prayerTimes.js");
 const challengeDays = require("./utils/challengeDays.js");
 const appNotifications = require("./services/appNotifications.js");
+const bannersService = require("./services/banners.js");
+const broadcastsService = require("./services/broadcasts.js");
+const adminStatsService = require("./services/adminStats.js");
+const adminUsersService = require("./services/adminUsers.js");
 const Friendship = require("./models/Friendship.js");
 const FriendChallenge = require("./models/FriendChallenge.js");
+const Banner = require("./models/Banner.js");
+const BannerView = require("./models/BannerView.js");
+const Broadcast = require("./models/Broadcast.js");
 
 const app=express();
 
@@ -267,21 +275,11 @@ async function getOrCreateAyahOfTheDay(surahs) {
     return entry;
 }
 
-const postsSchema = new mongoose.Schema({
-    // Posts stay public (everyone can read the feed) but we remember who wrote
-    // them, so the UI can attribute them.
-    author: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
-    authorName: { type: String, default: "" },
-    content: String,
-    reference: String,
-    postedDate: String,
-    isVideo: Boolean,
-    // Stored as ids rather than a counter so a person can like once and unlike
-    // later. The list itself is never sent to the browser; presentPost() turns
-    // it into a count plus a per-viewer flag.
-    likedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }]
-});
-const Posts = mongoose.model("Posts", postsSchema);
+// The feed model moved to api/models/Post.js when moderation state was added;
+// keeping it inline made the moderation service unable to reach it.
+const Posts = require("./models/Post.js");
+const PostReport = require("./models/PostReport.js");
+const postModeration = require("./services/postModeration.js");
 
 // Keep like data useful without publishing the list of user ids. Every route
 // that returns a post goes through this, otherwise one endpoint would leak
@@ -661,8 +659,10 @@ async function notifyStreakUpdate(req, { formattedDate, completed, updatedChalle
 
 // --- Auth ---
 
-// Cooldown between resends. Without it the resend button is a way to mail-bomb
-// an address, and Resend's own limit would be hit by a single impatient user.
+// Cooldown between resends, per session. It keeps the resend button from being
+// a mail-bomb trigger in one tab, but it lives in the session and is therefore
+// only a UX guard: the real cap is the server-side per-address and per-IP limit
+// applied to every code-email route (api/middleware/rateLimits.js).
 const OTP_RESEND_COOLDOWN_MS = 30 * 1000;
 const OTP_MAX_ATTEMPTS = 5;
 
@@ -1226,6 +1226,34 @@ app.get("/api/app/meta", async function(req, res){
     // actually use. Signed-in users still get whatever they configured.
     const defaultHome = settings.defaultHome || "quran";
 
+    // Activity tracking for the admin report. The condition keeps this off the
+    // write path on every navigation: a boot within five minutes of the last
+    // one is already represented in lastSeenAt. Fire-and-forget - a boot must
+    // not fail or slow down because a statistics write did.
+    const userId = isLoggedIn && req.user ? req.user._id : null;
+    if (userId) {
+        const staleBefore = new Date(Date.now() - 5 * 60 * 1000);
+        User.updateOne(
+            {
+                _id: userId,
+                $or: [
+                    { lastSeenAt: null },
+                    { lastSeenAt: { $lt: staleBefore } }
+                ]
+            },
+            { $set: { lastSeenAt: new Date() } }
+        ).catch((err) => console.error("api/app/meta lastSeen:", err.message));
+    }
+
+    // The sticky bar and the next unacknowledged one-time popup travel with the
+    // boot payload so the shell can paint them without a second round trip.
+    let banners = { sticky: [], otb: null };
+    try {
+        banners = await bannersService.deliverFor(userId);
+    } catch (err) {
+        console.error("api/app/meta banners:", err.message);
+    }
+
     res.set("Cache-Control", "no-store");
     res.json({
         session: {
@@ -1233,7 +1261,12 @@ app.get("/api/app/meta", async function(req, res){
             username: (isLoggedIn && req.user.username) || null,
             // Carried on the boot payload so the navbar can paint the real
             // photo immediately, without waiting for the account page.
-            avatarUrl: (isLoggedIn && req.user.avatarUrl) || null
+            avatarUrl: (isLoggedIn && req.user.avatarUrl) || null,
+            // The portal is offered only to administrators: the addresses in
+            // ADMIN_EMAILS plus accounts granted the flag from the Users tab.
+            // The server checks every admin route again; this flag only decides
+            // whether the link is worth rendering.
+            isAdmin: isLoggedIn ? postModeration.isAdmin(req.user) : false
         },
         theme: settings.theme === "dark" ? "dark" : "light",
         // Accent palette id. The shell writes it to <html data-accent>; an
@@ -1246,7 +1279,8 @@ app.get("/api/app/meta", async function(req, res){
         // the theme above).
         appFont: settings.appFont || "default",
         appFontSize: Number.isFinite(Number(settings.appFontSize)) ? Number(settings.appFontSize) : 100,
-        quranFontSize: Number.isFinite(Number(settings.quranFontSize)) ? Number(settings.quranFontSize) : 100
+        quranFontSize: Number.isFinite(Number(settings.quranFontSize)) ? Number(settings.quranFontSize) : 100,
+        banners
     });
 });
 
@@ -1661,7 +1695,14 @@ app.get("/api/stats", requireLogin, async function(req, res){
 
 app.get("/api/posts", async function(req, res){
     try {
-        const post = await Posts.find({}).sort({ _id: -1 }).populate("author", "name username avatarUrl");
+        // Release any review hold that has expired before reading. No scheduler
+        // is needed and the sweep is one indexed update.
+        await postModeration.publishDue();
+
+        const viewer = req.isAuthenticated() ? req.user : null;
+        const post = await Posts.find(postModeration.visibleFilter(viewer))
+            .sort({ _id: -1 })
+            .populate("author", "name username avatarUrl");
         res.json({ posts: post.map((entry) => presentPost(entry, req)), permalinkBase: originOf(req) });
     } catch (err) {
         console.error("api/posts:", err.message);
@@ -1669,7 +1710,7 @@ app.get("/api/posts", async function(req, res){
     }
 });
 
-app.post("/api/posts", requireLogin, async function(req, res){
+app.post("/api/posts", requireLogin, postIpLimiter, postAccountLimiter, postGapLimiter, async function(req, res){
     let date = new Date(req.body.date);
     if (isNaN(date.getTime())) date = new Date();
     const formattedDate = date.toLocaleDateString("en-US", {
@@ -1683,20 +1724,32 @@ app.post("/api/posts", requireLogin, async function(req, res){
     if (!content) return res.status(400).json({ error: "empty-post" });
 
     try {
+        // An account without published posts behind it is held for a day. The
+        // post is still saved and visible to its author, but it does not enter
+        // the feed and is not broadcast until the hold is released or an admin
+        // approves it.
+        const held = await postModeration.needsReview(req.user._id);
+
         const post = await Posts.create({
             postedDate: formattedDate,
             author: req.user._id,
             authorName: req.user.username || req.user.email,
             content,
             reference: String(req.body.reference || ""),
-            isVideo
+            isVideo,
+            status: held ? "pending" : "published",
+            statusReason: held ? "review" : "",
+            autoPublishAt: held ? new Date(Date.now() + postModeration.REVIEW_HOLD_MS) : null
         });
 
         // Announce after the write resolves, and never let a broadcast failure
-        // undo a post the user already successfully created.
-        broadcastNewPost(post).catch((err) => console.error("notify: new post -", err.message));
+        // undo a post the user already successfully created. A held post is not
+        // announced at all - that is the point of the hold.
+        if (!held) {
+            broadcastNewPost(post).catch((err) => console.error("notify: new post -", err.message));
+        }
 
-        res.status(201).json({ post: presentPost(post, req) });
+        res.status(201).json({ post: presentPost(post, req), held });
     } catch (err) {
         console.error("api/posts POST:", err.message);
         res.status(500).json({ error: "failed" });
@@ -1706,8 +1759,16 @@ app.post("/api/posts", requireLogin, async function(req, res){
 app.get("/api/posts/:id", async function(req, res){
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "not-found" });
     try {
+        await postModeration.publishDue();
+
         const post = await Posts.findById(req.params.id).populate("author", "username name avatarUrl");
-        if (!post) return res.status(404).json({ error: "not-found" });
+        const viewer = req.isAuthenticated() ? req.user : null;
+        // A pending post is a 404 to everyone but its author (and admins), the
+        // same answer as an id that does not exist. A blocked author's post is
+        // hidden the same way.
+        if (!post || !postModeration.canView(post, viewer)) {
+            return res.status(404).json({ error: "not-found" });
+        }
         res.json({ post: presentPost(post, req), permalinkBase: originOf(req) });
     } catch (err) {
         console.error("api/posts/:id:", err.message);
@@ -1721,7 +1782,9 @@ app.post("/api/posts/:id/like", requireLogin, async function(req, res){
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "not-found" });
     try {
         const post = await Posts.findById(req.params.id);
-        if (!post) return res.status(404).json({ error: "not-found" });
+        if (!post || !postModeration.canView(post, req.user)) {
+            return res.status(404).json({ error: "not-found" });
+        }
 
         post.likedBy = post.likedBy || [];
         const userId = String(req.user._id);
@@ -1753,6 +1816,9 @@ app.patch("/api/posts/:id", requireLogin, async function(req, res){
         if (!post.author || String(post.author) !== String(req.user._id)) {
             return res.status(403).json({ error: "forbidden" });
         }
+        // Rejected content is gone from the author's view too; an edit must not
+        // quietly bring it back.
+        if (post.status === "rejected") return res.status(403).json({ error: "forbidden" });
 
         const content = String(req.body.content || "").trim();
         if (!content) return res.status(400).json({ error: "empty-post" });
@@ -1781,6 +1847,9 @@ app.delete("/api/posts/:id", requireLogin, async function(req, res){
         }
 
         await post.deleteOne();
+        // The reports pointed at a post that no longer exists. Leaving them
+        // would keep deleted content in the moderation queue.
+        await PostReport.deleteMany({ post: post._id });
         res.json({ ok: true });
     } catch (err) {
         console.error("api/posts/:id DELETE:", err.message);
@@ -1788,17 +1857,542 @@ app.delete("/api/posts/:id", requireLogin, async function(req, res){
     }
 });
 
+// ---- Reporting and blocking ------------------------------------------------
+
+// Report a post. One account may report a post once (the model's unique index
+// enforces it), and only distinct reporters move the counter. When enough
+// people have flagged it the post is pulled from the feed immediately and waits
+// for an admin; the author keeps seeing it with a pending badge.
+app.post("/api/posts/:id/report", requireLogin, async function(req, res){
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "not-found" });
+    try {
+        const post = await Posts.findById(req.params.id);
+        if (!post || !postModeration.canView(post, req.user)) {
+            return res.status(404).json({ error: "not-found" });
+        }
+        if (post.author && String(post.author) === String(req.user._id)) {
+            return res.status(400).json({ error: "own-post" });
+        }
+
+        const body = req.body || {};
+        const reason = String(body.reason || "").trim().toLowerCase();
+        if (!postModeration.REPORT_REASONS.includes(reason)) {
+            return res.status(400).json({ error: "invalid-reason" });
+        }
+
+        let duplicate = false;
+        try {
+            await PostReport.create({
+                post: post._id,
+                postAuthor: post.author || null,
+                reporter: req.user._id,
+                reason,
+                note: String(body.note || "").trim().slice(0, 500)
+            });
+        } catch (err) {
+            if (err && err.code === 11000) duplicate = true;
+            else throw err;
+        }
+
+        // A duplicate press changes nothing, including the count.
+        const openReports = await PostReport.countDocuments({ post: post._id, status: "open" });
+
+        let hidden = false;
+        if (
+            openReports >= postModeration.REPORT_HIDE_THRESHOLD &&
+            post.status !== "rejected" &&
+            !(post.status === "pending" && post.statusReason === "reported")
+        ) {
+            post.status = "pending";
+            post.statusReason = "reported";
+            // Reported posts do not auto-publish: a person has to look at them.
+            post.autoPublishAt = null;
+            await post.save();
+            hidden = true;
+        }
+
+        res.json({ ok: true, already: duplicate, hidden });
+    } catch (err) {
+        console.error("api/posts/:id/report:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+// Blocking hides an author's posts from the blocker's feed, profile view and
+// permalinks. It is one-directional and local: the other person is not told,
+// their account is untouched, and a Telegram broadcast is unaffected.
+app.get("/api/account/blocks", requireLogin, async function(req, res){
+    try {
+        const user = await User.findById(req.user._id).select("blockedUsers").lean();
+        const ids = (user && user.blockedUsers) || [];
+        const people = await User.find({ _id: { $in: ids } })
+            .select("username name avatarUrl")
+            .lean();
+        res.json({
+            users: people.map((person) => ({
+                id: String(person._id),
+                username: person.username || "",
+                name: person.name || "",
+                avatarUrl: person.avatarUrl || ""
+            }))
+        });
+    } catch (err) {
+        console.error("api/account/blocks:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.post("/api/users/:id/block", requireLogin, async function(req, res){
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "not-found" });
+    if (String(req.params.id) === String(req.user._id)) return res.status(400).json({ error: "self" });
+
+    try {
+        const target = await User.findById(req.params.id).select("_id").lean();
+        if (!target) return res.status(404).json({ error: "not-found" });
+
+        await User.updateOne(
+            { _id: req.user._id },
+            { $addToSet: { blockedUsers: target._id } }
+        );
+        // Blocking a friend should end the friendship too; otherwise the block
+        // would hide someone who still sees you in their friend list.
+        await Friendship.deleteMany({
+            $or: [
+                { requester: req.user._id, recipient: target._id },
+                { requester: target._id, recipient: req.user._id }
+            ]
+        });
+        res.json({ ok: true, blocked: true });
+    } catch (err) {
+        console.error("api/users/:id/block:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.delete("/api/users/:id/block", requireLogin, async function(req, res){
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "not-found" });
+    try {
+        await User.updateOne(
+            { _id: req.user._id },
+            { $pull: { blockedUsers: req.params.id } }
+        );
+        res.json({ ok: true, blocked: false });
+    } catch (err) {
+        console.error("api/users/:id/block DELETE:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+// ---- Moderation queue ------------------------------------------------------
+//
+// Root admins are configured with ADMIN_EMAILS; an existing admin can also grant
+// the same access to another account from the portal (User.isAdmin). The list
+// is still deliberately small and every route re-checks it, but adding a
+// moderator no longer needs a redeploy. Review holds still expire on their own
+// when nobody is configured at all.
+function requireAdmin(req, res, next) {
+    if (!postModeration.isAdmin(req.user)) return res.status(403).json({ error: "forbidden" });
+    next();
+}
+
+// A dedicated sign-in for the portal. The ordinary /api/auth/login would sign
+// in any account, so a normal user who guessed the /admin URL could end up in a
+// session that still cannot do anything - and would have been signed out of
+// their own app as a side effect. This route authenticates first and only
+// creates the session once the account is an admin. It reuses the same
+// IP/account limits as the normal form, so the admin password cannot be guessed
+// at a faster rate.
+app.post("/api/admin/login", loginIpLimiter, resolveLoginIdentifier, loginAccountLimiter, function(req, res, next){
+    const identifier = req.loginIdentifier || "";
+    if (!identifier) return res.status(401).json({ error: "invalid-credentials" });
+    req.body.email = req.loginEmail;
+
+    passport.authenticate("local", function(err, user){
+        if (err) return next(err);
+        if (!user) return res.status(401).json({ error: "invalid-credentials" });
+        if (!postModeration.isAdmin(user)) return res.status(403).json({ error: "not-admin" });
+
+        req.logIn(user, function(loginErr){
+            if (loginErr) return res.status(500).json({ error: "failed" });
+            userData.clearGuestCookie(req, res);
+            res.json({ ok: true, username: user.username || null });
+        });
+    })(req, res, next);
+});
+
+app.get("/api/admin/moderation", requireLogin, requireAdmin, async function(req, res){
+    try {
+        await postModeration.publishDue();
+
+        const [posts, reports] = await Promise.all([
+            Posts.find({ status: "pending" })
+                .sort({ _id: -1 })
+                .populate("author", "username name avatarUrl")
+                .limit(100),
+            PostReport.find({ status: "open" })
+                .sort({ createdAt: -1 })
+                .populate("reporter", "username name")
+                .populate({ path: "post", select: "content authorName status statusReason author" })
+                .limit(200)
+        ]);
+
+        res.json({
+            posts: posts.map((post) => presentPost(post, req)),
+            reports: reports.map((report) => ({
+                id: String(report._id),
+                reason: report.reason,
+                note: report.note || "",
+                createdAt: report.createdAt,
+                reporter: report.reporter
+                    ? { username: report.reporter.username || "", name: report.reporter.name || "" }
+                    : null,
+                post: report.post
+                    ? {
+                        id: String(report.post._id),
+                        content: report.post.content || "",
+                        authorName: report.post.authorName || "",
+                        status: report.post.status || "published"
+                    }
+                    : null
+            }))
+        });
+    } catch (err) {
+        console.error("api/admin/moderation:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.post("/api/admin/posts/:id/approve", requireLogin, requireAdmin, async function(req, res){
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "not-found" });
+    try {
+        const post = await Posts.findById(req.params.id);
+        if (!post) return res.status(404).json({ error: "not-found" });
+
+        const wasPending = post.status === "pending";
+        post.status = "published";
+        post.statusReason = "";
+        post.autoPublishAt = null;
+        post.reviewedAt = new Date();
+        post.reviewedBy = req.user._id;
+        await post.save();
+
+        await PostReport.updateMany(
+            { post: post._id, status: "open" },
+            { $set: { status: "dismissed", resolvedAt: new Date() } }
+        );
+
+        // An approved post is new to the feed, so announce it. The hold existed
+        // to stop an unreviewed blast, and review has now happened.
+        if (wasPending) {
+            broadcastNewPost(post).catch((err) => console.error("notify: approved post -", err.message));
+        }
+
+        const populated = await post.populate("author", "username name avatarUrl");
+        res.json({ post: presentPost(populated, req) });
+    } catch (err) {
+        console.error("api/admin/posts/:id/approve:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.post("/api/admin/posts/:id/reject", requireLogin, requireAdmin, async function(req, res){
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "not-found" });
+    try {
+        const post = await Posts.findById(req.params.id);
+        if (!post) return res.status(404).json({ error: "not-found" });
+
+        post.status = "rejected";
+        post.statusReason = "";
+        post.autoPublishAt = null;
+        post.reviewedAt = new Date();
+        post.reviewedBy = req.user._id;
+        await post.save();
+
+        await PostReport.updateMany(
+            { post: post._id, status: "open" },
+            { $set: { status: "actioned", resolvedAt: new Date() } }
+        );
+
+        res.json({ ok: true });
+    } catch (err) {
+        console.error("api/admin/posts/:id/reject:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+// ---- Admin portal: banners, broadcasts, users and stats -------------------
+//
+// Everything below is behind the same requireAdmin gate as the moderation
+// queue. The functions are small because the models and services own the
+// queries; these routes mostly validate input from a browser.
+
+// A call-to-action may be an in-app route ("/posts") or an absolute http(s)
+// link. Anything else - notably javascript: - is rejected rather than escaped,
+// because a bad banner is a configuration mistake, not user content.
+function cleanAdminUrl(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    if (raw.startsWith("/") && !raw.startsWith("//")) return raw.slice(0, 500);
+    if (/^https?:\/\//i.test(raw)) return raw.slice(0, 500);
+    return null;
+}
+
+function adminBannerView(banner, seenCount) {
+    const raw = typeof banner.toObject === "function" ? banner.toObject() : banner;
+    return {
+        ...bannersService.present(raw),
+        active: Boolean(raw.active),
+        startsAt: raw.startsAt || null,
+        endsAt: raw.endsAt || null,
+        seenCount: Number(seenCount) || 0
+    };
+}
+
+// Activating a sticky bar deactivates the previous one: two bars would stack on
+// top of each other, and the admin UI only ever shows one live campaign.
+async function setBannerActive(banner, active) {
+    if (active && banner.kind === "sticky") {
+        await Banner.updateMany(
+            { _id: { $ne: banner._id }, kind: "sticky", active: true },
+            { $set: { active: false } }
+        );
+    }
+    banner.active = Boolean(active);
+    await banner.save();
+}
+
+app.get("/api/admin/banners", requireLogin, requireAdmin, async function(req, res){
+    try {
+        const items = await Banner.find({})
+            .sort({ createdAt: -1, _id: -1 })
+            .limit(200)
+            .lean();
+        const counts = await bannersService.seenCounts(items.map((item) => item._id));
+        res.json({
+            items: items.map((item) => adminBannerView(item, counts.get(String(item._id))))
+        });
+    } catch (err) {
+        console.error("api/admin/banners:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.post("/api/admin/banners", requireLogin, requireAdmin, async function(req, res){
+    const kind = req.body.kind === "sticky" ? "sticky" : req.body.kind === "otb" ? "otb" : "";
+    const title = String(req.body.title || "").trim();
+    const ctaUrl = cleanAdminUrl(req.body.ctaUrl);
+
+    if (!kind) return res.status(400).json({ error: "Choose a banner type." });
+    if (!title) return res.status(400).json({ error: "A title is required." });
+    if (ctaUrl === null) return res.status(400).json({ error: "The button link must start with / or http(s)://." });
+
+    try {
+        const banner = await Banner.create({
+            kind,
+            title: title.slice(0, 120),
+            body: String(req.body.body || "").trim().slice(0, 600),
+            ctaLabel: String(req.body.ctaLabel || "").trim().slice(0, 40),
+            ctaUrl,
+            position: kind === "sticky" && req.body.position === "bottom" ? "bottom" : "top",
+            active: false,
+            createdBy: req.user._id
+        });
+
+        if (req.body.active) await setBannerActive(banner, true);
+        res.status(201).json({ banner: adminBannerView(banner, 0) });
+    } catch (err) {
+        console.error("api/admin/banners POST:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.patch("/api/admin/banners/:id", requireLogin, requireAdmin, async function(req, res){
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "not-found" });
+    try {
+        const banner = await Banner.findById(req.params.id);
+        if (!banner) return res.status(404).json({ error: "not-found" });
+
+        if (req.body.title !== undefined) {
+            const title = String(req.body.title || "").trim();
+            if (!title) return res.status(400).json({ error: "A title is required." });
+            banner.title = title.slice(0, 120);
+        }
+        if (req.body.body !== undefined) banner.body = String(req.body.body || "").trim().slice(0, 600);
+        if (req.body.ctaLabel !== undefined) {
+            banner.ctaLabel = String(req.body.ctaLabel || "").trim().slice(0, 40);
+        }
+        if (req.body.ctaUrl !== undefined) {
+            const ctaUrl = cleanAdminUrl(req.body.ctaUrl);
+            if (ctaUrl === null) {
+                return res.status(400).json({ error: "The button link must start with / or http(s)://." });
+            }
+            banner.ctaUrl = ctaUrl;
+        }
+        if (req.body.position !== undefined) {
+            banner.position = req.body.position === "bottom" ? "bottom" : "top";
+        }
+
+        await banner.save();
+        if (req.body.active !== undefined) await setBannerActive(banner, req.body.active);
+
+        const counts = await bannersService.seenCounts([banner._id]);
+        res.json({ banner: adminBannerView(banner, counts.get(String(banner._id))) });
+    } catch (err) {
+        console.error("api/admin/banners PATCH:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.delete("/api/admin/banners/:id", requireLogin, requireAdmin, async function(req, res){
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "not-found" });
+    try {
+        const banner = await Banner.findByIdAndDelete(req.params.id);
+        if (!banner) return res.status(404).json({ error: "not-found" });
+        await BannerView.deleteMany({ banner: banner._id });
+        res.json({ ok: true });
+    } catch (err) {
+        console.error("api/admin/banners DELETE:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+// The reader acknowledges a one-time popup. Signed-in only: a guest has no
+// durable place to remember it, so guests never receive an OTB in the first
+// place (see banners.deliverFor).
+app.post("/api/banners/:id/seen", requireLogin, async function(req, res){
+    try {
+        const ok = await bannersService.markSeen(req.params.id, req.user._id);
+        if (!ok) return res.status(404).json({ error: "not-found" });
+        res.json({ ok: true });
+    } catch (err) {
+        console.error("api/banners/:id/seen:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.get("/api/admin/broadcasts", requireLogin, requireAdmin, async function(req, res){
+    try {
+        const items = await Broadcast.find({})
+            .sort({ createdAt: -1, _id: -1 })
+            .limit(100)
+            .lean();
+        res.json({ items: items.map(broadcastsService.present) });
+    } catch (err) {
+        console.error("api/admin/broadcasts:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.post("/api/admin/broadcasts", requireLogin, requireAdmin, async function(req, res){
+    const title = String(req.body.title || "").trim();
+    const body = String(req.body.body || "").trim();
+    const link = cleanAdminUrl(req.body.link);
+
+    if (!title) return res.status(400).json({ error: "A title is required." });
+    if (!body) return res.status(400).json({ error: "Write the message before sending." });
+    if (link === null) return res.status(400).json({ error: "The link must start with / or http(s)://." });
+
+    try {
+        const result = await broadcastsService.send({
+            title: title.slice(0, 120),
+            body: body.slice(0, 1200),
+            link,
+            admin: req.user
+        });
+        res.status(201).json({
+            broadcast: broadcastsService.present(result.broadcast),
+            recipients: result.recipients
+        });
+    } catch (err) {
+        console.error("api/admin/broadcasts POST:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.get("/api/admin/users", requireLogin, requireAdmin, async function(req, res){
+    try {
+        const data = await adminUsersService.list({
+            query: req.query.q,
+            page: req.query.page,
+            limit: req.query.limit
+        });
+        res.json(data);
+    } catch (err) {
+        console.error("api/admin/users:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.patch("/api/admin/users/:id", requireLogin, requireAdmin, async function(req, res){
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "not-found" });
+    if (!req.body || typeof req.body.isAdmin !== "boolean") return res.status(400).json({ error: "invalid-admin-flag" });
+
+    try {
+        const target = await User.findById(req.params.id).select("username email isAdmin");
+        if (!target) return res.status(404).json({ error: "not-found" });
+
+        // The environment list is root access. Letting the portal edit it would
+        // mean a demoted account keeps coming back after the next request.
+        if (postModeration.isEnvAdmin(target)) return res.status(400).json({ error: "env-admin" });
+
+        // Changing your own flag is either a no-op or a way to lock yourself
+        // out of the only screen that can undo it. Another admin can still
+        // revoke you.
+        if (String(target._id) === String(req.user._id)) return res.status(400).json({ error: "self" });
+
+        target.isAdmin = req.body.isAdmin;
+        await target.save();
+
+        res.json({
+            user: {
+                id: String(target._id),
+                username: target.username || "",
+                isAdmin: Boolean(target.isAdmin),
+                envAdmin: false
+            }
+        });
+    } catch (err) {
+        console.error("api/admin/users/:id PATCH:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.get("/api/admin/stats", requireLogin, requireAdmin, async function(req, res){
+    try {
+        res.json(await adminStatsService.overview());
+    } catch (err) {
+        console.error("api/admin/stats:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+
 // ---- Profile ----
 
 app.get("/api/u/:username", async function(req, res){
     try {
+        await postModeration.publishDue();
+
         const author = await User.findOne({ username: String(req.params.username || "").toLowerCase() })
             .select("username name createdAt avatarUrl");
         if (!author) return res.status(404).json({ error: "not-found" });
 
-        const posts = await Posts.find({ author: author._id }).sort({ _id: -1 });
         const isOwner = Boolean(req.isAuthenticated() && req.user && String(req.user._id) === String(author._id));
         const viewerId = req.isAuthenticated() && req.user ? req.user._id : null;
+        const viewer = req.isAuthenticated() ? req.user : null;
+
+        // A profile shows published posts. The owner also sees their pending
+        // ones (with a badge) so a review hold is not a silent disappearance.
+        // Rejected posts are hidden from everyone. A viewer who blocked this
+        // author sees no posts at all.
+        let posts = [];
+        if (!postModeration.isBlocked(viewer, author._id)) {
+            const filter = { author: author._id };
+            filter.status = isOwner
+                ? { $ne: "rejected" }
+                : { $nin: ["pending", "rejected"] };
+            posts = await Posts.find(filter).sort({ _id: -1 });
+        }
 
         // The profile carries the viewer's relationship to this handle, which
         // is what lets the page offer Add friend / Accept / Request sent without
@@ -2138,7 +2732,7 @@ app.post("/api/account/password", requireLogin, async function(req, res){
         const confirm = String(body.cpassword || "");
 
         if (!current) return res.status(400).json({ error: "password-required" });
-        if (password.length < 6) return res.status(400).json({ error: "weak-password" });
+        if (password.length < 8) return res.status(400).json({ error: "weak-password" });
         if (password !== confirm) return res.status(400).json({ error: "mismatch" });
         if (password === current) return res.status(400).json({ error: "same-password" });
 
@@ -2236,10 +2830,17 @@ app.delete("/api/account", requireLogin, async function(req, res){
         const { user: match } = await user.authenticate(password);
         if (!match) return res.status(403).json({ error: "wrong-password" });
 
+        // Reports are about this account (as author or reporter) and would
+        // outlive the rows they point at, so remove both directions first.
+        await PostReport.deleteMany({
+            $or: [{ reporter: user._id }, { postAuthor: user._id }]
+        });
         await Posts.deleteMany({ author: user._id });
         // Posts by others keep their like counts honest: remove this user from
         // every like list rather than deleting the posts.
         await Posts.updateMany({ likedBy: user._id }, { $pull: { likedBy: user._id } });
+        // Nobody can unblock an account that no longer exists.
+        await User.updateMany({ blockedUsers: user._id }, { $pull: { blockedUsers: user._id } });
 
         // Friendships, shared challenges and the notification centre all point
         // at this account. Delete the rows nobody could act on afterwards, and
@@ -2887,10 +3488,10 @@ app.get("/api/hadiths/:collection/section/:sectionId", async function(req, res){
 
 const AUTH_MESSAGES = {
     'invalid-email': 'Enter a valid email address.',
-    'weak-password': 'Password must be at least 6 characters.',
+    'weak-password': 'Password must be at least 8 characters.',
     'mismatch': 'Passwords do not match.',
     'duplicate': 'That email is already registered.',
-    'invalid-credentials': 'Invalid email or password.',
+    'invalid-credentials': 'Invalid email, username or password.',
     'invalid-code': 'That code is not correct.',
     'expired': 'That code has expired. Please register again.',
     'no-pending': 'Start by registering again.',
@@ -2898,13 +3499,13 @@ const AUTH_MESSAGES = {
     'email-not-sent': 'We could not send a verification email. Please try again.'
 };
 
-app.post("/api/auth/register", async function(req, res){
+app.post("/api/auth/register", otpIpLimiter, resolveOtpTarget, otpEmailLimiter, async function(req, res){
     const email = String(req.body.email || "").trim().toLowerCase();
     const password = String(req.body.password || "");
     const confirm = String(req.body.cpassword || "");
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: "invalid-email" });
-    if (password.length < 6) return res.status(400).json({ error: "weak-password" });
+    if (password.length < 8) return res.status(400).json({ error: "weak-password" });
     if (password !== confirm) return res.status(400).json({ error: "mismatch" });
 
     try {
@@ -2934,7 +3535,7 @@ app.post("/api/auth/register", async function(req, res){
     res.json({ ok: true, email, message: AUTH_MESSAGES });
 });
 
-app.post("/api/auth/resend", async function(req, res){
+app.post("/api/auth/resend", otpIpLimiter, resolveOtpTarget, otpEmailLimiter, async function(req, res){
     const { ok, pending } = pendingSignup(req);
     if (!ok) return res.status(400).json({ error: "expired" });
 
@@ -3006,34 +3607,15 @@ app.post("/api/auth/verify", async function(req, res){
     }
 });
 
-app.post("/api/auth/login", async function(req, res, next){
-    // Sign-in accepts either the email address or the public username. The
-    // local strategy is keyed on the plugin's usernameField (email), so a
-    // username is resolved to its address first and the strategy still sees an
-    // email. `email` alone is the old request shape; the SPA sends `identifier`.
-    if (!req.body) req.body = {};
-    const body = req.body;
-    const identifier = String(body.identifier || body.email || "").trim().toLowerCase();
+app.post("/api/auth/login", loginIpLimiter, resolveLoginIdentifier, loginAccountLimiter, function(req, res, next){
+    // resolveLoginIdentifier filled these from `identifier` (the SPA) or the
+    // older `email` field, and mapped a username to its account's address.
+    const identifier = req.loginIdentifier || "";
     if (!identifier) return res.status(401).json({ error: "invalid-credentials" });
 
-    let email = identifier;
-    // Usernames are [a-z0-9._] only, so an "@" means this is an address.
-    if (!identifier.includes("@")) {
-        try {
-            const account = await User.findOne({ username: identifier }).select("email").lean();
-            // The same answer as a wrong password, so this cannot be used to
-            // probe which usernames exist.
-            if (!account) return res.status(401).json({ error: "invalid-credentials" });
-            email = account.email;
-        } catch (err) {
-            console.error("api/auth/login lookup:", err.message);
-            return res.status(500).json({ error: "failed" });
-        }
-    }
-
-    // createStrategy() reads req.body[usernameField]; align it with the resolved
-    // account so the password check runs against that user.
-    body.email = email;
+    // createStrategy() reads req.body[usernameField]; point it at the resolved
+    // address so a username login checks the password for the same account.
+    req.body.email = req.loginEmail;
 
     passport.authenticate("local", function(err, user){
         if (err) return next(err);
@@ -3059,10 +3641,11 @@ app.post("/api/auth/login", async function(req, res, next){
 //
 // Unlike signup, the account already exists, so /forgot must not become an
 // address book for strangers: it answers the same way whether or not the email
-// is registered, and only sends mail when it is. The cooldown is shared with
-// signup so neither endpoint can be used to mail-bomb an inbox.
+// is registered, and only sends mail when it is. The per-session cooldown is
+// only a UX guard; the per-address and per-IP limits on the route are what stop
+// a fresh session from mailing an inbox over and over.
 
-app.post("/api/auth/forgot", async function(req, res){
+app.post("/api/auth/forgot", otpIpLimiter, resolveOtpTarget, otpEmailLimiter, async function(req, res){
     const email = String((req.body || {}).email || "").trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: "invalid-email" });
 
@@ -3117,7 +3700,7 @@ app.post("/api/auth/reset", async function(req, res){
 
     // Validate the new password before spending an attempt on the code, so a
     // mistyped confirmation does not count against the six digits.
-    if (password.length < 6) return res.status(400).json({ error: "weak-password" });
+    if (password.length < 8) return res.status(400).json({ error: "weak-password" });
     if (password !== confirm) return res.status(400).json({ error: "mismatch" });
 
     const { ok, pending, reason } = pendingReset(req);

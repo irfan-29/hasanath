@@ -40,4 +40,28 @@ function requireLogin(req, res, next) {
 // res.locals.currentUser for the server-rendered templates; the JSON API reads
 // req.user, which passport populates via passport.session().
 
-module.exports = { passport, requireLogin };
+// Sign-in accepts either the email address or the public username. Resolve the
+// typed value once, before the per-account limiter, so the limiter and the
+// local strategy both act on the same account (username and email are two
+// spellings of one login). Unknown usernames keep the typed value: the strategy
+// then finds no account and answers with the normal invalid-credentials error.
+async function resolveLoginIdentifier(req, res, next) {
+  if (!req.body) req.body = {};
+  const identifier = String(req.body.identifier || req.body.email || "").trim().toLowerCase();
+  req.loginIdentifier = identifier;
+  req.loginEmail = identifier;
+
+  // Usernames are [a-z0-9._] only, so an "@" means this is an address.
+  if (!identifier || identifier.includes("@")) return next();
+
+  try {
+    const account = await User.findOne({ username: identifier }).select("email").lean();
+    if (account) req.loginEmail = account.email;
+  } catch (err) {
+    console.error("api/auth/login lookup:", err.message);
+    return res.status(500).json({ error: "failed" });
+  }
+  return next();
+}
+
+module.exports = { passport, requireLogin, resolveLoginIdentifier };

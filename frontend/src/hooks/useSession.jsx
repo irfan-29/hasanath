@@ -23,13 +23,19 @@ const FALLBACK = {
   isLoggedIn: null,
   username: null,
   avatarUrl: null,
+  // True for administrators (ADMIN_EMAILS plus accounts granted the flag);
+  // drives the Admin link.
+  isAdmin: false,
   homePath: null,
   theme: null,
   accent: null,
+  // Announcements delivered with the boot payload.
+  banners: { sticky: [], otb: null },
   // No-ops so a component used outside the provider (or on an auth route, which
   // renders before the provider) cannot crash by calling these.
   setTheme: () => {},
   setAccent: () => {},
+  dismissOtb: () => Promise.resolve(),
   refresh: () => Promise.resolve(null),
 };
 

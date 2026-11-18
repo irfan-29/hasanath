@@ -20,6 +20,7 @@ const ICONS = {
   challenge_invite: 'emoji_events',
   challenge_accepted: 'local_fire_department',
   challenge_declined: 'close',
+  admin_announcement: 'campaign',
 };
 
 function timeAgo(value) {

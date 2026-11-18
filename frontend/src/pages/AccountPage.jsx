@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, account, ApiError } from '../services/api';
+import { api, account, posts as postsApi, ApiError } from '../services/api';
 import { useSession } from '../hooks/useSession.jsx';
 import { useToast } from '../components/ToastProvider';
 import Loader from '../components/Loader';
@@ -21,7 +21,7 @@ const USERNAME_ERRORS = {
 const PASSWORD_ERRORS = {
   'password-required': 'Enter your current password.',
   'wrong-password': 'That current password is not correct.',
-  'weak-password': 'Your new password must be at least 6 characters.',
+  'weak-password': 'Your new password must be at least 8 characters.',
   mismatch: 'The new passwords do not match.',
   'same-password': 'Choose a password different from your current one.'
 };
@@ -56,6 +56,10 @@ export default function AccountPage() {
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const avatarInputRef = useRef(null);
+  // Accounts this person has blocked. Loaded alongside the profile; the block
+  // menu lives on every post, so the undo lives here.
+  const [blocked, setBlocked] = useState([]);
+  const [blockedBusy, setBlockedBusy] = useState('');
   const { refresh } = useSession();
   const toast = useToast();
   const navigate = useNavigate();
@@ -68,9 +72,31 @@ export default function AccountPage() {
     } catch (err) {
       setState({ loading: false, data: null });
     }
+
+    try {
+      const data = await postsApi.blocks();
+      setBlocked(data.users || []);
+    } catch (err) {
+      // The rest of the account page still works without this list.
+      setBlocked([]);
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  async function unblock(person) {
+    if (blockedBusy) return;
+    setBlockedBusy(person.id);
+    try {
+      await postsApi.unblock(person.id);
+      setBlocked((current) => current.filter((entry) => entry.id !== person.id));
+      toast(`Unblocked ${person.username ? '@' + person.username : person.name || 'that account'}`);
+    } catch (err) {
+      toast('Could not unblock that account.', { kind: 'error' });
+    } finally {
+      setBlockedBusy('');
+    }
+  }
 
   const closeEditor = () => {
     // Throw away the draft: the field shows the name the server has again.
@@ -362,6 +388,43 @@ export default function AccountPage() {
         </div>
       </section>
 
+      <section className="account-card">
+        <div className="account-field">
+          <label className="account-label">Blocked accounts</label>
+          <p className="account-hint">
+            Blocking hides someone's posts from your feed and profile. They are not
+            told, and blocking someone also ends any friendship with them. You can
+            undo it here at any time.
+          </p>
+          {blocked.length === 0 ? (
+            <div className="account-value">You have not blocked anyone.</div>
+          ) : (
+            <ul className="blocked-list">
+              {blocked.map((person) => (
+                <li className="blocked-row" key={person.id}>
+                  <Avatar
+                    className="blocked-avatar"
+                    src={person.avatarUrl}
+                    name={person.username || person.name || '?'}
+                  />
+                  <span className="blocked-name">
+                    {person.username ? `@${person.username}` : person.name || 'Account'}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    disabled={blockedBusy === person.id}
+                    onClick={() => unblock(person)}
+                  >
+                    {blockedBusy === person.id ? 'Unblocking…' : 'Unblock'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+
       <section className="account-danger">
         <h3><span className="material-symbols-rounded">delete_forever</span> Delete account</h3>
         <p>
@@ -418,7 +481,7 @@ export default function AccountPage() {
                 onSubmit={savePassword} onClick={(e) => e.stopPropagation()}>
             <h3 className="confirm-title">Change your password</h3>
             <p className="confirm-message">
-              Confirm the password you use now, then choose a new one. At least 6
+              Confirm the password you use now, then choose a new one. At least 8
               characters.
             </p>
             <input
@@ -461,7 +524,7 @@ export default function AccountPage() {
               <button type="button" className="btn btn-outline" onClick={closePassword}>
                 Cancel
               </button>
-              <button type="submit" className="btn btn-primary" disabled={pwSaving || !pwCurrent || pwNew.length < 6 || !pwConfirm}>
+              <button type="submit" className="btn btn-primary" disabled={pwSaving || !pwCurrent || pwNew.length < 8 || !pwConfirm}>
                 {pwSaving ? 'Saving…' : 'Update password'}
               </button>
             </div>

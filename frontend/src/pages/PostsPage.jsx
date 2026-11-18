@@ -9,10 +9,17 @@ import Loader from '../components/Loader';
 import Avatar from '../components/Avatar';
 import NotFound from './NotFound';
 
+const REPORT_REASONS = [
+  { value: 'spam', label: 'Spam or advertising' },
+  { value: 'harassment', label: 'Harassment or abuse' },
+  { value: 'misinformation', label: 'Misleading religious content' },
+  { value: 'other', label: 'Something else' },
+];
+
 // Reuses views/post-card.ejs's markup, which the shared stylesheet already
 // styles. The card is factored out because the feed, a profile and a permalink
 // all render it, and three copies is how they drift.
-export function PostCard({ post, permalinkBase = '', canManage, onChanged, onDeleted }) {
+export function PostCard({ post, permalinkBase = '', canManage, onChanged, onDeleted, onBlocked }) {
   const { username, isLoggedIn } = useSession();
   const navigate = useNavigate();
   const ask = useConfirm();
@@ -24,6 +31,13 @@ export function PostCard({ post, permalinkBase = '', canManage, onChanged, onDel
   const [menuOpen, setMenuOpen] = useState(false);
   const moreRef = useRef(null);
   const moreButtonRef = useRef(null);
+  // Report flow: a small dialog with a reason, not a browser prompt.
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('spam');
+  const [reportNote, setReportNote] = useState('');
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reportError, setReportError] = useState('');
+  const [blocking, setBlocking] = useState(false);
   const [likeState, setLikeState] = useState({
     liked: Boolean(post.likedByMe),
     count: Number(post.likeCount) || 0,
@@ -65,8 +79,12 @@ export function PostCard({ post, permalinkBase = '', canManage, onChanged, onDel
     : Boolean(username && post.author && post.author.username === username);
 
   const handle = post.author && post.author.username ? post.author.username : null;
+  const authorId = post.author
+    ? String(post.author._id || post.author)
+    : null;
   const permalink = permalinkBase + '/post/' + post._id;
   const moreMenuId = `post-more-${post._id}`;
+  const reportFieldId = `post-report-${post._id}`;
 
   async function handleLike() {
     if (!isLoggedIn) {
@@ -121,6 +139,56 @@ export function PostCard({ post, permalinkBase = '', canManage, onChanged, onDel
     }
   }
 
+  async function handleBlock() {
+    if (blocking) return;
+    const target = handle || post.authorName || 'this account';
+    const ok = await ask({
+      title: `Block ${target}?`,
+      message: 'Their posts will be hidden from your feed and profile. They are not told, and you can unblock them from your account page.',
+      confirmLabel: 'Block',
+      danger: true,
+    });
+    if (!ok) return;
+
+    setBlocking(true);
+    setError('');
+    try {
+      await api.block(authorId);
+      toast(`Blocked ${target}`, { kind: 'delete' });
+      if (onBlocked) onBlocked(authorId);
+      else setRemoved(true);
+    } catch (err) {
+      setError('Could not block that account.');
+      setBlocking(false);
+    }
+  }
+
+  async function submitReport(event) {
+    event.preventDefault();
+    if (reportBusy) return;
+    setReportBusy(true);
+    setReportError('');
+    try {
+      const result = await api.report(post._id, { reason: reportReason, note: reportNote });
+      setReportOpen(false);
+      setReportNote('');
+      toast(
+        result && result.hidden
+          ? 'Report received - the post is hidden pending review.'
+          : 'Report received. Thank you for flagging it.',
+      );
+    } catch (err) {
+      if (err.status === 401) {
+        setReportOpen(false);
+        navigate('/login');
+      } else {
+        setReportError('Could not send that report. Please try again.');
+      }
+    } finally {
+      setReportBusy(false);
+    }
+  }
+
   if (removed) return null;
 
   if (editing) {
@@ -170,7 +238,7 @@ export function PostCard({ post, permalinkBase = '', canManage, onChanged, onDel
                   title="Copy link to this post" aria-label="Copy link to this post">
             <span className="material-symbols-rounded">share</span>
           </button>
-          {owned && (
+          {isLoggedIn && (
             <div className="post-more" ref={moreRef}>
               <button
                 ref={moreButtonRef}
@@ -187,32 +255,68 @@ export function PostCard({ post, permalinkBase = '', canManage, onChanged, onDel
               </button>
               {menuOpen && (
                 <div className="post-more-menu" id={moreMenuId} role="menu" aria-label="Post options">
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      setEditing(true);
-                    }}
-                  >
-                    <span className="material-symbols-rounded" aria-hidden="true">edit</span>
-                    Edit post
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="is-danger"
-                    disabled={deleting}
-                    onClick={() => {
-                      setMenuOpen(false);
-                      handleDelete();
-                    }}
-                  >
-                    <span className="material-symbols-rounded" aria-hidden="true">
-                      {deleting ? 'hourglass_top' : 'delete'}
-                    </span>
-                    {deleting ? 'Deleting…' : 'Delete post'}
-                  </button>
+                  {owned ? (
+                    <>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          setEditing(true);
+                        }}
+                      >
+                        <span className="material-symbols-rounded" aria-hidden="true">edit</span>
+                        Edit post
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="is-danger"
+                        disabled={deleting}
+                        onClick={() => {
+                          setMenuOpen(false);
+                          handleDelete();
+                        }}
+                      >
+                        <span className="material-symbols-rounded" aria-hidden="true">
+                          {deleting ? 'hourglass_top' : 'delete'}
+                        </span>
+                        {deleting ? 'Deleting…' : 'Delete post'}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          setReportError('');
+                          setReportOpen(true);
+                        }}
+                      >
+                        <span className="material-symbols-rounded" aria-hidden="true">flag</span>
+                        Report post
+                      </button>
+                      {authorId && (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="is-danger"
+                          disabled={blocking}
+                          onClick={() => {
+                            setMenuOpen(false);
+                            handleBlock();
+                          }}
+                        >
+                          <span className="material-symbols-rounded" aria-hidden="true">
+                            {blocking ? 'hourglass_top' : 'block'}
+                          </span>
+                          {blocking ? 'Blocking…' : `Block ${handle || 'author'}`}
+                        </button>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -237,6 +341,15 @@ export function PostCard({ post, permalinkBase = '', canManage, onChanged, onDel
         {date}
       </div>
 
+      {post.status === 'pending' && (
+        <p className="post-pending-note" role="status">
+          <span className="material-symbols-rounded" aria-hidden="true">hourglass_top</span>
+          {post.statusReason === 'reported'
+            ? 'Hidden while a moderator reviews it. Only you can see it.'
+            : 'Waiting for review. Only you can see it until it is approved.'}
+        </p>
+      )}
+
       {error && <p className="post-error" role="alert">{error}</p>}
 
       {post.isVideo ? (
@@ -253,6 +366,56 @@ export function PostCard({ post, permalinkBase = '', canManage, onChanged, onDel
           {post.reference && <p className="post-reference">Reference: {post.reference}</p>}
           {actions}
         </>
+      )}
+
+      {reportOpen && (
+        <div className="confirm-overlay" role="presentation" onClick={() => !reportBusy && setReportOpen(false)}>
+          <form className="confirm-card post-report-card" role="dialog" aria-modal="true" aria-label="Report this post"
+                onSubmit={submitReport} onClick={(event) => event.stopPropagation()}>
+            <h3 className="confirm-title">Report this post</h3>
+            <p className="confirm-message">
+              Reports are anonymous. If several people flag a post, it is hidden
+              until a moderator looks at it.
+            </p>
+
+            <label className="account-label" htmlFor={reportFieldId}>Reason</label>
+            <select
+              id={reportFieldId}
+              className="form-control"
+              value={reportReason}
+              onChange={(event) => setReportReason(event.target.value)}
+              disabled={reportBusy}
+            >
+              {REPORT_REASONS.map((reason) => (
+                <option key={reason.value} value={reason.value}>{reason.label}</option>
+              ))}
+            </select>
+
+            <label className="account-label" htmlFor={`${reportFieldId}-note`}>Anything else? (optional)</label>
+            <textarea
+              id={`${reportFieldId}-note`}
+              className="form-control"
+              rows={3}
+              maxLength={500}
+              value={reportNote}
+              onChange={(event) => setReportNote(event.target.value)}
+              disabled={reportBusy}
+              placeholder="Add a short note for the moderator."
+            />
+
+            {reportError && <p className="post-error" role="alert">{reportError}</p>}
+
+            <div className="confirm-actions">
+              <button type="button" className="btn btn-outline" disabled={reportBusy}
+                      onClick={() => setReportOpen(false)}>
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={reportBusy}>
+                {reportBusy ? 'Sending…' : 'Send report'}
+              </button>
+            </div>
+          </form>
+        </div>
       )}
     </div>
   );
@@ -343,6 +506,10 @@ export function PostsPage() {
               ...d,
               posts: d.posts.filter((p) => p._id !== deleted._id),
             }))}
+            onBlocked={(authorId) => setData((d) => ({
+              ...d,
+              posts: d.posts.filter((p) => String(p.author?._id || p.author) !== String(authorId)),
+            }))}
           />
         ))
       )}
@@ -393,10 +560,16 @@ function PostForm({ post, onClose, onSaved }) {
       };
       const result = editing ? await api.update(post._id, payload) : await api.create(payload);
       await onSaved(result && result.post);
-      toast(editing ? 'Post updated' : 'Post shared');
+      if (editing) toast('Post updated');
+      else if (result && result.held) toast('Post shared - it will appear after review');
+      else toast('Post shared');
     } catch (err) {
       if (err.status === 401) setError('Sign in to save this post.');
       else if (err.status === 403) setError('You can only edit your own posts.');
+      else if (err.status === 429 && err.body?.error === 'rate-limited') {
+        const minutes = Math.max(1, Math.ceil((Number(err.body.retryAfter) || 0) / 60));
+        setError(`You are posting too often. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`);
+      }
       else setError(editing ? 'Could not save those changes.' : 'Could not save that post.');
     } finally {
       setSaving(false);
@@ -497,6 +670,7 @@ export function PostPage() {
         permalinkBase={state.permalinkBase}
         onChanged={(updated) => setState((s) => ({ ...s, post: updated }))}
         onDeleted={() => navigate('/posts')}
+        onBlocked={() => navigate('/posts')}
       />
       <p className="post-back"><Link to="/posts">&larr; Back to all posts</Link></p>
     </>
@@ -814,6 +988,10 @@ export function ProfilePage() {
                 onDeleted={(deleted) => setState((s) => (s.data ? {
                   ...s,
                   data: { ...s.data, posts: s.data.posts.filter((p) => p._id !== deleted._id) },
+                } : s))}
+                onBlocked={() => setState((s) => (s.data ? {
+                  ...s,
+                  data: { ...s.data, posts: [] },
                 } : s))}
               />
             ))

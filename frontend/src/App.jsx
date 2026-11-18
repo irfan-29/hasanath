@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AudioProvider } from './components/AudioProvider';
 import Loader from './components/Loader';
 import Navbar from './components/Navbar';
+import AnnouncementBanner from './components/AnnouncementBanner';
 import Player from './components/Player';
 import TabBar from './components/TabBar';
 import { SessionProvider, THEME_STORAGE_KEY } from './hooks/useSession';
@@ -10,7 +11,7 @@ import { NotificationProvider } from './hooks/useNotifications.jsx';
 import { ConfirmProvider } from './components/ConfirmProvider';
 import { ToastProvider } from './components/ToastProvider';
 import useShareHandler from './hooks/useShareHandler';
-import { api } from './services/api';
+import { api, banners as bannersApi } from './services/api';
 import * as typography from './services/typography';
 import { applyAccent, syncThemeColor } from './services/accent';
 import QuranPage from './pages/QuranPage';
@@ -27,6 +28,7 @@ import CalendarPage from './pages/CalendarPage';
 import { LoginPage, RegisterPage, VerifyPage, ForgotPasswordPage, ResetPasswordPage } from './pages/AuthPage';
 import LandingPage from './pages/LandingPage';
 import AccountPage from './pages/AccountPage';
+import AdminPage from './pages/AdminPage';
 import NotificationsPage from './pages/NotificationsPage';
 import { PostsPage, PostPage, ProfilePage } from './pages/PostsPage';
 import SurahPage from './pages/SurahPage';
@@ -112,6 +114,24 @@ function Shell() {
     return () => { cancelled = true; };
   }, []);
 
+  // Acknowledging a one-time banner hides it immediately and records the view
+  // on the server. The local removal happens first so the dialog cannot linger
+  // behind a slow request; if the write fails, the next boot shows the popup
+  // again, which is the safer failure.
+  const dismissOtb = useCallback(async (id) => {
+    if (!id) return;
+    setMeta((current) => {
+      if (!current || !current.banners || !current.banners.otb) return current;
+      if (current.banners.otb.id !== id) return current;
+      return { ...current, banners: { ...current.banners, otb: null } };
+    });
+    try {
+      await bannersApi.seen(id);
+    } catch (err) {
+      // Nothing to do here: the banner is already out of the current view.
+    }
+  }, []);
+
   // Apply a theme and remember it for the next first paint. The inline script in
   // index.html reads the same key before any bundle downloads, so a dark-mode
   // reader does not get a white flash while React boots.
@@ -178,6 +198,7 @@ function Shell() {
     // The navbar renders this straight away; every other avatar comes from the
     // payload that already owns it (posts, profile, friends).
     avatarUrl: meta && meta.session ? meta.session.avatarUrl : null,
+    isAdmin: Boolean(meta && meta.session && meta.session.isAdmin),
     // Where a signed-in reader lands from "/", and where the landing page's
     // guest CTA enters the app. Null only if the boot request failed.
     homePath: meta ? meta.homePath : null,
@@ -185,8 +206,12 @@ function Shell() {
     setTheme,
     accent: meta ? meta.accent : null,
     setAccent,
+    // Sticky bars and the next unacknowledged one-time popup, delivered with
+    // the boot payload. The banner component owns their presentation.
+    banners: meta && meta.banners ? meta.banners : { sticky: [], otb: null },
+    dismissOtb,
     refresh,
-  }), [meta, setTheme, setAccent, refresh]);
+  }), [meta, setTheme, setAccent, dismissOtb, refresh]);
 
   // Auth routes render their own standalone cards and do not need the shell's
   // metadata (or its navbar). They do still get the theme, because setTheme
@@ -232,6 +257,7 @@ function Shell() {
       <ToastProvider>
       <ConfirmProvider>
         <Navbar session={resolved} />
+        <AnnouncementBanner />
         <div className="main-content">
         <Routes>
           <Route path="/quran" element={<QuranPage />} />
@@ -245,6 +271,7 @@ function Shell() {
           <Route path="/posts" element={<PostsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/account" element={<AccountPage />} />
+          <Route path="/admin" element={<AdminPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/salah-timings" element={<SalahTimingsPage />} />
           <Route path="/qibla" element={<QiblaPage />} />

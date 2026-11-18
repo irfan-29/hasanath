@@ -12,7 +12,7 @@ import Loader from '../components/Loader';
 
 const MESSAGES = {
   'invalid-email': 'Enter a valid email address.',
-  'weak-password': 'Password must be at least 6 characters.',
+  'weak-password': 'Password must be at least 8 characters.',
   'mismatch': 'Passwords do not match.',
   duplicate: 'That email is already registered.',
   'invalid-credentials': 'Invalid email, username or password.',
@@ -23,6 +23,15 @@ const MESSAGES = {
   'email-not-sent': 'We could not send the email. Please try again shortly.',
   'same-password': 'Choose a password different from the current one.'
 };
+
+// A code-email request that trips the server-side address or IP limit answers
+// with the seconds to wait. One sentence covers sign-up, resend and reset.
+function rateLimitedMessage(err) {
+  if (err?.body?.error !== 'rate-limited') return '';
+  const seconds = Number(err.body.retryAfter) || 0;
+  const minutes = Math.max(1, Math.ceil(seconds / 60));
+  return `Too many emails requested. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`;
+}
 
 export default function AuthPage({ mode: initialMode = 'login' }) {
   const [mode, setMode] = useState(initialMode); // login | register | verify | forgot | reset
@@ -63,7 +72,16 @@ export default function AuthPage({ mode: initialMode = 'login' }) {
       await api.post('/auth/login', { identifier, password });
       done();
     } catch (err) {
-      setError(MESSAGES[err.body?.error] || 'Could not sign you in.');
+      // The API answers 429 once the per-account or per-IP limit trips. Saying
+      // how long to wait is friendlier than "try again later" and stops the
+      // visitor from retrying immediately.
+      if (err.body?.error === 'rate-limited') {
+        const seconds = Number(err.body.retryAfter) || 0;
+        const minutes = Math.max(1, Math.ceil(seconds / 60));
+        setError(`Too many sign-in attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`);
+      } else {
+        setError(MESSAGES[err.body?.error] || 'Could not sign you in.');
+      }
     } finally {
       setBusy(false);
     }
@@ -78,7 +96,7 @@ export default function AuthPage({ mode: initialMode = 'login' }) {
       setCode('');
       go('/verify-email', 'verify');
     } catch (err) {
-      setError(MESSAGES[err.body?.error] || 'Could not create the account.');
+      setError(rateLimitedMessage(err) || MESSAGES[err.body?.error] || 'Could not create the account.');
     } finally {
       setBusy(false);
     }
@@ -108,7 +126,9 @@ export default function AuthPage({ mode: initialMode = 'login' }) {
       else await api.post('/auth/resend', {});
       setCooldown(30);
     } catch (err) {
-      if (err.body?.wait) setCooldown(err.body.wait);
+      const limited = rateLimitedMessage(err);
+      if (limited) setError(limited);
+      else if (err.body?.wait) setCooldown(err.body.wait);
       else setError(MESSAGES[err.body?.error] || 'Could not send another code.');
     } finally {
       setBusy(false);
@@ -130,7 +150,7 @@ export default function AuthPage({ mode: initialMode = 'login' }) {
       setCooldown(30);
       go('/reset-password', 'reset');
     } catch (err) {
-      setError(MESSAGES[err.body?.error] || 'Could not send the reset code.');
+      setError(rateLimitedMessage(err) || MESSAGES[err.body?.error] || 'Could not send the reset code.');
     } finally {
       setBusy(false);
     }
@@ -191,7 +211,7 @@ export default function AuthPage({ mode: initialMode = 'login' }) {
             </div>
 
             <div className="form-floating">
-              <input className="form-control" type="password" id="password" name="password" required minLength={6}
+              <input className="form-control" type="password" id="password" name="password" required
                      autoComplete="current-password" placeholder="••••••••"
                      value={password} onChange={(e) => setPassword(e.target.value)} />
               <label htmlFor="password">Password</label>
@@ -218,18 +238,18 @@ export default function AuthPage({ mode: initialMode = 'login' }) {
               <label htmlFor="email">Email address</label>
             </div>
             <div className="form-floating">
-              <input className="form-control" type="password" id="password" name="password" required minLength={6}
+              <input className="form-control" type="password" id="password" name="password" required minLength={8}
                      autoComplete="new-password" placeholder="••••••••"
                      value={password} onChange={(e) => setPassword(e.target.value)} />
               <label htmlFor="password">Password</label>
             </div>
             <div className="form-floating">
-              <input className="form-control" type="password" id="cpassword" name="cpassword" required minLength={6}
+              <input className="form-control" type="password" id="cpassword" name="cpassword" required minLength={8}
                      autoComplete="new-password" placeholder="••••••••"
                      value={confirm} onChange={(e) => setConfirm(e.target.value)} />
               <label htmlFor="cpassword">Confirm password</label>
             </div>
-            <p className="auth-hint">At least 6 characters.</p>
+            <p className="auth-hint">At least 8 characters.</p>
             <button type="submit" className="btn btn-primary auth-submit" disabled={busy}>
               {busy ? 'Creating…' : 'Create account'}
             </button>
@@ -277,18 +297,18 @@ export default function AuthPage({ mode: initialMode = 'login' }) {
               <label htmlFor="reset-code">Reset code</label>
             </div>
             <div className="form-floating">
-              <input className="form-control" type="password" id="new-password" name="password" required minLength={6}
+              <input className="form-control" type="password" id="new-password" name="password" required minLength={8}
                      autoComplete="new-password" placeholder="••••••••"
                      value={password} onChange={(e) => setPassword(e.target.value)} />
               <label htmlFor="new-password">New password</label>
             </div>
             <div className="form-floating">
-              <input className="form-control" type="password" id="confirm-password" name="cpassword" required minLength={6}
+              <input className="form-control" type="password" id="confirm-password" name="cpassword" required minLength={8}
                      autoComplete="new-password" placeholder="••••••••"
                      value={confirm} onChange={(e) => setConfirm(e.target.value)} />
               <label htmlFor="confirm-password">Confirm new password</label>
             </div>
-            <p className="auth-hint">At least 6 characters. The code expires in 10 minutes.</p>
+            <p className="auth-hint">At least 8 characters. The code expires in 10 minutes.</p>
             <button type="submit" className="btn btn-primary auth-submit" disabled={busy || code.length !== 6}>
               {busy ? 'Saving…' : 'Set new password'}
             </button>

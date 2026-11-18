@@ -17,7 +17,9 @@ const appNotificationSchema = new mongoose.Schema({
             "friend_accepted",
             "challenge_invite",
             "challenge_accepted",
-            "challenge_declined"
+            "challenge_declined",
+            // A message from the admin portal, fanned out to every account.
+            "admin_announcement"
         ]
     },
     // Who caused it. Copied rather than referenced so the row still reads

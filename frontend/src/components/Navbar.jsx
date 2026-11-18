@@ -185,6 +185,12 @@ export default function Navbar({ session }) {
                     <span className="material-symbols-rounded" aria-hidden="true">settings</span>
                     Settings
                   </Link>
+                  {session.isAdmin && (
+                    <Link to="/admin" className="header-account-item">
+                      <span className="material-symbols-rounded" aria-hidden="true">admin_panel_settings</span>
+                      Admin
+                    </Link>
+                  )}
                   <button type="button" className="header-account-item" onClick={signOut}>
                     <span className="material-symbols-rounded" aria-hidden="true">logout</span>
                     Sign out
@@ -222,7 +228,9 @@ export default function Navbar({ session }) {
 
         <div className="nav-section-label">Account</div>
         <ul className="nav-list secondary-nav">
-          {ACCOUNT.map(link)}
+          {(session.isAdmin
+            ? [...ACCOUNT, { to: '/admin', path: '/admin', icon: 'admin_panel_settings', label: 'Admin' }]
+            : ACCOUNT).map(link)}
 
           {session.isLoggedIn ? (
             <>
