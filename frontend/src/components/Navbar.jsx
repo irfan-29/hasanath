@@ -186,7 +186,9 @@ export default function Navbar({ session }) {
                     Settings
                   </Link>
                   {session.isAdmin && (
-                    <Link to="/admin" className="header-account-item">
+                    // Phone users reach the portal from the footer's More
+                    // sheet, so the top menu does not repeat that entry.
+                    <Link to="/admin" className="header-account-item header-account-admin">
                       <span className="material-symbols-rounded" aria-hidden="true">admin_panel_settings</span>
                       Admin
                     </Link>

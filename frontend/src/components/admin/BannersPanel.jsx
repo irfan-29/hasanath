@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { admin } from '../../services/api';
 import { useToast } from '../ToastProvider';
 import { useConfirm } from '../ConfirmProvider';
+import FormSelect from '../FormSelect';
 import Loader from '../Loader';
 
 // One-time popups and sticky bars.
@@ -168,31 +169,29 @@ export default function BannersPanel() {
 
         <form className="admin-form" onSubmit={submit}>
           <div className="admin-form-row">
-            <label className="admin-field">
-              <span className="account-label">Type</span>
-              <select
-                className="form-control"
-                value={form.kind}
-                onChange={(event) => update('kind', event.target.value)}
-                disabled={Boolean(form.id)}
-              >
-                <option value="otb">One-time popup</option>
-                <option value="sticky">Sticky bar</option>
-              </select>
-            </label>
+            <FormSelect
+              id="banner-kind"
+              label="Type"
+              value={form.kind}
+              options={[
+                { value: 'otb', label: 'One-time popup' },
+                { value: 'sticky', label: 'Sticky bar' },
+              ]}
+              onChange={(value) => update('kind', value)}
+              disabled={Boolean(form.id)}
+            />
 
             {form.kind === 'sticky' && (
-              <label className="admin-field">
-                <span className="account-label">Position</span>
-                <select
-                  className="form-control"
-                  value={form.position}
-                  onChange={(event) => update('position', event.target.value)}
-                >
-                  <option value="top">Top of the screen</option>
-                  <option value="bottom">Bottom of the screen</option>
-                </select>
-              </label>
+              <FormSelect
+                id="banner-position"
+                label="Position"
+                value={form.position}
+                options={[
+                  { value: 'top', label: 'Top of the screen' },
+                  { value: 'bottom', label: 'Bottom of the screen' },
+                ]}
+                onChange={(value) => update('position', value)}
+              />
             )}
           </div>
 
@@ -298,9 +297,9 @@ export default function BannersPanel() {
                 )}
               </div>
               <p className="moderation-author">{item.title}</p>
-              {item.body && <p className="post-content">{item.body}</p>}
+              {item.body && <p className="admin-banner-body">{item.body}</p>}
               {item.ctaLabel && (
-                <p className="post-reference">
+                <p className="admin-banner-link">
                   {item.ctaLabel}{item.ctaUrl ? ` → ${item.ctaUrl}` : ''}
                 </p>
               )}

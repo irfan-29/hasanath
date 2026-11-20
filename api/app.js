@@ -2380,13 +2380,18 @@ app.get("/api/u/:username", async function(req, res){
         const isOwner = Boolean(req.isAuthenticated() && req.user && String(req.user._id) === String(author._id));
         const viewerId = req.isAuthenticated() && req.user ? req.user._id : null;
         const viewer = req.isAuthenticated() ? req.user : null;
+        // Blocking hides the whole profile from this viewer, not just the
+        // posts: the friend list and the friend actions are part of it. The
+        // client needs the flag to draw the blocked state and its Unblock
+        // button instead of an Add friend button.
+        const blocked = Boolean(viewer && postModeration.isBlocked(viewer, author._id));
 
         // A profile shows published posts. The owner also sees their pending
         // ones (with a badge) so a review hold is not a silent disappearance.
         // Rejected posts are hidden from everyone. A viewer who blocked this
         // author sees no posts at all.
         let posts = [];
-        if (!postModeration.isBlocked(viewer, author._id)) {
+        if (!blocked) {
             const filter = { author: author._id };
             filter.status = isOwner
                 ? { $ne: "rejected" }
@@ -2401,17 +2406,27 @@ app.get("/api/u/:username", async function(req, res){
         // The friend list travels with the profile because the profile owns the
         // Friends tab now: one request answers posts, relationship and friends
         // together instead of making the tab wait on a second round trip.
-        const [friendship, friendCount, friends] = await Promise.all([
-            friendsService.relationship(viewerId, author._id),
-            friendsService.friendCount(author._id),
-            friendsService.listFriends(author._id)
-        ]);
+        // A blocked profile returns none of the owner's friend graph either.
+        const [friendship, friendCount, friends] = blocked
+            ? [{ state: "none" }, 0, []]
+            : await Promise.all([
+                friendsService.relationship(viewerId, author._id),
+                friendsService.friendCount(author._id),
+                friendsService.listFriends(author._id)
+            ]);
 
         res.json({
-            owner: author,
+            owner: {
+                id: String(author._id),
+                username: author.username || "",
+                name: author.name || "",
+                avatarUrl: author.avatarUrl || "",
+                createdAt: author.createdAt
+            },
             posts: posts.map((post) => presentPost(post, req)),
             permalinkBase: originOf(req),
             isOwner,
+            blocked,
             friendship,
             friendCount,
             friends

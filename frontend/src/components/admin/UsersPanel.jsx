@@ -160,7 +160,7 @@ export default function UsersPanel() {
               <tbody>
                 {state.users.map((user) => (
                   <tr key={user.id}>
-                    <td>
+                    <td data-label="Account">
                       {user.username ? (
                         <Link className="admin-user-link" to={`/u/${user.username}`}>
                           @{user.username}
@@ -170,16 +170,16 @@ export default function UsersPanel() {
                       )}
                       {user.name && <span className="admin-user-name">{user.name}</span>}
                     </td>
-                    <td className="admin-cell-muted">{user.email || '—'}</td>
-                    <td className="admin-cell-muted">{when(user.joinedAt)}</td>
-                    <td className="admin-cell-muted">{shortDate(user.lastSeenAt)}</td>
-                    <td>
+                    <td className="admin-cell-muted" data-label="Email">{user.email || '—'}</td>
+                    <td className="admin-cell-muted" data-label="Joined">{when(user.joinedAt)}</td>
+                    <td className="admin-cell-muted" data-label="Last active">{shortDate(user.lastSeenAt)}</td>
+                    <td data-label="Posts">
                       {Number(user.posts).toLocaleString()}
                       {user.posts !== user.published && (
                         <span className="admin-cell-muted"> ({Number(user.published).toLocaleString()} live)</span>
                       )}
                     </td>
-                    <td>
+                    <td data-label="Access">
                       <div className="admin-role">
                         {user.envAdmin ? (
                           <span className="admin-status is-live">Site admin</span>
@@ -207,7 +207,7 @@ export default function UsersPanel() {
                         )}
                       </div>
                     </td>
-                    <td className="admin-cell-muted">{user.telegram ? 'On' : '—'}</td>
+                    <td className="admin-cell-muted" data-label="Telegram">{user.telegram ? 'On' : '—'}</td>
                   </tr>
                 ))}
               </tbody>

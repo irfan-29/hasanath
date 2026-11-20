@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { friends as friendsApi, posts as api } from '../services/api';
 import { useUnreadNotifications } from '../hooks/useNotifications.jsx';
 import { useConfirm } from '../components/ConfirmProvider';
 import { useToast } from '../components/ToastProvider';
 import { useSession } from '../hooks/useSession';
+import FormSelect from '../components/FormSelect';
 import Loader from '../components/Loader';
 import Avatar from '../components/Avatar';
 import NotFound from './NotFound';
@@ -70,6 +72,23 @@ export function PostCard({ post, permalinkBase = '', canManage, onChanged, onDel
       document.removeEventListener('keydown', onKey);
     };
   }, [menuOpen]);
+
+  // The report dialog is portalled to <body> below, so it is not trapped by the
+  // post card's stacking context. While it is open the page behind it should
+  // not scroll, and Escape closes it like every other dialog in the app.
+  useEffect(() => {
+    if (!reportOpen) return undefined;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (event) => {
+      if (event.key === 'Escape' && !reportBusy) setReportOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [reportOpen, reportBusy]);
 
   // Profile responses do not populate `author` (every post there belongs to the
   // profile owner), so that page passes an explicit canManage. Everywhere else
@@ -144,7 +163,7 @@ export function PostCard({ post, permalinkBase = '', canManage, onChanged, onDel
     const target = handle || post.authorName || 'this account';
     const ok = await ask({
       title: `Block ${target}?`,
-      message: 'Their posts will be hidden from your feed and profile. They are not told, and you can unblock them from your account page.',
+      message: 'Their posts will be hidden from your feed and profile. If you are friends, blocking also removes the friendship. They are not told, and you can unblock them later.',
       confirmLabel: 'Block',
       danger: true,
     });
@@ -368,7 +387,7 @@ export function PostCard({ post, permalinkBase = '', canManage, onChanged, onDel
         </>
       )}
 
-      {reportOpen && (
+      {reportOpen && createPortal(
         <div className="confirm-overlay" role="presentation" onClick={() => !reportBusy && setReportOpen(false)}>
           <form className="confirm-card post-report-card" role="dialog" aria-modal="true" aria-label="Report this post"
                 onSubmit={submitReport} onClick={(event) => event.stopPropagation()}>
@@ -378,18 +397,14 @@ export function PostCard({ post, permalinkBase = '', canManage, onChanged, onDel
               until a moderator looks at it.
             </p>
 
-            <label className="account-label" htmlFor={reportFieldId}>Reason</label>
-            <select
+            <FormSelect
               id={reportFieldId}
-              className="form-control"
+              label="Reason"
               value={reportReason}
-              onChange={(event) => setReportReason(event.target.value)}
+              options={REPORT_REASONS}
+              onChange={setReportReason}
               disabled={reportBusy}
-            >
-              {REPORT_REASONS.map((reason) => (
-                <option key={reason.value} value={reason.value}>{reason.label}</option>
-              ))}
-            </select>
+            />
 
             <label className="account-label" htmlFor={`${reportFieldId}-note`}>Anything else? (optional)</label>
             <textarea
@@ -415,7 +430,8 @@ export function PostCard({ post, permalinkBase = '', canManage, onChanged, onDel
               </button>
             </div>
           </form>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
@@ -836,6 +852,56 @@ export function ProfilePage() {
     }
   }
 
+  // Blocking is a viewer-side action, so it lives on the profile rather than
+  // only on the account page. The server also deletes the friendship row; the
+  // confirm text says so before the person commits, because that part cannot
+  // be undone by unblocking.
+  async function blockUser() {
+    if (friendBusy || !state.data) return;
+    const { owner, friendship: relation } = state.data;
+    const target = owner.username || 'this account';
+    const isFriend = relation && relation.state === 'friends';
+
+    const ok = await ask({
+      title: isFriend
+        ? `Block @${target} and remove them as a friend?`
+        : `Block @${target}?`,
+      message: isFriend
+        ? 'Blocking removes them from your friends and hides their posts and profile from you. They are not told, and unblocking will not restore the friendship.'
+        : 'Their posts and profile will be hidden from you. They are not told, and you can unblock them later.',
+      confirmLabel: 'Block',
+      danger: true,
+    });
+    if (!ok) return;
+
+    setFriendBusy(true);
+    try {
+      await api.block(owner.id);
+      toast(`Blocked @${target}`, { kind: 'delete' });
+      await reload();
+    } catch (err) {
+      toast('Could not block that account.', { kind: 'error' });
+    } finally {
+      setFriendBusy(false);
+    }
+  }
+
+  async function unblockUser() {
+    if (friendBusy || !state.data) return;
+    const target = state.data.owner.username || 'that account';
+
+    setFriendBusy(true);
+    try {
+      await api.unblock(state.data.owner.id);
+      toast(`Unblocked @${target}`);
+      await reload();
+    } catch (err) {
+      toast('Could not unblock that account.', { kind: 'error' });
+    } finally {
+      setFriendBusy(false);
+    }
+  }
+
   async function cancelRequest(entry) {
     const ok = await ask({
       title: `Cancel your request to ${entry.username}?`,
@@ -880,7 +946,7 @@ export function ProfilePage() {
   if (state.loading) return <Loader variant="page" label="Loading profile" />;
   if (!state.data) return <NotFound />;
 
-  const { owner, posts, permalinkBase, isOwner, friendship, friendCount, friends = [] } = state.data;
+  const { owner, posts, permalinkBase, isOwner, blocked = false, friendship, friendCount, friends = [] } = state.data;
   const relationship = friendship ? friendship.state : 'none';
   const shareUrl = (permalinkBase || '') + '/u/' + owner.username;
 
@@ -904,20 +970,21 @@ export function ProfilePage() {
             <span className="profile-stat-sep">·</span>
             <strong>{friendCount || 0}</strong> {(friendCount || 0) === 1 ? 'friend' : 'friends'}
             {isOwner && <span className="profile-badge">This is you</span>}
-            {relationship === 'friends' && !isOwner && <span className="profile-badge">Friends</span>}
+            {!isOwner && blocked && <span className="profile-badge profile-badge-blocked">Blocked</span>}
+            {!isOwner && !blocked && relationship === 'friends' && <span className="profile-badge">Friends</span>}
           </p>
         </div>
         <div className="profile-actions">
-          {!isOwner && relationship === 'none' && (
+          {!isOwner && !blocked && relationship === 'none' && (
             <button type="button" className="btn btn-primary" disabled={friendBusy} onClick={() => addFriend(owner.username)}>
               <span className="material-symbols-rounded icon-inline" aria-hidden="true">person_add</span>
               Add friend
             </button>
           )}
-          {!isOwner && relationship === 'outgoing' && (
+          {!isOwner && !blocked && relationship === 'outgoing' && (
             <span className="profile-friend-state">Request sent</span>
           )}
-          {!isOwner && relationship === 'incoming' && friendship && (
+          {!isOwner && !blocked && relationship === 'incoming' && friendship && (
             <div className="profile-friend-actions">
               <button type="button" className="btn btn-primary" disabled={friendBusy}
                       onClick={() => acceptFriend(friendship.friendshipId)}>
@@ -929,278 +996,310 @@ export function ProfilePage() {
               </button>
             </div>
           )}
-          {!isOwner && relationship === 'friends' && (
+          {!isOwner && !blocked && relationship === 'friends' && (
             <button type="button" className="btn btn-outline" disabled={friendBusy} onClick={() => removeFriend(owner.username)}>
               Remove friend
+            </button>
+          )}
+          {!isOwner && blocked && (
+            <button type="button" className="btn btn-outline" disabled={friendBusy} onClick={unblockUser}>
+              Unblock
+            </button>
+          )}
+          {!isOwner && !blocked && isLoggedIn && (
+            <button type="button" className="btn btn-danger-outline" disabled={friendBusy} onClick={blockUser}>
+              <span className="material-symbols-rounded icon-inline" aria-hidden="true">block</span>
+              Block
             </button>
           )}
         </div>
       </div>
 
-      {/* The header above is rendered once and the navigator sits under it, so
-          switching sections never redraws who you are looking at. */}
-      <div className="profile-tabs" role="tablist" aria-label="Profile sections">
-        <button
-          type="button"
-          role="tab"
-          id="profile-tab-posts"
-          aria-selected={tab === 'posts'}
-          aria-controls="profile-panel-posts"
-          className={`profile-tab${tab === 'posts' ? ' is-active' : ''}`}
-          onClick={() => setTab('posts')}
-        >
-          <span className="material-symbols-rounded" aria-hidden="true">post</span>
-          Posts
-          <span className="profile-tab-count">{posts.length}</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="profile-tab-friends"
-          aria-selected={tab === 'friends'}
-          aria-controls="profile-panel-friends"
-          className={`profile-tab${tab === 'friends' ? ' is-active' : ''}`}
-          onClick={() => setTab('friends')}
-        >
-          <span className="material-symbols-rounded" aria-hidden="true">group</span>
-          Friends
-          <span className="profile-tab-count">{friendCount || 0}</span>
-        </button>
-      </div>
-
-      {tab === 'posts' ? (
-        <div className="profile-panel" role="tabpanel" id="profile-panel-posts" aria-labelledby="profile-tab-posts">
-          {posts.length === 0 ? (
-            <p className="post-empty">{isOwner ? 'You have not posted anything yet.' : 'This user has not posted anything yet.'}</p>
-          ) : (
-            posts.map((post) => (
-              <PostCard
-                key={post._id}
-                post={post}
-                permalinkBase={permalinkBase}
-                // The profile payload leaves `author` as an id, so ownership comes
-                // from the profile-level flag rather than from the post itself.
-                canManage={isOwner}
-                onChanged={(updated) => setState((s) => (s.data ? {
-                  ...s,
-                  data: { ...s.data, posts: s.data.posts.map((p) => (p._id === updated._id ? updated : p)) },
-                } : s))}
-                onDeleted={(deleted) => setState((s) => (s.data ? {
-                  ...s,
-                  data: { ...s.data, posts: s.data.posts.filter((p) => p._id !== deleted._id) },
-                } : s))}
-                onBlocked={() => setState((s) => (s.data ? {
-                  ...s,
-                  data: { ...s.data, posts: [] },
-                } : s))}
-              />
-            ))
-          )}
+      {blocked ? (
+        <div className="profile-blocked-panel">
+          <span className="material-symbols-rounded" aria-hidden="true">block</span>
+          <h2>You blocked @{owner.username}</h2>
+          <p>Their posts and friend list are hidden from you. Unblock them to see this profile again.</p>
         </div>
       ) : (
-        <div className="profile-panel profile-friends" role="tabpanel" id="profile-panel-friends" aria-labelledby="profile-tab-friends">
-          {isOwner && (
-            <>
-              {/* The same "people you may know" idea as Instagram: a row of
-                  identity cards that scrolls sideways, each one offering the
-                  single action that matters here - Add. */}
-              {suggestions.length > 0 && (
-                <section className="profile-friends-block" aria-label="Suggested friends">
-                  <h3 className="profile-friends-title">Suggested for you</h3>
-                  <div className="friend-suggestions-scroll">
-                    {suggestions.map((entry) => (
-                      <article className="friend-suggestion" key={entry.id}>
-                        <Link
-                          className="friend-suggestion-avatar"
-                          to={`/u/${entry.username}`}
-                          aria-label={`Open ${entry.username}’s profile`}
-                        >
-                          <Avatar className="avatar-fill" src={entry.avatarUrl} name={entry.username} />
-                        </Link>
-                        <Link className="friend-suggestion-handle" to={`/u/${entry.username}`}>
-                          {entry.username}
-                        </Link>
-                        <span className="friend-suggestion-meta">
-                          {entry.mutualCount > 0
-                            ? `${entry.mutualCount} mutual friend${entry.mutualCount === 1 ? '' : 's'}`
-                            : (entry.name || 'New here')}
-                        </span>
-                        <button
-                          type="button"
-                          className="friend-suggestion-add"
-                          disabled={friendBusy}
-                          onClick={() => addFriend(entry.username)}
-                        >
-                          Add
-                        </button>
-                      </article>
-                    ))}
-                  </div>
-                </section>
+        <>
+          {/* The header above is rendered once and the navigator sits under it, so
+              switching sections never redraws who you are looking at. */}
+          <div className="profile-tabs" role="tablist" aria-label="Profile sections">
+            <button
+              type="button"
+              role="tab"
+              id="profile-tab-posts"
+              aria-selected={tab === 'posts'}
+              aria-controls="profile-panel-posts"
+              className={`profile-tab${tab === 'posts' ? ' is-active' : ''}`}
+              onClick={() => setTab('posts')}
+            >
+              <span className="material-symbols-rounded" aria-hidden="true">post</span>
+              Posts
+              <span className="profile-tab-count">{posts.length}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="profile-tab-friends"
+              aria-selected={tab === 'friends'}
+              aria-controls="profile-panel-friends"
+              className={`profile-tab${tab === 'friends' ? ' is-active' : ''}`}
+              onClick={() => setTab('friends')}
+            >
+              <span className="material-symbols-rounded" aria-hidden="true">group</span>
+              Friends
+              <span className="profile-tab-count">{friendCount || 0}</span>
+            </button>
+          </div>
+
+          {tab === 'posts' ? (
+            <div className="profile-panel" role="tabpanel" id="profile-panel-posts" aria-labelledby="profile-tab-posts">
+              {posts.length === 0 ? (
+                <p className="post-empty">{isOwner ? 'You have not posted anything yet.' : 'This user has not posted anything yet.'}</p>
+              ) : (
+                posts.map((post) => (
+                  <PostCard
+                    key={post._id}
+                    post={post}
+                    permalinkBase={permalinkBase}
+                    // The profile payload leaves `author` as an id, so ownership comes
+                    // from the profile-level flag rather than from the post itself.
+                    canManage={isOwner}
+                    onChanged={(updated) => setState((s) => (s.data ? {
+                      ...s,
+                      data: { ...s.data, posts: s.data.posts.map((p) => (p._id === updated._id ? updated : p)) },
+                    } : s))}
+                    onDeleted={(deleted) => setState((s) => (s.data ? {
+                      ...s,
+                      data: { ...s.data, posts: s.data.posts.filter((p) => p._id !== deleted._id) },
+                    } : s))}
+                    onBlocked={() => setState((s) => (s.data ? {
+                      ...s,
+                      data: {
+                        ...s.data,
+                        // A block from a post card on this page is the same
+                        // viewer-side state the header handles: drop the posts
+                        // and friendship so the panel replaces the tabs, rather
+                        // than leaving an empty profile with a live Block button.
+                        blocked: true,
+                        posts: [],
+                        friends: [],
+                        friendCount: 0,
+                        friendship: { state: 'none' },
+                      },
+                    } : s))}
+                  />
+                ))
               )}
-
-              <form className="friend-search" onSubmit={search}>
-                <input
-                  className="form-control"
-                  type="search"
-                  value={query}
-                  placeholder="Find by username"
-                  aria-label="Find friends by username"
-                  autoComplete="off"
-                  autoCapitalize="none"
-                  spellCheck="false"
-                  onChange={(event) => setQuery(event.target.value)}
-                />
-                <button type="submit" className="btn btn-primary" disabled={searching || query.trim().length < 2}>
-                  {searching ? 'Searching…' : 'Search'}
-                </button>
-              </form>
-
-              {results !== null && (
-                <div className="friend-result-list">
-                  {results.length === 0 ? (
-                    <p className="friend-empty">No usernames matched.</p>
-                  ) : (
-                    results.map((entry) => (
-                      <div className="friend-result" key={entry.id}>
-                        <Avatar className="friend-avatar" src={entry.avatarUrl} name={entry.username} />
-                        <div className="friend-identity">
-                          <Link className="friend-handle" to={`/u/${entry.username}`}>{entry.username}</Link>
-                          {entry.name && <span className="friend-since">{entry.name}</span>}
-                        </div>
-                        <div className="friend-action">
-                          {entry.relation === 'friends' && <span className="friend-relation">Friends</span>}
-                          {entry.relation === 'outgoing' && <span className="friend-relation">Requested</span>}
-                          {entry.relation === 'incoming' && (
-                            <button
-                              type="button"
-                              className="btn btn-primary btn-sm"
-                              disabled={friendBusy}
-                              onClick={() => acceptFriend(entry.friendshipId)}
+            </div>
+          ) : (
+            <div className="profile-panel profile-friends" role="tabpanel" id="profile-panel-friends" aria-labelledby="profile-tab-friends">
+              {isOwner && (
+                <>
+                  {/* The same "people you may know" idea as Instagram: a row of
+                      identity cards that scrolls sideways, each one offering the
+                      single action that matters here - Add. */}
+                  {suggestions.length > 0 && (
+                    <section className="profile-friends-block" aria-label="Suggested friends">
+                      <h3 className="profile-friends-title">Suggested for you</h3>
+                      <div className="friend-suggestions-scroll">
+                        {suggestions.map((entry) => (
+                          <article className="friend-suggestion" key={entry.id}>
+                            <Link
+                              className="friend-suggestion-avatar"
+                              to={`/u/${entry.username}`}
+                              aria-label={`Open ${entry.username}’s profile`}
                             >
-                              Accept
-                            </button>
-                          )}
-                          {entry.relation === 'none' && (
+                              <Avatar className="avatar-fill" src={entry.avatarUrl} name={entry.username} />
+                            </Link>
+                            <Link className="friend-suggestion-handle" to={`/u/${entry.username}`}>
+                              {entry.username}
+                            </Link>
+                            <span className="friend-suggestion-meta">
+                              {entry.mutualCount > 0
+                                ? `${entry.mutualCount} mutual friend${entry.mutualCount === 1 ? '' : 's'}`
+                                : (entry.name || 'New here')}
+                            </span>
                             <button
                               type="button"
-                              className="btn btn-outline btn-sm"
+                              className="friend-suggestion-add"
                               disabled={friendBusy}
                               onClick={() => addFriend(entry.username)}
                             >
-                              Add friend
+                              Add
                             </button>
-                          )}
-                        </div>
+                          </article>
+                        ))}
                       </div>
-                    ))
+                    </section>
                   )}
-                </div>
-              )}
 
-              {pending.incoming.length > 0 && (
-                <section className="profile-friends-block">
-                  <h3 className="profile-friends-title">Requests</h3>
-                  <div className="friends-list">
-                    {pending.incoming.map((entry) => (
-                      <div className="friend-row" key={entry.friendshipId}>
-                        <Avatar className="friend-avatar" src={entry.avatarUrl} name={entry.username} />
-                        <div className="friend-identity">
-                          <Link className="friend-handle" to={`/u/${entry.username}`}>{entry.username}</Link>
-                          <span className="friend-since">Wants to be friends</span>
-                        </div>
-                        <div className="friend-action">
-                          <button
-                            type="button"
-                            className="btn btn-primary btn-sm"
-                            disabled={friendBusy}
-                            onClick={() => acceptFriend(entry.friendshipId)}
-                          >
-                            Accept
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-outline btn-sm"
-                            disabled={friendBusy}
-                            onClick={() => declineFriend(entry.friendshipId)}
-                          >
-                            Decline
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
+                  <form className="friend-search" onSubmit={search}>
+                    <input
+                      className="form-control"
+                      type="search"
+                      value={query}
+                      placeholder="Find by username"
+                      aria-label="Find friends by username"
+                      autoComplete="off"
+                      autoCapitalize="none"
+                      spellCheck="false"
+                      onChange={(event) => setQuery(event.target.value)}
+                    />
+                    <button type="submit" className="btn btn-primary" disabled={searching || query.trim().length < 2}>
+                      {searching ? 'Searching…' : 'Search'}
+                    </button>
+                  </form>
 
-              {pending.outgoing.length > 0 && (
-                <section className="profile-friends-block">
-                  <h3 className="profile-friends-title">Sent requests</h3>
-                  <div className="friends-list">
-                    {pending.outgoing.map((entry) => (
-                      <div className="friend-row" key={entry.friendshipId}>
-                        <Avatar className="friend-avatar" src={entry.avatarUrl} name={entry.username} />
-                        <div className="friend-identity">
-                          <Link className="friend-handle" to={`/u/${entry.username}`}>{entry.username}</Link>
-                          <span className="friend-since">Request sent</span>
-                        </div>
-                        <button
-                          type="button"
-                          className="friend-remove"
-                          title="Cancel request"
-                          aria-label={`Cancel friend request to ${entry.username}`}
-                          disabled={friendBusy}
-                          onClick={() => cancelRequest(entry)}
-                        >
-                          <span className="material-symbols-rounded" aria-hidden="true">close</span>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
-            </>
-          )}
-
-          <section className="profile-friends-block">
-            <h3 className="profile-friends-title">
-              {isOwner ? 'Your friends' : `${owner.username}'s friends`}
-            </h3>
-            {friends.length === 0 ? (
-              <p className="friend-empty">
-                {isOwner
-                  ? `No friends yet. Share /u/${owner.username} to get requests.`
-                  : 'No friends yet.'}
-              </p>
-            ) : (
-              <div className="friends-list">
-                {friends.map((friend) => (
-                  <div className="friend-row" key={friend.id}>
-                    <Avatar className="friend-avatar" src={friend.avatarUrl} name={friend.username} />
-                    <div className="friend-identity">
-                      <Link className="friend-handle" to={`/u/${friend.username}`}>{friend.username}</Link>
-                      <span className="friend-since">
-                        Friends since {new Date(friend.since).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                      </span>
+                  {results !== null && (
+                    <div className="friend-result-list">
+                      {results.length === 0 ? (
+                        <p className="friend-empty">No usernames matched.</p>
+                      ) : (
+                        results.map((entry) => (
+                          <div className="friend-result" key={entry.id}>
+                            <Avatar className="friend-avatar" src={entry.avatarUrl} name={entry.username} />
+                            <div className="friend-identity">
+                              <Link className="friend-handle" to={`/u/${entry.username}`}>{entry.username}</Link>
+                              {entry.name && <span className="friend-since">{entry.name}</span>}
+                            </div>
+                            <div className="friend-action">
+                              {entry.relation === 'friends' && <span className="friend-relation">Friends</span>}
+                              {entry.relation === 'outgoing' && <span className="friend-relation">Requested</span>}
+                              {entry.relation === 'incoming' && (
+                                <button
+                                  type="button"
+                                  className="btn btn-primary btn-sm"
+                                  disabled={friendBusy}
+                                  onClick={() => acceptFriend(entry.friendshipId)}
+                                >
+                                  Accept
+                                </button>
+                              )}
+                              {entry.relation === 'none' && (
+                                <button
+                                  type="button"
+                                  className="btn btn-outline btn-sm"
+                                  disabled={friendBusy}
+                                  onClick={() => addFriend(entry.username)}
+                                >
+                                  Add friend
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
-                    {isOwner && (
-                      <button
-                        type="button"
-                        className="friend-remove"
-                        aria-label={`Remove ${friend.username}`}
-                        title="Remove friend"
-                        disabled={friendBusy}
-                        onClick={() => removeFriend(friend.username)}
-                      >
-                        <span className="material-symbols-rounded" aria-hidden="true">close</span>
-                      </button>
-                    )}
+                  )}
+
+                  {pending.incoming.length > 0 && (
+                    <section className="profile-friends-block">
+                      <h3 className="profile-friends-title">Requests</h3>
+                      <div className="friends-list">
+                        {pending.incoming.map((entry) => (
+                          <div className="friend-row" key={entry.friendshipId}>
+                            <Avatar className="friend-avatar" src={entry.avatarUrl} name={entry.username} />
+                            <div className="friend-identity">
+                              <Link className="friend-handle" to={`/u/${entry.username}`}>{entry.username}</Link>
+                              <span className="friend-since">Wants to be friends</span>
+                            </div>
+                            <div className="friend-action">
+                              <button
+                                type="button"
+                                className="btn btn-primary btn-sm"
+                                disabled={friendBusy}
+                                onClick={() => acceptFriend(entry.friendshipId)}
+                              >
+                                Accept
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-outline btn-sm"
+                                disabled={friendBusy}
+                                onClick={() => declineFriend(entry.friendshipId)}
+                              >
+                                Decline
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {pending.outgoing.length > 0 && (
+                    <section className="profile-friends-block">
+                      <h3 className="profile-friends-title">Sent requests</h3>
+                      <div className="friends-list">
+                        {pending.outgoing.map((entry) => (
+                          <div className="friend-row" key={entry.friendshipId}>
+                            <Avatar className="friend-avatar" src={entry.avatarUrl} name={entry.username} />
+                            <div className="friend-identity">
+                              <Link className="friend-handle" to={`/u/${entry.username}`}>{entry.username}</Link>
+                              <span className="friend-since">Request sent</span>
+                            </div>
+                            <button
+                              type="button"
+                              className="friend-remove"
+                              title="Cancel request"
+                              aria-label={`Cancel friend request to ${entry.username}`}
+                              disabled={friendBusy}
+                              onClick={() => cancelRequest(entry)}
+                            >
+                              <span className="material-symbols-rounded" aria-hidden="true">close</span>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </>
+              )}
+
+              <section className="profile-friends-block">
+                <h3 className="profile-friends-title">
+                  {isOwner ? 'Your friends' : `${owner.username}'s friends`}
+                </h3>
+                {friends.length === 0 ? (
+                  <p className="friend-empty">
+                    {isOwner
+                      ? `No friends yet. Share /u/${owner.username} to get requests.`
+                      : 'No friends yet.'}
+                  </p>
+                ) : (
+                  <div className="friends-list">
+                    {friends.map((friend) => (
+                      <div className="friend-row" key={friend.id}>
+                        <Avatar className="friend-avatar" src={friend.avatarUrl} name={friend.username} />
+                        <div className="friend-identity">
+                          <Link className="friend-handle" to={`/u/${friend.username}`}>{friend.username}</Link>
+                          <span className="friend-since">
+                            Friends since {new Date(friend.since).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </span>
+                        </div>
+                        {isOwner && (
+                          <button
+                            type="button"
+                            className="friend-remove"
+                            aria-label={`Remove ${friend.username}`}
+                            title="Remove friend"
+                            disabled={friendBusy}
+                            onClick={() => removeFriend(friend.username)}
+                          >
+                            <span className="material-symbols-rounded" aria-hidden="true">close</span>
+                          </button>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
-          </section>
-        </div>
+                )}
+              </section>
+            </div>
+          )}
+        </>
       )}
     </>
   );

@@ -520,7 +520,31 @@ body {
   color: var(--color-text);
   min-height: 100vh;
   line-height: 1.6;
+  overflow-wrap: break-word;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Long handles and unpasted URLs are the usual cause of text leaving its card.
+   `anywhere` only breaks a word when the line would otherwise overflow, so
+   ordinary prose keeps its normal wrapping. */
+a,
+code,
+pre,
+.post-content,
+.post-reference,
+.account-hint,
+.account-sub,
+.moderation-author,
+.moderation-meta,
+.admin-banner-body,
+.admin-banner-link,
+.admin-table td,
+.sticky-banner-text,
+.otb-body,
+.confirm-message,
+.app-field-label,
+.app-field-value {
+  overflow-wrap: anywhere;
 }
 
 a {
@@ -7296,6 +7320,49 @@ body {
 
 [data-theme="dark"] .profile-badge { color: #fcd34d; }
 
+/* A blocked profile keeps its header so you know who you are looking at, but
+   the badge and panel below replace everything the block hides. Red rather than
+   the amber "friends" badge so the two never read as the same state. */
+.profile-badge-blocked {
+  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.13);
+}
+
+[data-theme="dark"] .profile-badge-blocked {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.profile-blocked-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 1.25rem;
+  padding: 2rem 1.5rem;
+  border: 1px dashed var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface, #fff);
+  text-align: center;
+}
+
+.profile-blocked-panel .material-symbols-rounded {
+  font-size: 2rem;
+  color: var(--color-text-muted);
+}
+
+.profile-blocked-panel h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.profile-blocked-panel p {
+  margin: 0;
+  max-width: 38ch;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
 .account-value {
   background: var(--color-bg);
   border-color: var(--color-border-light);
@@ -7673,7 +7740,7 @@ body {
 .confirm-overlay {
   position: fixed;
   inset: 0;
-  z-index: 220;
+  z-index: 1500;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -7711,6 +7778,28 @@ body {
   gap: 0.6rem;
   margin-top: 1.25rem;
 }
+
+/* The report form is a dialog, not an inline panel: it is portalled to <body>
+   so a post card's stacking context cannot push it below the next post. These
+   rules only give its stacked fields the same rhythm as the rest of the app. */
+.post-report-card {
+  display: flex;
+  flex-direction: column;
+  max-width: 26rem;
+  max-height: calc(100dvh - 3rem);
+  overflow-y: auto;
+}
+
+.post-report-card .confirm-message { margin-bottom: 0.65rem; }
+.post-report-card .account-label { margin-top: 0.5rem; }
+.post-report-card .app-field { width: 100%; }
+.post-report-card textarea.form-control {
+  width: 100%;
+  min-height: 5rem;
+  resize: vertical;
+}
+.post-report-card .post-error { margin-top: 0.45rem; }
+.post-report-card .confirm-actions { margin-top: 1rem; }
 
 /* --- Toasts -----------------------------------------------------------------
    Self-dismissing confirmations for every write. They sit at the top, just
@@ -9230,6 +9319,9 @@ select.form-control option,
   position: fixed;
   top: auto;
   left: auto;
+  /* Menus are portalled last so they can escape a clipped card. They must also
+     clear a dialog's overlay (1500) when the select sits inside one. */
+  z-index: 1600;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -10227,6 +10319,12 @@ body:has(.global-audio-bar) .main-content {
 }
 
 .header-account-item:hover { background: var(--color-primary-glow); }
+
+/* The footer's More sheet already carries Admin on a phone; repeating it in
+   this menu makes the same destination appear twice on one screen. */
+@media (max-width: 1024px) {
+  .header-account-admin { display: none; }
+}
 
 .header-account-item .material-symbols-rounded {
   color: var(--color-primary);
@@ -13726,7 +13824,7 @@ a.leaderboard-player:hover .leaderboard-name {
 
 .admin-tabs {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.35rem;
   max-width: 980px;
   margin: 0 auto 1.25rem;
@@ -13734,10 +13832,16 @@ a.leaderboard-player:hover .leaderboard-name {
   border: 1px solid var(--color-border-light);
   border-radius: 16px;
   background: var(--color-surface-tint);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
 }
+
+.admin-tabs::-webkit-scrollbar { display: none; }
 
 .admin-tab {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 0.35rem;
   padding: 0.45rem 0.7rem;
@@ -13810,6 +13914,15 @@ a.leaderboard-player:hover .leaderboard-name {
   margin-top: 1rem;
 }
 
+/* FormSelect is centred and capped at 480px on account forms. Inside the
+   admin form and the report dialog it is one field in a full-width stack, so
+   it should share the same left edge and width as the inputs around it. */
+.admin-form .app-field,
+.post-report-card .app-field {
+  max-width: none;
+  margin: 0;
+}
+
 .admin-field {
   display: flex;
   flex: 0 0 auto;
@@ -13820,6 +13933,7 @@ a.leaderboard-player:hover .leaderboard-name {
 
 .admin-form-row { display: flex; flex-wrap: wrap; gap: 0.8rem; }
 .admin-form-row .admin-field { flex: 1 1 220px; }
+.admin-form-row > .app-field { flex: 1 1 220px; min-width: 0; }
 
 .admin-textarea { resize: vertical; min-height: 5.5rem; }
 
@@ -13861,6 +13975,7 @@ a.leaderboard-player:hover .leaderboard-name {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
+  min-width: 0;
   padding: 1rem 1.1rem;
   border: 1px solid var(--color-border-light);
   border-radius: 18px;
@@ -13868,7 +13983,7 @@ a.leaderboard-player:hover .leaderboard-name {
   box-shadow: 0 16px 36px -34px rgba(15, 42, 40, 0.4);
 }
 
-.admin-stat-value { font-size: 1.55rem; font-weight: 800; letter-spacing: -0.02em; }
+.admin-stat-value { font-size: 1.55rem; font-weight: 800; letter-spacing: -0.02em; overflow-wrap: anywhere; }
 .admin-stat-label { color: var(--color-text-secondary); font-size: 0.8rem; font-weight: 700; }
 .admin-stat-hint { color: var(--color-text-muted); font-size: 0.72rem; }
 
@@ -13878,7 +13993,9 @@ a.leaderboard-player:hover .leaderboard-name {
   gap: 0.35rem;
   align-items: end;
   height: 150px;
-  margin-top: 0.75rem;
+  /* Reserved strip above the plot: the hover tip hangs there instead of
+     covering the hottest bar or the caption. */
+  margin-top: 2.25rem;
 }
 
 .admin-chart-day {
@@ -13891,10 +14008,50 @@ a.leaderboard-player:hover .leaderboard-name {
 }
 
 .admin-chart-bars {
+  position: relative;
   display: flex;
   align-items: flex-end;
   gap: 2px;
   height: 100%;
+}
+
+/* Native `title` is invisible on a phone and easy to miss on a desktop, so
+   the pair gets a real tooltip with both counts when the day is hovered or
+   tapped. */
+.admin-chart-bars::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 0.4rem);
+  left: 50%;
+  z-index: 2;
+  padding: 0.2rem 0.45rem;
+  border-radius: 7px;
+  background: var(--color-text);
+  color: var(--color-surface, #fff);
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition: opacity var(--transition);
+}
+
+.admin-chart-day:hover .admin-chart-bars::after,
+.admin-chart-day:active .admin-chart-bars::after { opacity: 1; }
+
+/* The tip is wider than one day's column, so the two edge days anchor it to
+   their own edge instead of centring it off the screen. */
+.admin-chart-day:first-child .admin-chart-bars::after {
+  left: 0;
+  transform: none;
+}
+
+.admin-chart-day:last-child .admin-chart-bars::after {
+  right: 0;
+  left: auto;
+  transform: none;
 }
 
 .admin-chart-bar {
@@ -13914,6 +14071,14 @@ a.leaderboard-player:hover .leaderboard-name {
   text-align: center;
   text-overflow: clip;
   white-space: nowrap;
+}
+
+/* Fourteen columns on a phone leave each day about 17px wide, which clipped
+   the "MM-DD" label to "11-(". Drop the month there and keep the day number;
+   the hover tip still carries the full date. */
+@media (max-width: 560px) {
+  .admin-chart-date-month { display: none; }
+  .admin-chart-date { font-size: 0.62rem; }
 }
 
 .admin-legend {
@@ -13976,6 +14141,79 @@ a.leaderboard-player:hover .leaderboard-name {
 .admin-user-name { display: block; color: var(--color-text-muted); font-size: 0.75rem; }
 
 .admin-cell-muted { color: var(--color-text-secondary); }
+
+/* Below tablet width seven table columns stop being readable: handles, emails
+   and dates were breaking mid-word and the Access column crushed its button.
+   Each row becomes a labelled block instead, so every value keeps a full line
+   to wrap on. The labels come from data-label, which the markup already sets. */
+@media (max-width: 900px) {
+  .admin-table-wrap { overflow-x: visible; }
+
+  .admin-table,
+  .admin-table tbody,
+  .admin-table tr,
+  .admin-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .admin-table thead { display: none; }
+
+  .admin-table tr {
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--color-border-light);
+  }
+
+  .admin-table tr:last-child { border-bottom: none; }
+
+  .admin-table td {
+    padding: 0.2rem 0;
+    border-bottom: none;
+    text-align: left;
+  }
+
+  .admin-table td::before {
+    content: attr(data-label) ": ";
+    color: var(--color-text-muted);
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  /* The handle is the row heading; an "ACCOUNT:" prefix would only add noise. */
+  .admin-table td:first-child {
+    margin-bottom: 0.2rem;
+    font-size: 1rem;
+  }
+
+  .admin-table td:first-child::before { content: none; }
+
+  .admin-table td:first-child .admin-user-link { display: inline; }
+
+  /* Keep the badge on the same line as its label; the action stays below it. */
+  .admin-table .admin-role {
+    display: inline-flex;
+    vertical-align: top;
+  }
+}
+
+/* The banner list reuses the moderation row, but its body and link are not post
+   content: give them their own rhythm and let a long URL wrap inside the card. */
+.admin-banner-body {
+  margin-top: 0.2rem;
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.admin-banner-link {
+  margin-top: 0.35rem;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
 
 .admin-role {
   display: flex;
@@ -14040,11 +14278,15 @@ a.leaderboard-player:hover .leaderboard-name {
   gap: 0.6rem;
   min-height: var(--sticky-banner-height);
   padding: 0.4rem 0.9rem;
-  background:
-    radial-gradient(circle at 8% 0%, rgb(var(--accent-rgb) / 0.24), transparent 38%),
-    linear-gradient(100deg, var(--accent-dock-1), var(--accent-dock-2));
+  /* Same chrome material as the phone header, footer and audio dock, so the
+     bar follows every accent instead of carrying its own dark gradient. */
+  background-color: var(--chrome-glass);
+  background-image: radial-gradient(circle at 8% 0%, rgb(var(--accent-rgb) / 0.2), transparent 42%);
+  border-block: 1px solid var(--chrome-border);
   color: var(--color-text-inverse);
   box-shadow: 0 14px 30px -22px rgba(3, 22, 20, 0.8);
+  backdrop-filter: var(--chrome-blur);
+  -webkit-backdrop-filter: var(--chrome-blur);
 }
 
 .sticky-banner-top { top: 0; }
@@ -14055,11 +14297,17 @@ a.leaderboard-player:hover .leaderboard-name {
 .sticky-banner-text {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   min-width: 0;
   line-height: 1.25;
 }
 
-.sticky-banner-text strong { font-size: 0.88rem; }
+.sticky-banner-text strong {
+  overflow: hidden;
+  font-size: 0.88rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .sticky-banner-text span {
   overflow: hidden;
@@ -14071,15 +14319,15 @@ a.leaderboard-player:hover .leaderboard-name {
 
 .sticky-banner-cta {
   flex: 0 0 auto;
-  margin-left: auto;
+  margin-left: 0;
   border: none;
-  background: #f4fffc;
-  color: #0b2b26;
+  background: var(--accent-wash);
+  color: var(--accent-deep);
   font-weight: 800;
   white-space: nowrap;
 }
 
-.sticky-banner-cta:hover { background: #fff; color: #0b2b26; }
+.sticky-banner-cta:hover { background: var(--accent-pale); color: var(--accent-deep); }
 
 .sticky-banner-close {
   display: inline-flex;
@@ -14088,6 +14336,7 @@ a.leaderboard-player:hover .leaderboard-name {
   justify-content: center;
   width: 1.9rem;
   height: 1.9rem;
+  margin-left: 0;
   border: none;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.12);
@@ -14117,6 +14366,7 @@ body:has(.sticky-banner-bottom) .global-audio-bar {
 
 @media (max-width: 1024px) {
   body:has(.sticky-banner-top) .sidebar {
+    top: 0;
     height: auto;
     max-height: var(--header-height);
   }
@@ -14125,6 +14375,7 @@ body:has(.sticky-banner-bottom) .global-audio-bar {
     padding-top: calc(var(--header-height) + 1.5rem + var(--sticky-banner-height));
   }
 
+  .sticky-banner-top { top: var(--header-height); }
   .sticky-banner-bottom { bottom: var(--tabbar-space, calc(4.2rem + env(safe-area-inset-bottom, 0px))); }
 
   body:has(.sticky-banner-bottom) .global-audio-bar {
@@ -14136,7 +14387,9 @@ body:has(.sticky-banner-bottom) .global-audio-bar {
   }
 
   .sticky-banner { gap: 0.45rem; padding: 0.4rem 0.6rem; }
-  .sticky-banner-text span { display: none; }
+  .sticky-banner-text strong { font-size: 0.82rem; }
+  .sticky-banner-text span { font-size: 0.72rem; }
+  .sticky-banner-cta { padding-inline: 0.7rem; }
   .sticky-banner-icon { display: none; }
 }
 

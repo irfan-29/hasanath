@@ -89,7 +89,10 @@ export default function OverviewPanel({ onNavigate }) {
         <div className="admin-chart" role="img" aria-label="New accounts and posts over the last 14 days">
           {data.timeline.map((day) => (
             <div className="admin-chart-day" key={day.date}>
-              <div className="admin-chart-bars">
+              <div
+                className="admin-chart-bars"
+                data-tip={`${day.date.slice(5)} · ${day.signups} new account${day.signups === 1 ? '' : 's'} · ${day.posts} post${day.posts === 1 ? '' : 's'}`}
+              >
                 <span
                   className="admin-chart-bar is-users"
                   style={{ height: `${Math.max(4, Math.round((day.signups / maxDay) * 100))}%` }}
@@ -101,7 +104,9 @@ export default function OverviewPanel({ onNavigate }) {
                   title={`${day.posts} post${day.posts === 1 ? '' : 's'}`}
                 />
               </div>
-              <span className="admin-chart-date">{day.date.slice(5)}</span>
+              <span className="admin-chart-date">
+                <span className="admin-chart-date-month">{day.date.slice(5, 7)}-</span>{day.date.slice(8)}
+              </span>
             </div>
           ))}
         </div>
