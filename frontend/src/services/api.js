@@ -66,6 +66,16 @@ async function request(path, { method = 'GET', body, formData, signal, retried =
     throw new ApiError(message, response.status, payload);
   }
 
+  // In the Android app, prayer reminders are scheduled on the phone from the
+  // user's Salah Timings settings. A settings save or a sign-in/out can change
+  // the location, method or account, so let the app re-schedule them.
+  if (method !== 'GET' && (path.startsWith('/settings') || path.startsWith('/auth/'))) {
+    try {
+      const native = typeof window !== 'undefined' && window.HasanathAndroid;
+      if (native && typeof native.refreshPrayerReminders === 'function') native.refreshPrayerReminders();
+    } catch (err) { /* not in the app, or an older app version */ }
+  }
+
   return payload;
 }
 

@@ -23,9 +23,9 @@ const FALLBACK_AYAH = {
 // has the checklist; installed phones find updates on their own through
 // public/android/version.json.
 const ANDROID_APP = {
-  version: '1.5',
-  size: '78 KB',
-  href: '/android/Hasanath-1.5.apk',
+  version: '1.8',
+  size: '94 KB',
+  href: '/android/Hasanath-1.8.apk',
 };
 
 // The studio behind Hasanath. That site lives in its own repository and is

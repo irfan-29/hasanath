@@ -4,6 +4,7 @@ import { useSession } from '../hooks/useSession.jsx';
 import { useToast } from '../components/ToastProvider';
 import Loader from '../components/Loader';
 import LocationPicker from '../components/LocationPicker';
+import PhoneNotifications from '../components/PhoneNotifications';
 
 const TG_ERRORS = {
   'bot-not-configured': "Notifications are off: the app's Telegram bot isn't configured on the server yet.",
@@ -779,6 +780,9 @@ export default function SettingsPage() {
           const entry = (data.timeFormats || []).find((item) => item.value === v);
           return entry ? `${entry.label} · ${entry.sample}` : '12-hour · 6:05 PM';
         }} />
+
+      {/* ---- Phone notifications (Android app only; renders nothing elsewhere) ---- */}
+      <PhoneNotifications toast={toast} />
 
       {/* ---- Telegram ---- */}
       <div className="form-section-title">Telegram Notifications</div>
