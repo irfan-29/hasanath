@@ -8832,13 +8832,6 @@ input[type="datetime-local"] { color-scheme: light; }
   font-weight: 700;
 }
 
-.salah-status-value {
-  color: var(--color-text-muted);
-  font-size: 0.72rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
 .salah-status.is-jamah .salah-status-icon,
 .salah-status.is-ontime .salah-status-icon {
   background: rgb(var(--accent-rgb) / 0.12);
@@ -8850,18 +8843,11 @@ input[type="datetime-local"] { color-scheme: light; }
   color: var(--color-primary-light);
 }
 
-.salah-status.is-jamah .salah-status-value,
-.salah-status.is-ontime .salah-status-value { color: var(--color-primary-dark); }
-[data-theme="dark"] .salah-status.is-jamah .salah-status-value,
-[data-theme="dark"] .salah-status.is-ontime .salah-status-value { color: var(--color-primary-light); }
-
 .salah-status.is-late .salah-status-icon {
   background: rgba(245, 158, 11, 0.13);
   color: #946421;
 }
 [data-theme="dark"] .salah-status.is-late .salah-status-icon { color: #fcd34d; }
-.salah-status.is-late .salah-status-value { color: #946421; }
-[data-theme="dark"] .salah-status.is-late .salah-status-value { color: #fcd34d; }
 
 .salah-status.is-missed .salah-status-icon {
   background: rgba(217, 83, 79, 0.11);
@@ -8869,7 +8855,97 @@ input[type="datetime-local"] { color-scheme: light; }
 }
 [data-theme="dark"] .salah-status.is-missed .salah-status-icon { color: #fca5a5; }
 
-.salah-status.is-empty { opacity: 0.82; }
+/* The status reads as part of the row, like the selected day in the header:
+   plain text with a small chevron and no field chrome. The arrow is the only
+   hint that the value can be changed. */
+.salah-status-select.app-field--compact {
+  width: auto;
+  max-width: none;
+  margin: 0;
+}
+
+.salah-status-select.app-field--compact .app-field-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  width: auto;
+  min-height: 0;
+  padding: 0.45rem 0.15rem;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.salah-status-select.app-field--compact .app-field-value {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+/* Keep the arrow inline at the end of the value instead of pinning it to a
+   field edge the row no longer draws. */
+.salah-status-select.app-field--compact .app-field-icon {
+  position: static;
+  width: auto;
+  height: auto;
+  align-self: center;
+  font-size: 1.05rem;
+  color: var(--color-text-muted);
+  opacity: 0.75;
+  transform: none;
+}
+
+.salah-status-select.app-field--compact .app-field-control:hover .app-field-icon,
+.salah-status-select.app-field--compact .app-select-trigger[aria-expanded="true"] .app-field-icon {
+  color: var(--color-primary);
+  opacity: 1;
+}
+
+/* The shared select rotates its absolutely-positioned arrow when open; this
+   arrow is inline, so keep it upright and only change its colour. */
+.salah-status-select.app-field--compact .app-select-trigger[aria-expanded="true"] .app-field-icon {
+  transform: none;
+}
+
+.salah-status-select.app-field--compact .app-select-trigger:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.salah-status-select.app-field--compact .app-field-control:disabled { opacity: 0.45; }
+
+.salah-status-select.app-field--compact .app-field-control:hover:not(:disabled) {
+  border-color: transparent;
+}
+
+.salah-status.is-jamah .salah-status-select .app-field-value,
+.salah-status.is-ontime .salah-status-select .app-field-value {
+  color: var(--color-primary-dark);
+  font-weight: 700;
+}
+[data-theme="dark"] .salah-status.is-jamah .salah-status-select .app-field-value,
+[data-theme="dark"] .salah-status.is-ontime .salah-status-select .app-field-value {
+  color: var(--color-primary-light);
+}
+
+.salah-status.is-late .salah-status-select .app-field-value { color: #946421; }
+[data-theme="dark"] .salah-status.is-late .salah-status-select .app-field-value { color: #fcd34d; }
+
+.salah-status.is-missed .salah-status-select .app-field-value { color: #c2413c; }
+[data-theme="dark"] .salah-status.is-missed .salah-status-select .app-field-value { color: #fca5a5; }
+
+.salah-status.is-other .salah-status-icon {
+  background: var(--color-surface-tint);
+  color: var(--color-text-secondary);
+}
+
+.salah-status.is-other .salah-status-select .app-field-value { color: var(--color-text-secondary); }
+
+.salah-status.is-empty .salah-status-name { color: var(--color-text-secondary); }
 
 .salah-form-grid {
   display: grid;

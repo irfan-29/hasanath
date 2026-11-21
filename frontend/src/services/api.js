@@ -138,6 +138,9 @@ export const challenges = {
 export const salah = {
   list: (date) => api.get('/salah' + (date ? `?date=${encodeURIComponent(date)}` : '')),
   record: (payload) => api.post('/salah', payload),
+  // "Not logged" removes the entry rather than writing a blank status, which
+  // the record route refuses and the day's report would still count.
+  clear: (payload) => api.delete('/salah', payload),
 };
 
 export const posts = {

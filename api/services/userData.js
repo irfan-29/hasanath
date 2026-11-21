@@ -938,6 +938,27 @@ async function recordSalah(req, { date, name, value }) {
   return guest.salahLog;
 }
 
+// Removes one prayer's entry for a day. The tracker's status rows treat "Not
+// logged" as the default, so clearing has to leave no row behind rather than
+// store an empty value: `recordSalah` refuses empty values, and a blank entry
+// would still count towards the day's history.
+async function clearSalah(req, { date, name }) {
+  if (req.isAuthenticated && req.isAuthenticated()) {
+    const before = req.user.salahLog.length;
+    req.user.salahLog = req.user.salahLog.filter(
+      (e) => !(e.date === date && e.name === name)
+    );
+    if (req.user.salahLog.length !== before) await req.user.save();
+    return req.user.salahLog;
+  }
+  const guest = readGuest(req);
+  guest.salahLog = (guest.salahLog || []).filter(
+    (e) => !(e.date === date && e.name === name)
+  );
+  writeGuest(req, res_of(req), guest);
+  return guest.salahLog;
+}
+
 // --- Telegram ---------------------------------------------------------------
 
 async function getTelegramChatId(req) {
@@ -1009,6 +1030,7 @@ module.exports = {
   toggleChallengeCheckin,
   listSalah,
   recordSalah,
+  clearSalah,
   resolveSalahDay,
   entriesForDay,
   normaliseSalahDate,

@@ -1660,9 +1660,27 @@ app.post("/api/salah", requireLogin, async function(req, res){
             await notify.safeDeliver(req.user, notify.buildSalahLogMessage(req.user, date));
         }
 
-        res.json({ entries: updated });
+        res.json({ entries: userData.entriesForDay(updated, userData.resolveSalahDay(date)) });
     } catch (err) {
         console.error("api/salah POST:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+// "Not logged" in the tracker's status rows. A separate verb rather than a
+// POST with an empty value: an emptied entry would still sit in the day's
+// history, and the POST route (rightly) rejects blank statuses.
+app.delete("/api/salah", requireLogin, async function(req, res){
+    try {
+        const date = userData.normaliseSalahDate(req.body.date);
+        if (!date) return res.status(400).json({ error: "bad-date" });
+        const name = String(req.body.name || "").trim();
+        if (!name) return res.status(400).json({ error: "bad-request" });
+
+        const updated = await userData.clearSalah(req, { date, name });
+        res.json({ entries: userData.entriesForDay(updated, userData.resolveSalahDay(date)) });
+    } catch (err) {
+        console.error("api/salah DELETE:", err.message);
         res.status(500).json({ error: "failed" });
     }
 });

@@ -6,9 +6,8 @@ import { useToast } from '../components/ToastProvider';
 import Loader from '../components/Loader';
 import DateField from '../components/DateField';
 import FormSelect from '../components/FormSelect';
+import { localDateKey } from '../utils/date';
 
-const PRAYERS = ['Fajr', 'Zuhur', 'Asar', 'Magrib', 'Isha', 'others'];
-const STATUSES = ['In Jamath', 'On Time', 'Late', 'Not Prayed', 'others'];
 const CORE_PRAYERS = ['Fajr', 'Zuhur', 'Asar', 'Magrib', 'Isha'];
 
 // The stored values predate the landing page's transliterations. Keep the
@@ -29,11 +28,23 @@ const STATUS_META = {
   'On Time': { key: 'ontime', icon: 'check_circle' },
   Late: { key: 'late', icon: 'schedule' },
   'Not Prayed': { key: 'missed', icon: 'cancel' },
+  // The older form offered "others" and a few entries still carry it, so the
+  // value stays selectable and keeps its own neutral icon.
+  others: { key: 'other', icon: 'more_horiz' },
 };
 
 const EMPTY_STATUS = { key: 'empty', icon: 'radio_button_unchecked' };
 
-const today = () => new Date().toISOString().slice(0, 10);
+// The row itself is the control: every prayer offers the same choices, and
+// "Not logged" clears an entry so a tap can be undone without a separate form.
+const STATUS_OPTIONS = [
+  { value: '', label: 'Not logged' },
+  { value: 'In Jamath', label: 'In Jamath' },
+  { value: 'On Time', label: 'On Time' },
+  { value: 'Late', label: 'Late' },
+  { value: 'Not Prayed', label: 'Not Prayed' },
+  { value: 'others', label: 'Others' },
+];
 
 function SalahRing({ completed, total }) {
   const radius = 46;
@@ -67,18 +78,17 @@ function SalahRing({ completed, total }) {
 }
 
 // Salah is account-only. Its overview shows the selected day's report, and
-// saving an entry reloads that report without a second request.
+// choosing a status writes that prayer immediately - there is no second form.
 export default function SalahPage() {
   const { isLoggedIn } = useSession();
   const toast = useToast();
 
-  const [date, setDate] = useState(today);
-  const [findDate, setFindDate] = useState(today);
-  const [name, setName] = useState('Fajr');
-  const [value, setValue] = useState('On Time');
+  // Local calendar day, not UTC: a reader east of UTC was opening the tracker
+  // on yesterday's date until their offset had passed.
+  const [findDate, setFindDate] = useState(localDateKey);
 
   const [history, setHistory] = useState({ loading: true, label: '', entries: [] });
-  const [saving, setSaving] = useState(false);
+  const [savingName, setSavingName] = useState('');
   const [error, setError] = useState('');
 
   const load = useCallback(async (forDate) => {
@@ -94,24 +104,28 @@ export default function SalahPage() {
 
   useEffect(() => { load(findDate); }, [findDate, load]);
 
-  async function save() {
-    setSaving(true);
+  // One tap per prayer. A real status is written through the existing record
+  // route; "Not logged" removes the row so the day can be corrected. The API
+  // returns the full log, which keeps the ring and badge in step without a
+  // second GET.
+  async function updateStatus(prayer, nextValue) {
+    if (savingName || history.loading) return;
+    const current = history.entries.find((entry) => entry.name === prayer)?.value || '';
+    if (nextValue === current) return;
+
+    setSavingName(prayer);
     setError('');
     try {
-      // The server derives the date label itself from `date`, so the client's
-      // clock cannot be used to write into a different day.
-      await api.record({ date, name, value });
-      // Move the history to the day just written and reload it. When the day is
-      // already the one on screen, setFindDate is a no-op and the effect will
-      // not fire, so the refresh is requested explicitly - and only in that
-      // case, so this never doubles up with the effect.
-      if (findDate === date) await load(date);
-      else setFindDate(date);
-      toast('Prayer logged');
+      const payload = { date: findDate, name: prayer };
+      const data = nextValue
+        ? await api.record({ ...payload, value: nextValue })
+        : await api.clear(payload);
+      setHistory((h) => ({ ...h, entries: data.entries || h.entries }));
+      toast(nextValue ? `${PRAYER_LABELS[prayer]} logged` : `${PRAYER_LABELS[prayer]} cleared`);
     } catch (err) {
-      setError('Could not save that entry.');
+      setError('Could not save that change.');
     } finally {
-      setSaving(false);
+      setSavingName('');
     }
   }
 
@@ -187,6 +201,13 @@ export default function SalahPage() {
             <span className="salah-overview-badge">{loggedCount} of 5 logged</span>
           </div>
 
+          {error && (
+            <div className="auth-alert" role="alert">
+              <span className="material-symbols-rounded">error</span>
+              {error}
+            </div>
+          )}
+
           <div className="salah-overview-body">
             <SalahRing completed={loggedCount} total={CORE_PRAYERS.length} />
             <div className="salah-prayer-statuses">
@@ -197,8 +218,18 @@ export default function SalahPage() {
                   <div className={`salah-status is-${meta.key}`} key={prayer}>
                     <span className="salah-status-icon material-symbols-rounded" aria-hidden="true">{meta.icon}</span>
                     <span className="salah-status-name">{PRAYER_LABELS[prayer]}</span>
-                    {/* The value as logged - never a paraphrase of it. */}
-                    <span className="salah-status-value">{status || 'Not logged'}</span>
+                    {/* The value is the control: picking a status writes it
+                        immediately, and "Not logged" clears the entry. */}
+                    <FormSelect
+                      id={`salah-status-${prayer}`}
+                      className="salah-status-select"
+                      ariaLabel={`${PRAYER_LABELS[prayer]} status`}
+                      value={status || ''}
+                      options={STATUS_OPTIONS}
+                      onChange={(nextValue) => updateStatus(prayer, nextValue)}
+                      disabled={Boolean(savingName) || history.loading}
+                      compact
+                    />
                   </div>
                 );
               })}
@@ -206,36 +237,6 @@ export default function SalahPage() {
           </div>
         </div>
       )}
-
-      <div className="container1">
-        <div className="card-header"><h3>Log Salah</h3></div>
-
-        <div className="salah-form-grid">
-          <DateField id="date" label="Date" value={date} onChange={setDate} />
-          <FormSelect
-            id="salah"
-            label="Salah"
-            value={name}
-            onChange={setName}
-            options={PRAYERS.map((p) => ({ value: p, label: p }))}
-          />
-          <FormSelect
-            id="value"
-            label="Status"
-            value={value}
-            onChange={setValue}
-            options={STATUSES.map((s) => ({ value: s, label: s }))}
-          />
-        </div>
-
-        {error && <div className="auth-alert" role="alert"><span className="material-symbols-rounded">error</span>{error}</div>}
-
-        <div className="new-task">
-          <button type="button" className="btn btn-primary" onClick={save} disabled={saving}>
-            {saving ? 'Saving…' : 'Save Entry'}
-          </button>
-        </div>
-      </div>
     </>
   );
 }

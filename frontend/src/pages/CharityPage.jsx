@@ -7,8 +7,7 @@ import { useSession } from '../hooks/useSession.jsx';
 import Loader from '../components/Loader';
 import DateField from '../components/DateField';
 import FormSelect from '../components/FormSelect';
-
-const today = () => new Date().toISOString().slice(0, 10);
+import { localDateKey } from '../utils/date';
 
 // Amounts are currency-neutral on purpose: a user tells us "what a target
 // means", not which bank it clears in. 1 decimal is enough for reports without
@@ -161,7 +160,7 @@ export default function CharityPage() {
   const [editing, setEditing] = useState(null); // "__new__" or a charity id.
   const [draft, setDraft] = useState({ name: '', targetAmount: '', period: 'monthly' });
   const [donationOpen, setDonationOpen] = useState(null);
-  const [donation, setDonation] = useState({ amount: '', date: today(), note: '' });
+  const [donation, setDonation] = useState({ amount: '', date: localDateKey(), note: '' });
   // When set, the open donation panel edits that row (its index in the
   // charity's stored list) instead of adding a new one.
   const [donationIndex, setDonationIndex] = useState(null);
@@ -246,7 +245,7 @@ export default function CharityPage() {
   const closeDonation = () => {
     setDonationOpen(null);
     setDonationIndex(null);
-    setDonation({ amount: '', date: today(), note: '' });
+    setDonation({ amount: '', date: localDateKey(), note: '' });
   };
 
   // Pencil on a donation row: open the same panel, prefilled with the row.
@@ -412,7 +411,7 @@ export default function CharityPage() {
                 else {
                   setDonationOpen(id);
                   setDonationIndex(null);
-                  setDonation({ amount: '', date: today(), note: '' });
+                  setDonation({ amount: '', date: localDateKey(), note: '' });
                 }
               }}
               onEdit={() => openEditor(charities.find((item) => item.id === charity.id))}
