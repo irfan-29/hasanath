@@ -21,6 +21,7 @@ function present(banner) {
         ctaLabel: raw.ctaLabel || "",
         ctaUrl: raw.ctaUrl || "",
         position: raw.position === "bottom" ? "bottom" : "top",
+        revision: Number(raw.revision) || 0,
         createdAt: raw.createdAt || null
     };
 }

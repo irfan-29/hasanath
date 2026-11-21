@@ -35,15 +35,19 @@ export default function BannersPanel() {
   const [form, setForm] = useState(EMPTY);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
-  const [state, setState] = useState({ loading: true, items: [] });
+  const [state, setState] = useState({ loading: true, items: [], totalUsers: 0 });
 
   const load = useCallback(async () => {
     setState((current) => ({ ...current, loading: true }));
     try {
       const data = await admin.banners();
-      setState({ loading: false, items: data.items || [] });
+      setState({
+        loading: false,
+        items: data.items || [],
+        totalUsers: Number(data.totalUsers) || 0,
+      });
     } catch (err) {
-      setState({ loading: false, items: [] });
+      setState((current) => ({ ...current, loading: false, items: [] }));
       setError('Could not load the banners.');
     }
   }, []);
@@ -79,6 +83,24 @@ export default function BannersPanel() {
   async function submit(event) {
     event.preventDefault();
     if (busy) return;
+
+    // Only one campaign of each kind can be live. Ask before silently knocking
+    // the other one off - the server enforces the same rule, but a write that
+    // turns something else off should never be a surprise.
+    if (form.active) {
+      const conflict = state.items.find(
+        (item) => item.kind === form.kind && item.active && item.id !== form.id
+      );
+      if (conflict) {
+        const ok = await ask({
+          title: form.kind === 'otb' ? 'Only one popup can be live' : 'Only one sticky bar can be live',
+          message: `“${conflict.title}” is live right now. Saving this will turn it off. Continue?`,
+          confirmLabel: 'Save and switch',
+        });
+        if (!ok) return;
+      }
+    }
+
     const payload = {
       kind: form.kind,
       title: form.title,
@@ -109,6 +131,20 @@ export default function BannersPanel() {
   }
 
   async function toggle(item) {
+    if (!item.active) {
+      const conflict = state.items.find(
+        (other) => other.kind === item.kind && other.active && other.id !== item.id
+      );
+      if (conflict) {
+        const ok = await ask({
+          title: item.kind === 'otb' ? 'Only one popup can be live' : 'Only one sticky bar can be live',
+          message: `“${conflict.title}” is live right now. Turning this on will turn it off. Continue?`,
+          confirmLabel: 'Turn on',
+        });
+        if (!ok) return;
+      }
+    }
+
     setBusy(`${item.id}:active`);
     setError('');
     try {
@@ -117,6 +153,32 @@ export default function BannersPanel() {
       await load();
     } catch (err) {
       setError('Could not change that banner.');
+    } finally {
+      setBusy('');
+    }
+  }
+
+  // Re-show a live campaign to people who have already dismissed it. Popups
+  // reset their acknowledgements on the server; sticky bars change the key the
+  // browser stored when the reader closed them.
+  async function retrigger(item) {
+    const ok = await ask({
+      title: item.kind === 'otb' ? 'Show this popup again?' : 'Show this sticky bar again?',
+      message: item.kind === 'otb'
+        ? 'Every account that already closed it will see it once more. This also resets its closed count.'
+        : 'People who dismissed this bar will see it again. Anyone who has not dismissed it already sees it.',
+      confirmLabel: 'Retrigger',
+    });
+    if (!ok) return;
+
+    setBusy(`${item.id}:retrigger`);
+    setError('');
+    try {
+      await admin.retriggerBanner(item.id);
+      toast(item.kind === 'otb' ? 'Popup will be shown again' : 'Sticky bar will be shown again');
+      await load();
+    } catch (err) {
+      setError('Could not retrigger that banner.');
     } finally {
       setBusy('');
     }
@@ -156,8 +218,10 @@ export default function BannersPanel() {
         </h3>
         <p className="account-hint">
           A one-time banner is a popup shown once per signed-in account until it
-          is closed. A sticky bar stays on screen at the top or bottom; a new
-          active sticky bar replaces the previous one.
+          is closed. A sticky bar stays on screen at the top or bottom. Only one
+          popup and one sticky bar can be live at a time; turning another one on
+          switches the previous one off. Use Retrigger to show a live campaign
+          again to people who already closed it.
         </p>
 
         {error && (
@@ -293,7 +357,10 @@ export default function BannersPanel() {
                 </span>
                 <span>created {when(item.createdAt)}</span>
                 {item.kind === 'otb' && (
-                  <span>{Number(item.seenCount || 0).toLocaleString()} closed it</span>
+                  <span>
+                    {Number(item.seenCount || 0).toLocaleString()}
+                    /{Number(state.totalUsers || 0).toLocaleString()} closed it
+                  </span>
                 )}
               </div>
               <p className="moderation-author">{item.title}</p>
@@ -307,7 +374,7 @@ export default function BannersPanel() {
                 <button
                   type="button"
                   className="btn btn-outline btn-sm"
-                  disabled={busy === `${item.id}:active` || busy === `${item.id}:delete`}
+                  disabled={busy === `${item.id}:active` || busy === `${item.id}:delete` || busy === `${item.id}:retrigger`}
                   onClick={() => edit(item)}
                 >
                   <span className="material-symbols-rounded" aria-hidden="true">edit</span>
@@ -316,7 +383,7 @@ export default function BannersPanel() {
                 <button
                   type="button"
                   className={`btn ${item.active ? 'btn-outline' : 'btn-primary'} btn-sm`}
-                  disabled={busy === `${item.id}:active` || busy === `${item.id}:delete`}
+                  disabled={busy === `${item.id}:active` || busy === `${item.id}:delete` || busy === `${item.id}:retrigger`}
                   onClick={() => toggle(item)}
                 >
                   <span className="material-symbols-rounded" aria-hidden="true">
@@ -324,10 +391,21 @@ export default function BannersPanel() {
                   </span>
                   {item.active ? 'Turn off' : 'Turn on'}
                 </button>
+                {item.active && (
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    disabled={busy === `${item.id}:active` || busy === `${item.id}:delete` || busy === `${item.id}:retrigger`}
+                    onClick={() => retrigger(item)}
+                  >
+                    <span className="material-symbols-rounded" aria-hidden="true">campaign</span>
+                    {busy === `${item.id}:retrigger` ? 'Retriggering…' : 'Retrigger'}
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn btn-danger-outline btn-sm"
-                  disabled={busy === `${item.id}:active` || busy === `${item.id}:delete`}
+                  disabled={busy === `${item.id}:active` || busy === `${item.id}:delete` || busy === `${item.id}:retrigger`}
                   onClick={() => remove(item)}
                 >
                   <span className="material-symbols-rounded" aria-hidden="true">delete</span>

@@ -2166,12 +2166,14 @@ function adminBannerView(banner, seenCount) {
     };
 }
 
-// Activating a sticky bar deactivates the previous one: two bars would stack on
-// top of each other, and the admin UI only ever shows one live campaign.
+// Activating a banner deactivates the other live banner of the same kind. The
+// app only ever renders one popup and one sticky bar, so a second active row
+// would either queue behind the first (popups) or silently win by sort order
+// (sticky) - both look like a bug to the admin who just clicked "Turn on".
 async function setBannerActive(banner, active) {
-    if (active && banner.kind === "sticky") {
+    if (active) {
         await Banner.updateMany(
-            { _id: { $ne: banner._id }, kind: "sticky", active: true },
+            { _id: { $ne: banner._id }, kind: banner.kind, active: true },
             { $set: { active: false } }
         );
     }
@@ -2186,8 +2188,14 @@ app.get("/api/admin/banners", requireLogin, requireAdmin, async function(req, re
             .limit(200)
             .lean();
         const counts = await bannersService.seenCounts(items.map((item) => item._id));
+        // Popups are only delivered to signed-in accounts, so the account total
+        // is the denominator for "4/7 closed it". Counting every user (rather
+        // than only users who existed when the banner was created) keeps the
+        // figure honest for a campaign that is still live.
+        const totalUsers = await User.countDocuments({});
         res.json({
-            items: items.map((item) => adminBannerView(item, counts.get(String(item._id))))
+            items: items.map((item) => adminBannerView(item, counts.get(String(item._id)))),
+            totalUsers
         });
     } catch (err) {
         console.error("api/admin/banners:", err.message);
@@ -2270,6 +2278,34 @@ app.delete("/api/admin/banners/:id", requireLogin, requireAdmin, async function(
         res.json({ ok: true });
     } catch (err) {
         console.error("api/admin/banners DELETE:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+// Re-show a campaign that is already live. Popups drop every acknowledgement,
+// so the popup is delivered again to every account; sticky bars bump the
+// revision their browser-side dismissal key is built from. Creating a second
+// copy would lose the history and fight the one-live-banner rule, so the same
+// row is reused instead.
+app.post("/api/admin/banners/:id/retrigger", requireLogin, requireAdmin, async function(req, res){
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "not-found" });
+    try {
+        const banner = await Banner.findById(req.params.id);
+        if (!banner) return res.status(404).json({ error: "not-found" });
+        if (!banner.active) {
+            return res.status(400).json({ error: "Turn the banner on before retriggering it." });
+        }
+
+        if (banner.kind === "otb") {
+            await BannerView.deleteMany({ banner: banner._id });
+        }
+        banner.revision = (Number(banner.revision) || 0) + 1;
+        await banner.save();
+
+        const counts = await bannersService.seenCounts([banner._id]);
+        res.json({ banner: adminBannerView(banner, counts.get(String(banner._id))) });
+    } catch (err) {
+        console.error("api/admin/banners retrigger:", err.message);
         res.status(500).json({ error: "failed" });
     }
 });

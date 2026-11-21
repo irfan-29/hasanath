@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { useSession } from '../hooks/useSession.jsx';
@@ -64,10 +64,68 @@ export default function AnnouncementBanner() {
   const sticky = banners && banners.sticky ? banners.sticky[0] : null;
   const otb = banners ? banners.otb : null;
   const [dismissedSticky, setDismissedSticky] = useState(readDismissed);
+  const [stickyExpanded, setStickyExpanded] = useState(false);
+  const [stickyOverflows, setStickyOverflows] = useState(false);
+  const bannerRef = useRef(null);
+  const textRef = useRef(null);
 
-  // A new sticky banner gets a new id, so a dismissal of the previous campaign
-  // does not hide it.
-  const stickyVisible = Boolean(sticky && sticky.id !== dismissedSticky);
+  // The revision is part of the key so "Retrigger" in the admin portal can put
+  // a dismissed bar back on screen without creating a second banner.
+  const stickyKey = sticky ? `${sticky.id}:${sticky.revision || 0}` : '';
+  const stickyVisible = Boolean(sticky && stickyKey !== dismissedSticky);
+
+  // A new campaign - or a retriggered one - always starts collapsed.
+  useEffect(() => {
+    setStickyExpanded(false);
+  }, [sticky?.id, sticky?.revision]);
+
+  // The bar's height is a CSS variable because the top padding, the sidebar
+  // offset and the audio dock all sit against it. A long message that wraps
+  // changes that height, so measure the rendered bar instead of trusting the
+  // default 3.35rem.
+  useEffect(() => {
+    if (!stickyVisible) return undefined;
+    const el = bannerRef.current;
+    if (!el) return undefined;
+    const root = document.documentElement;
+    const apply = () => {
+      root.style.setProperty('--sticky-banner-height', `${Math.ceil(el.getBoundingClientRect().height)}px`);
+    };
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(el);
+    window.addEventListener('resize', apply);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', apply);
+      root.style.removeProperty('--sticky-banner-height');
+    };
+  }, [stickyVisible, sticky?.id, sticky?.revision]);
+
+  // The expand control only appears when a line is actually clipped. Checked
+  // while collapsed; once expanded the control stays so it can be closed again.
+  useLayoutEffect(() => {
+    if (!stickyVisible) {
+      setStickyOverflows(false);
+      return undefined;
+    }
+    const el = textRef.current;
+    if (!el) return undefined;
+    const check = () => {
+      const clipped = Array.from(el.children).some(
+        (node) => node.scrollWidth > node.clientWidth + 1
+      );
+      setStickyOverflows((current) => (current === clipped ? current : clipped));
+    };
+    check();
+    const observer = new ResizeObserver(check);
+    observer.observe(el);
+    window.addEventListener('resize', check);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', check);
+    };
+  }, [stickyVisible, sticky?.id, sticky?.revision, stickyExpanded]);
 
   useEffect(() => {
     if (!otb) return undefined;
@@ -89,23 +147,37 @@ export default function AnnouncementBanner() {
 
   function hideSticky() {
     if (!sticky) return;
-    rememberDismissed(sticky.id);
-    setDismissedSticky(sticky.id);
+    rememberDismissed(stickyKey);
+    setDismissedSticky(stickyKey);
   }
 
   return (
     <>
       {stickyVisible && (
         <div
-          className={`sticky-banner sticky-banner-${sticky.position}`}
+          ref={bannerRef}
+          className={`sticky-banner sticky-banner-${sticky.position}${stickyExpanded ? ' is-expanded' : ''}`}
           role="region"
           aria-label="Announcement"
         >
           <span className="material-symbols-rounded sticky-banner-icon" aria-hidden="true">campaign</span>
-          <div className="sticky-banner-text">
+          <div className="sticky-banner-text" ref={textRef}>
             <strong>{sticky.title}</strong>
             {sticky.body && <span>{sticky.body}</span>}
           </div>
+          {(stickyOverflows || stickyExpanded) && (
+            <button
+              type="button"
+              className="sticky-banner-toggle"
+              aria-expanded={stickyExpanded}
+              aria-label={stickyExpanded ? 'Collapse announcement' : 'Show the full announcement'}
+              onClick={() => setStickyExpanded((current) => !current)}
+            >
+              <span className="material-symbols-rounded" aria-hidden="true">
+                {stickyExpanded ? 'expand_less' : 'expand_more'}
+              </span>
+            </button>
+          )}
           <Cta banner={sticky} className="btn btn-sm sticky-banner-cta" />
           <button
             type="button"

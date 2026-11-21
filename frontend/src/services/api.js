@@ -191,6 +191,8 @@ export const admin = {
   createBanner: (payload) => api.post('/admin/banners', payload),
   updateBanner: (id, payload) => api.request(`/admin/banners/${id}`, { method: 'PATCH', body: payload }),
   removeBanner: (id) => api.request(`/admin/banners/${id}`, { method: 'DELETE' }),
+  // Re-show a live campaign without creating a second one.
+  retriggerBanner: (id) => api.post(`/admin/banners/${id}/retrigger`, {}),
   broadcasts: () => api.get('/admin/broadcasts'),
   sendBroadcast: (payload) => api.post('/admin/broadcasts', payload),
 };

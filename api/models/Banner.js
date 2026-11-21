@@ -34,6 +34,12 @@ const bannerSchema = new mongoose.Schema({
         default: "top"
     },
     active: { type: Boolean, default: false, index: true },
+    // Bumped by "retrigger". A sticky bar records its dismissal in
+    // localStorage as `id:revision`, so incrementing this makes a bar that was
+    // already closed appear again without creating a duplicate campaign. A
+    // one-time popup also bumps it for symmetry, though its re-delivery comes
+    // from clearing BannerView rows.
+    revision: { type: Number, default: 0 },
     startsAt: { type: Date, default: Date.now },
     endsAt: { type: Date, default: null },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null }

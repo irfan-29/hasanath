@@ -804,7 +804,9 @@ a {
   margin-left: var(--sidebar-width);
   min-height: 100vh;
   padding: 2rem 2.5rem 6rem;
-  transition: margin-left var(--transition);
+  /* The sticky announcement reserves space by changing these paddings when it
+     expands or collapses; easing them keeps the page from jumping. */
+  transition: margin-left var(--transition), padding-top 220ms ease, padding-bottom 220ms ease;
 }
 
 body:has(.global-audio-bar) .main-content {
@@ -14352,7 +14354,11 @@ a.leaderboard-player:hover .leaderboard-name {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  min-height: var(--sticky-banner-height);
+  /* A fixed floor, deliberately not var(--sticky-banner-height): that variable
+     is measured from this element, so using it here made the bar unable to
+     shrink after "view fully" was collapsed (the old expanded height stayed
+     the minimum and the page kept reserving space for it). */
+  min-height: 3.35rem;
   padding: 0.4rem 0.9rem;
   /* Same chrome material as the phone header, footer and audio dock, so the
      bar follows every accent instead of carrying its own dark gradient. */
@@ -14423,6 +14429,33 @@ a.leaderboard-player:hover .leaderboard-name {
 .sticky-banner-close:hover { background: rgba(255, 255, 255, 0.22); }
 .sticky-banner-close .material-symbols-rounded { font-size: 1.1rem; }
 
+.sticky-banner-toggle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  cursor: pointer;
+}
+
+.sticky-banner-toggle:hover { background: rgba(255, 255, 255, 0.18); }
+.sticky-banner-toggle .material-symbols-rounded { font-size: 1.1rem; }
+
+/* Once expanded the two lines wrap instead of each ending in an ellipsis, so
+   the whole announcement is readable; the bar grows and --sticky-banner-height
+   is remeasured by the component. */
+.sticky-banner.is-expanded .sticky-banner-text strong,
+.sticky-banner.is-expanded .sticky-banner-text span {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
 body:has(.sticky-banner-top) .sidebar {
   top: var(--sticky-banner-height);
   height: calc(100vh - var(--sticky-banner-height));
@@ -14436,8 +14469,16 @@ body:has(.sticky-banner-bottom) .main-content {
   padding-bottom: calc(6rem + var(--sticky-banner-height));
 }
 
+/* The audio dock's own bottom allowance is declared later in the sheet, so the
+   rule above replaces it. Add the dock's share here instead of dropping it,
+   otherwise the dock and the bar together cover the last rows of the page. */
+body:has(.sticky-banner-bottom):has(.global-audio-bar) .main-content {
+  padding-bottom: calc(7.5rem + var(--sticky-banner-height));
+}
+
 body:has(.sticky-banner-bottom) .global-audio-bar {
   bottom: calc(1rem + var(--sticky-banner-height));
+  transition: left var(--transition), bottom 220ms ease;
 }
 
 @media (max-width: 1024px) {
@@ -14459,7 +14500,11 @@ body:has(.sticky-banner-bottom) .global-audio-bar {
   }
 
   body:has(.sticky-banner-bottom) .main-content {
-    padding-bottom: calc(5.6rem + var(--sticky-banner-height) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(var(--tabbar-space, calc(4.2rem + env(safe-area-inset-bottom, 0px))) + 1.25rem + var(--sticky-banner-height));
+  }
+
+  body:has(.sticky-banner-bottom):has(.global-audio-bar) .main-content {
+    padding-bottom: calc(var(--tabbar-space, calc(4.2rem + env(safe-area-inset-bottom, 0px))) + 6.75rem + var(--sticky-banner-height));
   }
 
   .sticky-banner { gap: 0.45rem; padding: 0.4rem 0.6rem; }
@@ -14467,6 +14512,14 @@ body:has(.sticky-banner-bottom) .global-audio-bar {
   .sticky-banner-text span { font-size: 0.72rem; }
   .sticky-banner-cta { padding-inline: 0.7rem; }
   .sticky-banner-icon { display: none; }
+}
+
+/* Phones give the dock more room than tablets; when the bar sits below it, the
+   page needs both allowances or the final card is hidden behind the chrome. */
+@media (max-width: 768px) {
+  body:has(.sticky-banner-bottom):has(.global-audio-bar) .main-content {
+    padding-bottom: calc(var(--tabbar-space, calc(4.2rem + env(safe-area-inset-bottom, 0px))) + 10.25rem + var(--sticky-banner-height));
+  }
 }
 
 /* --- One-time popup ------------------------------------------------------ */
