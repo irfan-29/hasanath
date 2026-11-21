@@ -130,7 +130,7 @@ export default function Navbar({ session }) {
           </div>
           <div className="logo-text">
             <h5>Hasanath</h5>
-            <span>Track · Pray · Grow</span>
+            <span>Pray · Track · Grow</span>
           </div>
         </Link>
         <button type="button" className="sidebar-toggler" aria-label="Toggle sidebar">

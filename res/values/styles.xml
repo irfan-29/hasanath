@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One launch theme per accent in Settings. The app remembers the user's
+     accent and starts in the matching theme, so the very first frame is
+     already their colour. Keep these in step with ACCENTS in MainActivity
+     and the accent-fill-1 values in frontend/src/styles/base.css. -->
+<resources>
+    <color name="splash_bg">#0d9488</color>
+    <color name="splash_green">#0d9488</color>
+    <color name="splash_blue">#2563eb</color>
+    <color name="splash_violet">#7c3aed</color>
+    <color name="splash_gold">#b45309</color>
+    <color name="splash_rose">#be123c</color>
+    <color name="splash_ocean">#0e7490</color>
+    <style name="Theme.Hasanath" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/splash_green</item>
+        <item name="android:statusBarColor">@color/splash_green</item>
+        <item name="android:navigationBarColor">@color/splash_green</item>
+    </style>
+    <style name="Theme.Hasanath.Blue" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/splash_blue</item>
+        <item name="android:statusBarColor">@color/splash_blue</item>
+        <item name="android:navigationBarColor">@color/splash_blue</item>
+    </style>
+    <style name="Theme.Hasanath.Violet" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/splash_violet</item>
+        <item name="android:statusBarColor">@color/splash_violet</item>
+        <item name="android:navigationBarColor">@color/splash_violet</item>
+    </style>
+    <style name="Theme.Hasanath.Gold" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/splash_gold</item>
+        <item name="android:statusBarColor">@color/splash_gold</item>
+        <item name="android:navigationBarColor">@color/splash_gold</item>
+    </style>
+    <style name="Theme.Hasanath.Rose" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/splash_rose</item>
+        <item name="android:statusBarColor">@color/splash_rose</item>
+        <item name="android:navigationBarColor">@color/splash_rose</item>
+    </style>
+    <style name="Theme.Hasanath.Ocean" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/splash_ocean</item>
+        <item name="android:statusBarColor">@color/splash_ocean</item>
+        <item name="android:navigationBarColor">@color/splash_ocean</item>
+    </style>
+</resources>

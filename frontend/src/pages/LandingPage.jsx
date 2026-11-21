@@ -1400,7 +1400,7 @@ export default function LandingPage() {
 
         <div className="landing-inner landing-footer-bottom">
           <span>© {new Date().getFullYear()} Hasanath</span>
-          <span>Track · Pray · Grow</span>
+          <span>Pray · Track · Grow</span>
         </div>
       </footer>
     </div>

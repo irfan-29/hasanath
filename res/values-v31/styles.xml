@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+: the system splash uses the same accent colour and mark. -->
+<resources>
+    <style name="Theme.Hasanath" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/splash_green</item>
+        <item name="android:statusBarColor">@color/splash_green</item>
+        <item name="android:navigationBarColor">@color/splash_green</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_green</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
+    </style>
+    <style name="Theme.Hasanath.Blue" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/splash_blue</item>
+        <item name="android:statusBarColor">@color/splash_blue</item>
+        <item name="android:navigationBarColor">@color/splash_blue</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_blue</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
+    </style>
+    <style name="Theme.Hasanath.Violet" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/splash_violet</item>
+        <item name="android:statusBarColor">@color/splash_violet</item>
+        <item name="android:navigationBarColor">@color/splash_violet</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_violet</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
+    </style>
+    <style name="Theme.Hasanath.Gold" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/splash_gold</item>
+        <item name="android:statusBarColor">@color/splash_gold</item>
+        <item name="android:navigationBarColor">@color/splash_gold</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_gold</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
+    </style>
+    <style name="Theme.Hasanath.Rose" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/splash_rose</item>
+        <item name="android:statusBarColor">@color/splash_rose</item>
+        <item name="android:navigationBarColor">@color/splash_rose</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_rose</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
+    </style>
+    <style name="Theme.Hasanath.Ocean" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/splash_ocean</item>
+        <item name="android:statusBarColor">@color/splash_ocean</item>
+        <item name="android:navigationBarColor">@color/splash_ocean</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_ocean</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
+    </style>
+</resources>
