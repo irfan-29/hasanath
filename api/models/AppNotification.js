@@ -26,7 +26,8 @@ const appNotificationSchema = new mongoose.Schema({
     // correctly if the account is renamed or removed.
     actor: {
         id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-        username: String
+        username: String,
+        displayName: String
     },
     title: { type: String, required: true },
     body: { type: String, default: "" },

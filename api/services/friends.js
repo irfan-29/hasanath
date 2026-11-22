@@ -8,6 +8,7 @@
 const Friendship = require("../models/Friendship.js");
 const User = require("../models/User.js");
 const usernameUtil = require("../utils/username.js");
+const { displayNameFor } = require("../utils/displayName.js");
 const appNotifications = require("./appNotifications.js");
 const notify = require("./notifications.js");
 
@@ -16,8 +17,19 @@ function publicSummary(user) {
         id: String(user._id),
         username: user.username || "",
         name: user.name || "",
+        displayName: displayNameFor(user),
         avatarUrl: user.avatarUrl || ""
     };
+}
+
+// "Aisha (@aisha)" - the friendly name first, with the unique handle beside it
+// so two people called Aisha are still distinguishable. Falls back to just the
+// handle when the account has not chosen a name.
+function label(user) {
+    const name = user && user.name ? displayNameFor(user) : "";
+    const handle = user && user.username ? `@${user.username}` : "";
+    if (name && handle) return `${name} (${handle})`;
+    return name || handle || "Someone";
 }
 
 async function findUser(rawUsername) {
@@ -82,7 +94,7 @@ async function sendRequest(viewer, rawUsername) {
         type: "friend_request",
         actor: viewer,
         title: "New friend request",
-        body: `${viewer.username || "Someone"} sent you a friend request.`,
+        body: `${label(viewer)} sent you a friend request.`,
         link: `/u/${viewer.username || ""}`,
         data: { friendshipId: String(friendship._id) }
     });
@@ -92,7 +104,7 @@ async function sendRequest(viewer, rawUsername) {
     notify.safeDeliver(
         target,
         `<b>Hasanath</b> — Friend request\n\n`
-        + `${notify.escapeHtml(viewer.username || "Someone")} sent you a friend request.\n`
+        + `${notify.escapeHtml(label(viewer))} sent you a friend request.\n`
         + `Open: /u/${viewer.username || ""}`
     ).catch(() => {});
 
@@ -138,7 +150,7 @@ async function respond(viewer, friendshipId, action) {
             type: "friend_accepted",
             actor: viewer,
             title: "Friend request accepted",
-            body: `${viewer.username || "Someone"} accepted your friend request.`,
+            body: `${label(viewer)} accepted your friend request.`,
             link: `/u/${viewer.username || ""}`,
             data: { friendshipId: String(friendship._id) }
         });

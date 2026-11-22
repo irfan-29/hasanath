@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { admin } from '../../services/api';
 import { useToast } from '../ToastProvider';
 import { useConfirm } from '../ConfirmProvider';
+import { previewUserPlaceholder } from '../../utils/personalization';
 import FormSelect from '../FormSelect';
 import Loader from '../Loader';
 
@@ -221,7 +222,8 @@ export default function BannersPanel() {
           is closed. A sticky bar stays on screen at the top or bottom. Only one
           popup and one sticky bar can be live at a time; turning another one on
           switches the previous one off. Use Retrigger to show a live campaign
-          again to people who already closed it.
+          again to people who already closed it. Write <code>{'${user}'}</code>{' '}
+          in the title or message to address each person by their display name.
         </p>
 
         {error && (
@@ -270,6 +272,11 @@ export default function BannersPanel() {
               onChange={(event) => update('title', event.target.value)}
               required
             />
+            {form.title.includes('${user}') && (
+              <p className="admin-preview" aria-label="Title preview">
+                {previewUserPlaceholder(form.title)}
+              </p>
+            )}
           </label>
 
           <label className="admin-field">
@@ -283,6 +290,11 @@ export default function BannersPanel() {
               onChange={(event) => update('body', event.target.value)}
             />
             <span className="account-hint admin-counter">{form.body.length}/600</span>
+            {form.body.includes('${user}') && (
+              <p className="admin-preview" aria-label="Message preview">
+                {previewUserPlaceholder(form.body)}
+              </p>
+            )}
           </label>
 
           <div className="admin-form-row">

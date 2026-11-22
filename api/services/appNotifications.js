@@ -25,7 +25,11 @@ function present(doc) {
         body: raw.body || "",
         link: raw.link || "",
         actor: raw.actor && raw.actor.username
-            ? { id: raw.actor.id ? String(raw.actor.id) : "", username: raw.actor.username }
+            ? {
+                id: raw.actor.id ? String(raw.actor.id) : "",
+                username: raw.actor.username,
+                displayName: raw.actor.displayName || raw.actor.name || raw.actor.username
+            }
             : null,
         data,
         read: Boolean(raw.readAt),
@@ -40,7 +44,11 @@ async function push({ userId, type, actor, title, body = "", link = "", data = {
         user: userId,
         type,
         actor: actor
-            ? { id: actor._id || actor.id, username: actor.username || "" }
+            ? {
+                id: actor._id || actor.id,
+                username: actor.username || "",
+                displayName: actor.name || actor.displayName || actor.username || ""
+            }
             : undefined,
         title,
         body,

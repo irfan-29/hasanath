@@ -7,18 +7,26 @@
 
 const Banner = require("../models/Banner.js");
 const BannerView = require("../models/BannerView.js");
+const { interpolateUser } = require("../utils/displayName.js");
 
 const OBJECT_ID = /^[a-f\d]{24}$/i;
 
-function present(banner) {
+// `viewer` is optional. When it is passed, ${user} is resolved for that person
+// (pass null for a guest, who gets the friendly fallback). The admin portal
+// calls present() without a viewer so the editor keeps showing the template.
+function present(banner, viewer) {
     if (!banner) return null;
     const raw = typeof banner.toObject === "function" ? banner.toObject() : banner;
+    const personalize = viewer !== undefined;
+    const title = raw.title || "";
+    const body = raw.body || "";
+    const ctaLabel = raw.ctaLabel || "";
     return {
         id: String(raw._id || ""),
         kind: raw.kind,
-        title: raw.title || "",
-        body: raw.body || "",
-        ctaLabel: raw.ctaLabel || "",
+        title: personalize ? interpolateUser(title, viewer) : title,
+        body: personalize ? interpolateUser(body, viewer) : body,
+        ctaLabel: personalize ? interpolateUser(ctaLabel, viewer) : ctaLabel,
         ctaUrl: raw.ctaUrl || "",
         position: raw.position === "bottom" ? "bottom" : "top",
         revision: Number(raw.revision) || 0,
@@ -36,8 +44,9 @@ function liveFilter(now = new Date()) {
 
 // The shell's boot payload. A guest gets the sticky bar only: a one-time popup
 // belongs to an account, because "seen once" has nowhere durable to live for a
-// visitor who has not signed in.
-async function deliverFor(userId) {
+// visitor who has not signed in. `user` may be a User document or null.
+async function deliverFor(user) {
+    const userId = user && user._id ? user._id : null;
     const now = new Date();
     const sticky = await Banner.find({ ...liveFilter(now), kind: "sticky" })
         .sort({ createdAt: -1, _id: -1 })
@@ -57,8 +66,8 @@ async function deliverFor(userId) {
     }
 
     return {
-        sticky: sticky.map(present),
-        otb: present(otb)
+        sticky: sticky.map((banner) => present(banner, user)),
+        otb: present(otb, user)
     };
 }
 

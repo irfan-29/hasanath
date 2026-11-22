@@ -8,6 +8,7 @@
 const User = require("../models/User.js");
 const Posts = require("../models/Post.js");
 const postModeration = require("./postModeration.js");
+const { displayNameFor } = require("../utils/displayName.js");
 
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
@@ -79,6 +80,7 @@ async function list({ query = "", page = 1, limit = DEFAULT_LIMIT } = {}) {
                 id: String(user._id),
                 username: user.username || "",
                 name: user.name || "",
+                displayName: displayNameFor(user),
                 email: user.email || "",
                 avatarUrl: user.avatarUrl || "",
                 telegram: Boolean(user.telegram && user.telegram.enabled),

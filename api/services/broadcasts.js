@@ -9,6 +9,7 @@
 const User = require("../models/User.js");
 const AppNotification = require("../models/AppNotification.js");
 const Broadcast = require("../models/Broadcast.js");
+const { interpolateUser } = require("../utils/displayName.js");
 
 const BATCH_SIZE = 500;
 
@@ -31,15 +32,19 @@ async function send({ title, body = "", link = "", admin }) {
         batch = [];
     };
 
-    // Project only the id: a broadcast needs no profile data, and an unbounded
-    // .find() would hydrate every user document for nothing.
-    const cursor = User.find({}, "_id").lean().cursor();
+    // The message is stored once as an admin-authored template. ${user} is
+    // resolved per recipient here, so each inbox row carries that person's own
+    // display name and the Broadcast history still shows what was written.
+    //
+    // Project the fields interpolation needs; an unbounded .find() would hydrate
+    // every user document for nothing.
+    const cursor = User.find({}, "_id name username email").lean().cursor();
     for await (const user of cursor) {
         batch.push({
             user: user._id,
             type: "admin_announcement",
-            title,
-            body,
+            title: interpolateUser(title, user),
+            body: interpolateUser(body, user),
             link,
             data: { broadcastId: String(broadcast._id) }
         });

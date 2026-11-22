@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { admin } from '../../services/api';
 import { useToast } from '../ToastProvider';
 import { useConfirm } from '../ConfirmProvider';
+import { previewUserPlaceholder } from '../../utils/personalization';
 import Loader from '../Loader';
 
 // Compose one message and put it in every account's notification centre.
@@ -83,6 +84,8 @@ export default function BroadcastPanel() {
           Appears in the notification centre for every registered account. Use
           the one-time banner for a feature announcement that should interrupt
           the app, or the sticky bar for a link that should stay visible.
+          Write <code>{'${user}'}</code> anywhere to address each person by
+          their display name, for example “Assalamu Alaikum {'${user}'}, …”.
         </p>
 
         {error && (
@@ -118,6 +121,11 @@ export default function BroadcastPanel() {
               required
             />
             <span className="account-hint admin-counter">{form.body.length}/1200</span>
+            {form.body.includes('${user}') && (
+              <p className="admin-preview" aria-label="Message preview">
+                {previewUserPlaceholder(form.body)}
+              </p>
+            )}
           </label>
 
           <label className="admin-field">

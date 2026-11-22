@@ -36,6 +36,12 @@ export default function AccountPage() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // The friendly display name is optional, not unique, and safe to edit without
+  // re-proving the password. Kept separate from the unique @username.
+  const [displayName, setDisplayName] = useState('');
+  const [nameEditing, setNameEditing] = useState(false);
+  const [nameSaving, setNameSaving] = useState(false);
+  const [nameError, setNameError] = useState('');
   // Changing the handle asks for the password first, in its own small modal -
   // the same re-proof account deletion demands.
   const [passwordOpen, setPasswordOpen] = useState(false);
@@ -69,6 +75,7 @@ export default function AccountPage() {
       const data = await api.get('/account');
       setState({ loading: false, data });
       setUsername(data.username || '');
+      setDisplayName(data.name || '');
     } catch (err) {
       setState({ loading: false, data: null });
     }
@@ -146,7 +153,50 @@ export default function AccountPage() {
     setDeleteError('');
   };
 
-  async function deleteAccount(event) {    event.preventDefault();
+  function requestNameSave() {
+    if (nameSaving) return;
+    setNameError('');
+    saveDisplayName();
+  }
+
+  async function saveDisplayName() {
+    if (nameSaving) return;
+    setNameSaving(true);
+    setNameError('');
+    try {
+      const result = await api.post('/account/display-name', { name: displayName });
+      setState((current) => (current.data
+        ? {
+          ...current,
+          data: {
+            ...current.data,
+            name: result.name || '',
+            displayName: result.displayName || result.name || current.data.username
+          }
+        }
+        : current));
+      setDisplayName(result.name || '');
+      setNameEditing(false);
+      // The navbar reads the session copy, so refresh it immediately.
+      await refresh();
+      toast('Display name updated');
+    } catch (err) {
+      setNameError(err instanceof ApiError && err.body?.error === 'invalid-name'
+        ? 'Choose a name with at least one visible character.'
+        : 'Could not update your display name.');
+    } finally {
+      setNameSaving(false);
+    }
+  }
+
+  function cancelNameEdit() {
+    setNameEditing(false);
+    setNameError('');
+    setDisplayName((state.data && state.data.name) || '');
+  }
+
+  async function deleteAccount(event) {
+    event.preventDefault();
     if (deleting) return;
     setDeleting(true);
     setDeleteError('');
@@ -254,6 +304,8 @@ export default function AccountPage() {
   // the copy away, and a name that matches the saved one is not a change.
   const savedUsername = d.username || '';
   const unchanged = username.trim().toLowerCase() === savedUsername.toLowerCase();
+  const savedName = d.name || '';
+  const nameUnchanged = displayName.trim() === savedName.trim();
 
   return (
     <>
@@ -275,7 +327,7 @@ export default function AccountPage() {
           <div className="account-handle">{d.displayName}</div>
           <div className="account-sub">
             {d.username ? (
-              <a href={`/u/${d.username}`} target="_blank" rel="noreferrer">/u/{d.username}</a>
+              <a href={`/u/${d.username}`} target="_blank" rel="noreferrer">@{d.username}</a>
             ) : (
               'No username yet - set one below to get a shareable profile link.'
             )}
@@ -314,11 +366,50 @@ export default function AccountPage() {
 
       <section className="account-card">
         <div className="account-field">
+          <label className="account-label" htmlFor="inputDisplayName">Display name</label>
+          <p className="account-hint">
+            The name Hasanath greets you with and shows on your profile. It does
+            not have to be unique, and announcements can address you by it. Leave
+            it empty to use your @username.
+          </p>
+          <div className="username-input">
+            <input className="form-control display-name-input" type="text" name="displayName" id="inputDisplayName"
+                   value={displayName} placeholder={d.username || 'Your name'}
+                   maxLength={50} autoComplete="name"
+                   readOnly={!nameEditing}
+                   onChange={(e) => { setDisplayName(e.target.value); setNameError(''); }} />
+            {nameEditing ? (
+              <>
+                <button type="button" className="btn btn-primary" onClick={requestNameSave}
+                        disabled={nameSaving || nameUnchanged}>
+                  <span className="material-symbols-rounded">check</span>
+                  {nameSaving ? 'Saving…' : 'Update'}
+                </button>
+                <button type="button" className="btn btn-outline" onClick={cancelNameEdit}>
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button type="button" className="fav-btn username-edit" aria-label="Edit display name" title="Edit display name"
+                      onClick={() => { setNameEditing(true); setNameError(''); }}>
+                <span className="material-symbols-rounded">edit</span>
+              </button>
+            )}
+          </div>
+          {nameError && (
+            <p className="account-hint account-field-error" role="alert">{nameError}</p>
+          )}
+        </div>
+      </section>
+
+      <section className="account-card">
+        <div className="account-field">
           <label className="account-label" htmlFor="inputUsername">Username</label>
           <p className="account-hint">
-            This is your public handle. It appears on your posts and is how people
-            find you at <code>/u/&lt;username&gt;</code>. Changing it breaks links
-            people have already shared.
+            This is your unique public handle. It appears on your posts and is how
+            people find you at <code>/u/&lt;username&gt;</code>. Changing it breaks
+            links people have already shared. Your display name above is the part
+            that does not need to be unique.
           </p>
           <div className="username-input">
             <input className="form-control" type="text" name="username" id="inputUsername"

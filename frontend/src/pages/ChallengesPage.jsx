@@ -8,6 +8,7 @@ import {
 import { useConfirm } from '../components/ConfirmProvider';
 import { useToast } from '../components/ToastProvider';
 import { useSession } from '../hooks/useSession.jsx';
+import { personName, personHandle } from '../utils/personalization';
 import Loader from '../components/Loader';
 import Avatar from '../components/Avatar';
 import DateField from '../components/DateField';
@@ -926,8 +927,13 @@ export default function ChallengesPage() {
                         checked={selectedFriends.includes(friend.username)}
                         onChange={() => toggleFriend(friend.username)}
                       />
-                      <Avatar className="friend-avatar" src={friend.avatarUrl} name={friend.username} />
-                      <span className="friend-picker-name">{friend.username}</span>
+                      <Avatar className="friend-avatar" src={friend.avatarUrl} name={personName(friend)} />
+                      <span className="friend-picker-name">
+                        {personName(friend)}
+                        {personHandle(friend) && (
+                          <span className="friend-picker-handle">{personHandle(friend)}</span>
+                        )}
+                      </span>
                     </label>
                   ))}
                 </div>
@@ -1280,7 +1286,10 @@ function FriendChallengeCard({
             {creatorIsYou ? (
               'you'
             ) : (
-              <Link to={`/u/${challenge.creator.username}`}>{challenge.creator.username}</Link>
+              <Link to={`/u/${challenge.creator.username}`}>{personName(challenge.creator)}</Link>
+            )}
+            {!creatorIsYou && personHandle(challenge.creator) && (
+              <span className="challenge-handle">{personHandle(challenge.creator)}</span>
             )}
             {' · '}
             {challenge.participantCount} {challenge.participantCount === 1 ? 'member' : 'members'}
@@ -1407,8 +1416,13 @@ function FriendChallengeCard({
                     checked={selected.includes(friend.username)}
                     onChange={() => onToggleFriend(friend.username)}
                   />
-                  <Avatar className="friend-avatar" src={friend.avatarUrl} name={friend.username} />
-                  <span className="friend-picker-name">{friend.username}</span>
+                  <Avatar className="friend-avatar" src={friend.avatarUrl} name={personName(friend)} />
+                  <span className="friend-picker-name">
+                    {personName(friend)}
+                    {personHandle(friend) && (
+                      <span className="friend-picker-handle">{personHandle(friend)}</span>
+                    )}
+                  </span>
                 </label>
               ))}
             </div>
@@ -1510,7 +1524,8 @@ function FriendChallengeCard({
               Waiting on{' '}
               {challenge.invited.map((entry, index) => (
                 <span key={entry.id}>
-                  <Link to={`/u/${entry.username}`}>{entry.username}</Link>
+                  <Link to={`/u/${entry.username}`}>{personName(entry)}</Link>
+                  {personHandle(entry) ? ` ${personHandle(entry)}` : ''}
                   {index < challenge.invited.length - 1 ? ', ' : '.'}
                 </span>
               ))}
@@ -1553,12 +1568,16 @@ function ChallengeLeaderboard({ entries }) {
               <Link
                 to={`/u/${entry.username}`}
                 className="podium-avatar"
-                aria-label={`Open ${entry.username}'s profile`}
+                aria-label={`Open ${personName(entry)} (${entry.username})'s profile`}
               >
-                <Avatar className="avatar-fill" src={entry.avatarUrl} name={entry.username} />
+                <Avatar className="avatar-fill" src={entry.avatarUrl} name={personName(entry)} />
               </Link>
-              <Link to={`/u/${entry.username}`} className="podium-name">
-                <span className="podium-name-text">{entry.username}</span>
+              <Link
+                to={`/u/${entry.username}`}
+                className="podium-name"
+                title={personHandle(entry) || entry.username}
+              >
+                <span className="podium-name-text">{personName(entry)}</span>
                 {entry.isYou && <span className="podium-you">You</span>}
               </Link>
               <span className="podium-streak">
@@ -1582,9 +1601,12 @@ function ChallengeLeaderboard({ entries }) {
                 className="leaderboard-player"
                 aria-label={`Open ${entry.username}'s profile`}
               >
-                <Avatar className="friend-avatar" src={entry.avatarUrl} name={entry.username} />
+                <Avatar className="friend-avatar" src={entry.avatarUrl} name={personName(entry)} />
                 <span className="leaderboard-name">
-                  {entry.username}
+                  <span className="leaderboard-name-text">{personName(entry)}</span>
+                  {personHandle(entry) && (
+                    <span className="leaderboard-handle">{personHandle(entry)}</span>
+                  )}
                   {entry.isYou && <span className="leaderboard-you">You</span>}
                 </span>
               </Link>

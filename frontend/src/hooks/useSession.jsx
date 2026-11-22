@@ -22,6 +22,8 @@ const SessionContext = createContext(null);
 const FALLBACK = {
   isLoggedIn: null,
   username: null,
+  // Friendly name resolved by the server (falls back to the username).
+  displayName: null,
   avatarUrl: null,
   // True for administrators (ADMIN_EMAILS plus accounts granted the flag);
   // drives the Admin link.

@@ -3455,29 +3455,57 @@ hr {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* One line only: the author truncates, the More button keeps its tap size. */
+  flex-wrap: nowrap;
   gap: 0.75rem;
   margin-bottom: 0.75rem;
 }
 
-/* The posted date moved into the slot the action row used to occupy. Keep it
-   quiet enough that the author still leads the card, and let it ellipsize on a
-   narrow phone instead of pushing the avatar off the edge. */
-.post-card .post-head-date {
+.post-card-head .post-author {
   flex: 0 1 auto;
-  min-width: 0;
-  margin: 0 0 0 auto;
-  overflow: hidden;
-  color: var(--color-text-muted);
-  font-size: 0.72rem;
-  font-style: normal;
-  line-height: 1.35;
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-/* The card footer uses one flex row: Like stays left, while Share and the
-   owner-only More menu sit together on the right. */
+/* The options menu sits on the author line, right-aligned, instead of sharing
+   the action row with Like and Share. */
+.post-head-more {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.post-head-more .post-more-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  justify-content: center;
+  border-color: transparent;
+  border-radius: 50%;
+}
+
+.post-head-more .post-more-btn .material-symbols-rounded { font-size: 1.2rem; }
+
+.post-head-more .post-more-btn:hover {
+  color: var(--color-text);
+  background: var(--color-border-light);
+  border-color: transparent;
+}
+
+.post-head-more .post-more-btn.is-open {
+  color: var(--color-text);
+  background: var(--color-border-light);
+}
+
+/* The posted date sits quietly under the post body: the card is about the
+   words, so the timestamp is small, grey and never competes with them. */
+.post-card .post-card-date {
+  margin: 0.1rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-style: normal;
+  line-height: 1.4;
+}
+
+/* One row at the end: Like on the left, Share on the right. No divider line -
+   the quiet timestamp already separates the body from the actions. */
 .post-card-actions {
   display: flex;
   align-items: center;
@@ -3486,12 +3514,8 @@ hr {
   gap: 0.15rem;
 }
 
-/* Engagement and management live together at the end of the card, matching the
-   familiar social-feed order: like and share first, owner tools pushed right. */
 .post-card-footer {
-  margin-top: 1rem;
-  padding-top: 0.8rem;
-  border-top: 1px solid var(--color-border-light);
+  margin-top: 0.9rem;
 }
 
 .post-card-footer .post-card-actions {
@@ -3519,15 +3543,12 @@ hr {
   align-items: center;
 }
 
-.post-card-actions .post-more-btn.is-open {
-  color: var(--color-text);
-  background: var(--color-border-light);
-}
-
 .post-more-menu {
   position: absolute;
   right: 0;
-  bottom: calc(100% + 0.45rem);
+  /* The menu is anchored to the top line now, so it opens downward. */
+  top: calc(100% + 0.45rem);
+  bottom: auto;
   z-index: 30;
   min-width: 158px;
   padding: 0.32rem;
@@ -3535,7 +3556,7 @@ hr {
   border-radius: 14px;
   background: var(--color-surface-elevated);
   box-shadow: 0 18px 40px -22px rgba(16, 42, 40, 0.45);
-  transform-origin: bottom right;
+  transform-origin: top right;
   animation: post-more-in 0.16s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -3736,6 +3757,10 @@ hr {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
+  min-width: 0;
+  /* The generic `a { overflow-wrap: anywhere }` would split @handles inside
+     their token; this row truncates instead of wrapping. */
+  overflow-wrap: normal;
   padding: 0.15rem 0.4rem;
   margin-left: -0.4rem;
   border-radius: 999px;
@@ -3784,7 +3809,28 @@ hr {
   flex-shrink: 0;
 }
 
-.post-author-name { color: inherit; }
+/* Name and handle share whatever width the date leaves them, on one line:
+   the name gives way first, the handle keeps its @token intact. */
+.post-author-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The unique handle sits beside the display name, quieter than it. */
+.post-author-handle {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  font-size: 0.8125rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .post-author-anonymous {
   color: var(--color-text-secondary);
@@ -3908,6 +3954,12 @@ hr {
   font-weight: 700;
 }
 
+.profile-handle-sub {
+  margin: 0.1rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9375rem;
+}
+
 .profile-stats {
   margin: 0.25rem 0 0;
   color: var(--color-text-secondary);
@@ -3956,6 +4008,14 @@ hr {
 .username-input .form-control {
   text-transform: lowercase;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* The display name shares the row layout, but it is prose, not a handle: it
+   keeps the capitals the person typed and the normal UI font. */
+.username-input .form-control.display-name-input {
+  text-transform: none;
+  font-family: inherit;
+  letter-spacing: normal;
 }
 
 /* The locked handle reads like the email field: same greyed background until
@@ -4010,6 +4070,18 @@ hr {
 }
 
 .account-sub { color: var(--color-text-secondary); font-size: 0.9375rem; }
+
+.account-field-error { color: var(--color-danger); }
+
+/* A live sample of an admin message with ${user} resolved for a reader. */
+.admin-preview {
+  margin: 0.35rem 0 0;
+  padding: 0.55rem 0.7rem;
+  border: 1px dashed var(--color-border);
+  border-radius: 10px;
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+}
 
 .account-field { flex: 1 1 100%; }
 
@@ -7291,6 +7363,21 @@ body {
   border-color: var(--color-border-light);
 }
 
+/* Share and options inside a post card are plain icons on the card itself: a
+   white pill behind them reads as a button floating on the content. The tint
+   only shows on hover, or while the options menu is open. */
+.post-card .post-share {
+  color: var(--color-text-secondary);
+  background: transparent;
+  border-color: transparent;
+}
+
+.post-card .post-share:hover {
+  color: var(--color-text);
+  background: var(--color-border-light);
+}
+
+/* The copy confirmation is a brief state change, so it keeps its fill. */
 .post-share[data-copied="true"] {
   color: #fff;
   background: var(--accent-fill-3);
@@ -10377,6 +10464,22 @@ body:has(.global-audio-bar) .main-content {
   white-space: nowrap;
 }
 
+/* Display name over the unique handle, the same hierarchy as a profile. */
+.header-account-identity {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.header-account-sub {
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .header-account-item {
   display: flex;
   align-items: center;
@@ -12524,9 +12627,42 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   font-size: 0.62rem;
 }
 
+/* Name over handle: the pair follows personalization.js's split, so a picker
+   row stays one line tall while still naming the unique account. */
 .friend-picker-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
   overflow: hidden;
   color: var(--color-text);
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.friend-picker-handle {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+}
+
+/* The inline handle beside a challenge creator, quieter than the name. */
+.challenge-handle {
+  margin-left: 0.3rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+
+.leaderboard-handle {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -12712,6 +12848,7 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  min-width: 0;
   overflow: hidden;
   color: var(--color-text);
   font-weight: 600;
@@ -12719,7 +12856,18 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   white-space: nowrap;
 }
 
+/* The name truncates before the handle, so a long name never pushes the unique
+   @username out of the row. */
+.leaderboard-name-text {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .leaderboard-you {
+  flex: 0 0 auto;
+  white-space: nowrap;
   padding: 0.04rem 0.38rem;
   border-radius: 999px;
   background: rgba(245, 158, 11, 0.16);
@@ -12836,6 +12984,16 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 }
 
 .friend-suggestion-handle:hover { color: var(--color-primary); }
+
+.friend-suggestion-sub {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .friend-suggestion-meta {
   max-width: 100%;
@@ -13137,15 +13295,23 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   text-decoration: none;
 }
 
+/* Two lines, not one: a phone-width podium column is too narrow for most full
+   names, and "mohamm…" reads worse than a wrapped second line. */
 .podium-name-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word;
+  text-align: center;
+  line-height: 1.2;
 }
 
 .podium-name:hover .podium-name-text { color: var(--color-primary-dark); text-decoration: underline; }
 
 .podium-you {
+  flex: 0 0 auto;
+  white-space: nowrap;
   padding: 0.02rem 0.32rem;
   border-radius: 999px;
   background: rgba(245, 158, 11, 0.18);

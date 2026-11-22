@@ -99,7 +99,10 @@ const settingsSchema = new mongoose.Schema({
 }, { _id: false });
 
 const userSchema = new mongoose.Schema({
-    name: String,
+    // Friendly display name, chosen on the Account page. Optional: reads fall
+    // back to `username` through api/utils/displayName.js. This is presentation
+    // only - the public handle and the login email are separate fields.
+    name: { type: String, trim: true, maxlength: 50 },
     // When the account was created. Legacy accounts have no value here; the
     // admin report falls back to the ObjectId timestamp rather than backfilling.
     createdAt: { type: Date, default: Date.now },

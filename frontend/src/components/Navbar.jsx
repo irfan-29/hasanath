@@ -45,6 +45,9 @@ export default function Navbar({ session }) {
   const { unread } = useUnreadNotifications();
 
   const handle = session.username || '';
+  // The friendly name is what the chrome greets people with; the handle stays
+  // visible beside it as the unique identity (the same split Instagram uses).
+  const name = session.displayName || handle;
   const badge = unread > 9 ? '9+' : String(unread);
   // The identity in the chrome is also the way into your own profile. Accounts
   // that predate usernames still have an Account page to land on.
@@ -163,19 +166,24 @@ export default function Navbar({ session }) {
               <button
                 type="button"
                 className="header-account-btn"
-                aria-label={`Account menu for ${handle}`}
+                aria-label={`Account menu for ${name || 'your account'}`}
                 aria-expanded={accountOpen}
                 aria-haspopup="dialog"
                 onClick={() => setAccountOpen((open) => !open)}
               >
-                <Avatar className="nav-avatar" src={session.avatarUrl} name={handle || '?'} />
+                <Avatar className="nav-avatar" src={session.avatarUrl} name={name || '?'} />
               </button>
 
               {accountOpen && createPortal(
                 <div className="header-account-menu" ref={accountMenuRef} role="dialog" aria-label="Account menu">
                   <Link to={profilePath} className="header-account-head" aria-label="Open your profile">
-                    <Avatar className="nav-avatar" src={session.avatarUrl} name={handle || '?'} />
-                    <span className="header-account-title">{handle}</span>
+                    <Avatar className="nav-avatar" src={session.avatarUrl} name={name || '?'} />
+                    <span className="header-account-identity">
+                      <span className="header-account-title">{name}</span>
+                      {handle && handle !== name && (
+                        <span className="header-account-sub">@{handle}</span>
+                      )}
+                    </span>
                   </Link>
                   <Link to="/account" className="header-account-item">
                     <span className="material-symbols-rounded" aria-hidden="true">account_circle</span>
@@ -237,11 +245,11 @@ export default function Navbar({ session }) {
           {session.isLoggedIn ? (
             <>
               <li className="nav-item nav-user-chip">
-                <Link to={profilePath} className="nav-user" title="Open your profile">
-                  <Avatar className="nav-avatar" src={session.avatarUrl} name={handle || '?'} />
-                  <span className="nav-label nav-user-name">{handle}</span>
+                <Link to={profilePath} className="nav-user" title={handle ? `@${handle}` : 'Open your profile'}>
+                  <Avatar className="nav-avatar" src={session.avatarUrl} name={name || '?'} />
+                  <span className="nav-label nav-user-name">{name}</span>
                 </Link>
-                <span className="nav-tooltip">My profile</span>
+                <span className="nav-tooltip">{handle ? `@${handle}` : 'My profile'}</span>
               </li>
               {/* Posts to /api/auth/logout, not /logout. The frontend only
                   forwards /api/* to the backend, so a plain form action would

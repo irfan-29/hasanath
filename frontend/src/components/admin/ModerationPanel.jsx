@@ -84,13 +84,20 @@ export default function ModerationPanel() {
           <p className="post-empty">Nothing is waiting.</p>
         ) : (
           state.posts.map((post) => {
-            const author = post.author && post.author.username
-              ? post.author.username
-              : post.authorName || 'Unknown';
+            // Name first, unique handle in brackets: two accounts can share a
+            // display name, and a moderator acts on the account.
+            const author = post.author && post.author.username ? post.author.username : '';
+            const authorName = (post.author && post.author.name)
+              || post.authorName
+              || author
+              || 'Unknown';
             return (
               <article className="moderation-item" key={post._id}>
                 <div className="moderation-meta">
-                  <span className="moderation-author">@{author}</span>
+                  <span className="moderation-author">
+                    {authorName}
+                    {author && authorName !== author ? ` (@${author})` : ''}
+                  </span>
                   <span>{post.postedDate}</span>
                   <span className="moderation-reason">
                     {post.statusReason === 'reported' ? 'Reported' : 'New account'}

@@ -6,6 +6,7 @@ import { useUnreadNotifications } from '../hooks/useNotifications.jsx';
 import { useConfirm } from '../components/ConfirmProvider';
 import { useToast } from '../components/ToastProvider';
 import { useSession } from '../hooks/useSession';
+import { personName, personHandle } from '../utils/personalization';
 import FormSelect from '../components/FormSelect';
 import Loader from '../components/Loader';
 import Avatar from '../components/Avatar';
@@ -17,6 +18,7 @@ const REPORT_REASONS = [
   { value: 'misinformation', label: 'Misleading religious content' },
   { value: 'other', label: 'Something else' },
 ];
+
 
 // Reuses views/post-card.ejs's markup, which the shared stylesheet already
 // styles. The card is factored out because the feed, a profile and a permalink
@@ -98,6 +100,11 @@ export function PostCard({ post, permalinkBase = '', canManage, onChanged, onDel
     : Boolean(username && post.author && post.author.username === username);
 
   const handle = post.author && post.author.username ? post.author.username : null;
+  // Instagram-style attribution: friendly display name first, unique @handle
+  // second. Legacy/deleted authors fall back to the snapshot on the post.
+  const authorName = post.author
+    ? (post.author.name || post.author.username)
+    : (post.authorName || null);
   const authorId = post.author
     ? String(post.author._id || post.author)
     : null;
@@ -223,11 +230,10 @@ export function PostCard({ post, permalinkBase = '', canManage, onChanged, onDel
     );
   }
 
-  // Instagram-style card order: author and posted date on top, media/content in
-  // the middle, and every action together at the end. Putting the date where
-  // the action row used to be keeps the top line balanced.
+  // Card order: author line with the More menu on its right edge, then the
+  // content, a quiet timestamp, and finally the Like/Share row.
   const date = (
-    <p className="post-date post-head-date">
+    <p className="post-date post-card-date">
       <Link className="post-permalink" to={`/post/${post._id}`}>{post.postedDate}</Link>
     </p>
   );
@@ -257,89 +263,6 @@ export function PostCard({ post, permalinkBase = '', canManage, onChanged, onDel
                   title="Copy link to this post" aria-label="Copy link to this post">
             <span className="material-symbols-rounded">share</span>
           </button>
-          {isLoggedIn && (
-            <div className="post-more" ref={moreRef}>
-              <button
-                ref={moreButtonRef}
-                type="button"
-                className={`post-share post-more-btn${menuOpen ? ' is-open' : ''}`}
-                aria-haspopup="menu"
-                aria-expanded={menuOpen}
-                aria-controls={menuOpen ? moreMenuId : undefined}
-                title="More options"
-                aria-label="More options"
-                onClick={() => setMenuOpen((open) => !open)}
-              >
-                <span className="material-symbols-rounded">more_vert</span>
-              </button>
-              {menuOpen && (
-                <div className="post-more-menu" id={moreMenuId} role="menu" aria-label="Post options">
-                  {owned ? (
-                    <>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={() => {
-                          setMenuOpen(false);
-                          setEditing(true);
-                        }}
-                      >
-                        <span className="material-symbols-rounded" aria-hidden="true">edit</span>
-                        Edit post
-                      </button>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="is-danger"
-                        disabled={deleting}
-                        onClick={() => {
-                          setMenuOpen(false);
-                          handleDelete();
-                        }}
-                      >
-                        <span className="material-symbols-rounded" aria-hidden="true">
-                          {deleting ? 'hourglass_top' : 'delete'}
-                        </span>
-                        {deleting ? 'Deleting…' : 'Delete post'}
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={() => {
-                          setMenuOpen(false);
-                          setReportError('');
-                          setReportOpen(true);
-                        }}
-                      >
-                        <span className="material-symbols-rounded" aria-hidden="true">flag</span>
-                        Report post
-                      </button>
-                      {authorId && (
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className="is-danger"
-                          disabled={blocking}
-                          onClick={() => {
-                            setMenuOpen(false);
-                            handleBlock();
-                          }}
-                        >
-                          <span className="material-symbols-rounded" aria-hidden="true">
-                            {blocking ? 'hourglass_top' : 'block'}
-                          </span>
-                          {blocking ? 'Blocking…' : `Block ${handle || 'author'}`}
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -350,14 +273,99 @@ export function PostCard({ post, permalinkBase = '', canManage, onChanged, onDel
       <div className="post-card-head">
         {handle ? (
           <Link className="post-author" to={`/u/${handle}`}>
-            <Avatar className="post-author-avatar" src={post.author && post.author.avatarUrl} name={handle} />
-            <span className="post-author-name">{handle}</span>
+            <Avatar className="post-author-avatar" src={post.author && post.author.avatarUrl} name={authorName || handle} />
+            <span className="post-author-name">{authorName || handle}</span>
+            {authorName && authorName !== handle && (
+              <span className="post-author-handle">@{handle}</span>
+            )}
           </Link>
         ) : post.authorName ? (
           <span className="post-author post-author-anonymous">{post.authorName}</span>
         ) : null}
 
-        {date}
+        {isLoggedIn && (
+          <div className="post-more post-head-more" ref={moreRef}>
+            <button
+              ref={moreButtonRef}
+              type="button"
+              className={`post-share post-more-btn${menuOpen ? ' is-open' : ''}`}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              aria-controls={menuOpen ? moreMenuId : undefined}
+              title="More options"
+              aria-label="More options"
+              onClick={() => setMenuOpen((open) => !open)}
+            >
+              <span className="material-symbols-rounded">more_vert</span>
+            </button>
+            {menuOpen && (
+              <div className="post-more-menu" id={moreMenuId} role="menu" aria-label="Post options">
+                {owned ? (
+                  <>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setEditing(true);
+                      }}
+                    >
+                      <span className="material-symbols-rounded" aria-hidden="true">edit</span>
+                      Edit post
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="is-danger"
+                      disabled={deleting}
+                      onClick={() => {
+                        setMenuOpen(false);
+                        handleDelete();
+                      }}
+                    >
+                      <span className="material-symbols-rounded" aria-hidden="true">
+                        {deleting ? 'hourglass_top' : 'delete'}
+                      </span>
+                      {deleting ? 'Deleting…' : 'Delete post'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setReportError('');
+                        setReportOpen(true);
+                      }}
+                    >
+                      <span className="material-symbols-rounded" aria-hidden="true">flag</span>
+                      Report post
+                    </button>
+                    {authorId && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="is-danger"
+                        disabled={blocking}
+                        onClick={() => {
+                          setMenuOpen(false);
+                          handleBlock();
+                        }}
+                      >
+                        <span className="material-symbols-rounded" aria-hidden="true">
+                          {blocking ? 'hourglass_top' : 'block'}
+                        </span>
+                        {blocking ? 'Blocking…' : `Block ${handle || 'author'}`}
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {post.status === 'pending' && (
@@ -377,12 +385,14 @@ export function PostCard({ post, permalinkBase = '', canManage, onChanged, onDel
             <iframe src={`https://www.youtube.com/embed/${post.content}`} allowFullScreen title="Embedded video" />
           </div>
           {post.reference && <p className="post-reference">{post.reference}</p>}
+          {date}
           {actions}
         </>
       ) : (
         <>
           <p className="post-content">{post.content}</p>
           {post.reference && <p className="post-reference">Reference: {post.reference}</p>}
+          {date}
           {actions}
         </>
       )}
@@ -672,8 +682,12 @@ export function PostPage() {
         <p>
           {post.author && post.author.username ? (
             <Link className="post-author" to={`/u/${post.author.username}`}>
-              <Avatar className="post-author-avatar" src={post.author.avatarUrl} name={post.author.username} />
-              <span className="post-author-name">{post.author.username}</span>
+              <Avatar className="post-author-avatar" src={post.author.avatarUrl}
+                      name={post.author.name || post.author.username} />
+              <span className="post-author-name">{post.author.name || post.author.username}</span>
+              {post.author.name && post.author.name !== post.author.username && (
+                <span className="post-author-handle">@{post.author.username}</span>
+              )}
             </Link>
           ) : post.authorName ? (
             <span className="post-author post-author-anonymous">{post.authorName}</span>
@@ -948,6 +962,7 @@ export function ProfilePage() {
 
   const { owner, posts, permalinkBase, isOwner, blocked = false, friendship, friendCount, friends = [] } = state.data;
   const relationship = friendship ? friendship.state : 'none';
+  const ownerName = owner.displayName || owner.name || owner.username;
   const shareUrl = (permalinkBase || '') + '/u/' + owner.username;
 
   return (
@@ -962,9 +977,13 @@ export function ProfilePage() {
         >
           <span className="material-symbols-rounded" aria-hidden="true">share</span>
         </button>
-        <Avatar className="profile-avatar" src={owner.avatarUrl} name={owner.username} />
+        <Avatar className="profile-avatar" src={owner.avatarUrl} name={ownerName} />
         <div className="profile-meta">
-          <h1 className="profile-handle">{owner.username}</h1>
+          <h1 className="profile-handle">{ownerName}</h1>
+          {/* Only when the friendly name is not just the handle again. */}
+          {personHandle(owner) && (
+            <p className="profile-handle-sub">{personHandle(owner)}</p>
+          )}
           <p className="profile-stats">
             <strong>{posts.length}</strong> {posts.length === 1 ? 'post' : 'posts'}
             <span className="profile-stat-sep">·</span>
@@ -1110,17 +1129,20 @@ export function ProfilePage() {
                             <Link
                               className="friend-suggestion-avatar"
                               to={`/u/${entry.username}`}
-                              aria-label={`Open ${entry.username}’s profile`}
+                              aria-label={`Open ${personName(entry)}’s profile`}
                             >
-                              <Avatar className="avatar-fill" src={entry.avatarUrl} name={entry.username} />
+                              <Avatar className="avatar-fill" src={entry.avatarUrl} name={personName(entry)} />
                             </Link>
                             <Link className="friend-suggestion-handle" to={`/u/${entry.username}`}>
-                              {entry.username}
+                              {personName(entry)}
                             </Link>
+                            {personHandle(entry) && (
+                              <span className="friend-suggestion-sub">{personHandle(entry)}</span>
+                            )}
                             <span className="friend-suggestion-meta">
                               {entry.mutualCount > 0
                                 ? `${entry.mutualCount} mutual friend${entry.mutualCount === 1 ? '' : 's'}`
-                                : (entry.name || 'New here')}
+                                : 'New here'}
                             </span>
                             <button
                               type="button"
@@ -1160,10 +1182,10 @@ export function ProfilePage() {
                       ) : (
                         results.map((entry) => (
                           <div className="friend-result" key={entry.id}>
-                            <Avatar className="friend-avatar" src={entry.avatarUrl} name={entry.username} />
+                            <Avatar className="friend-avatar" src={entry.avatarUrl} name={personName(entry)} />
                             <div className="friend-identity">
-                              <Link className="friend-handle" to={`/u/${entry.username}`}>{entry.username}</Link>
-                              {entry.name && <span className="friend-since">{entry.name}</span>}
+                              <Link className="friend-handle" to={`/u/${entry.username}`}>{personName(entry)}</Link>
+                              {personHandle(entry) && <span className="friend-since">{personHandle(entry)}</span>}
                             </div>
                             <div className="friend-action">
                               {entry.relation === 'friends' && <span className="friend-relation">Friends</span>}
@@ -1201,10 +1223,10 @@ export function ProfilePage() {
                       <div className="friends-list">
                         {pending.incoming.map((entry) => (
                           <div className="friend-row" key={entry.friendshipId}>
-                            <Avatar className="friend-avatar" src={entry.avatarUrl} name={entry.username} />
+                            <Avatar className="friend-avatar" src={entry.avatarUrl} name={personName(entry)} />
                             <div className="friend-identity">
-                              <Link className="friend-handle" to={`/u/${entry.username}`}>{entry.username}</Link>
-                              <span className="friend-since">Wants to be friends</span>
+                              <Link className="friend-handle" to={`/u/${entry.username}`}>{personName(entry)}</Link>
+                              <span className="friend-since">{personHandle(entry) || 'Wants to be friends'}</span>
                             </div>
                             <div className="friend-action">
                               <button
@@ -1236,16 +1258,16 @@ export function ProfilePage() {
                       <div className="friends-list">
                         {pending.outgoing.map((entry) => (
                           <div className="friend-row" key={entry.friendshipId}>
-                            <Avatar className="friend-avatar" src={entry.avatarUrl} name={entry.username} />
+                            <Avatar className="friend-avatar" src={entry.avatarUrl} name={personName(entry)} />
                             <div className="friend-identity">
-                              <Link className="friend-handle" to={`/u/${entry.username}`}>{entry.username}</Link>
-                              <span className="friend-since">Request sent</span>
+                              <Link className="friend-handle" to={`/u/${entry.username}`}>{personName(entry)}</Link>
+                              <span className="friend-since">{personHandle(entry) || 'Request sent'}</span>
                             </div>
                             <button
                               type="button"
                               className="friend-remove"
                               title="Cancel request"
-                              aria-label={`Cancel friend request to ${entry.username}`}
+                              aria-label={`Cancel friend request to ${personName(entry)}`}
                               disabled={friendBusy}
                               onClick={() => cancelRequest(entry)}
                             >

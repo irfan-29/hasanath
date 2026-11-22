@@ -10,6 +10,7 @@ const User = require("../models/User.js");
 const Friendship = require("../models/Friendship.js");
 const appNotifications = require("./appNotifications.js");
 const notify = require("./notifications.js");
+const { displayNameFor } = require("../utils/displayName.js");
 
 const {
     isoDay,
@@ -27,6 +28,15 @@ const {
 
 const MAX_FRIENDS = 20;
 const MAX_HISTORY = 730;
+
+// "Aisha (@aisha)" for notifications; the display name is optional and never
+// replaces the unique handle as the identity.
+function label(user) {
+    const name = user && user.name ? displayNameFor(user) : "";
+    const handle = user && user.username ? `@${user.username}` : "";
+    if (name && handle) return `${name} (${handle})`;
+    return name || handle || "Someone";
+}
 
 // `doc` is expected to have creator and participants.user populated with at
 // least `username`.
@@ -52,6 +62,8 @@ function present(doc, viewerId) {
         return {
             id: String(user._id),
             username: user.username || "",
+            name: user.name || "",
+            displayName: displayNameFor(user),
             avatarUrl: user.avatarUrl || "",
             status: entry.status,
             currentStreak: dated
@@ -82,7 +94,13 @@ function present(doc, viewerId) {
     return {
         id: String(raw._id),
         name: raw.name || "",
-        creator: { id: String(creator._id || ""), username: creator.username || "", avatarUrl: creator.avatarUrl || "" },
+        creator: {
+            id: String(creator._id || ""),
+            username: creator.username || "",
+            name: creator.name || "",
+            displayName: displayNameFor(creator),
+            avatarUrl: creator.avatarUrl || ""
+        },
         createdAt: raw.createdAt,
         startDate,
         endDate,
@@ -106,15 +124,22 @@ function present(doc, viewerId) {
         })),
         invited: participants
             .filter((entry) => entry.status === "pending")
-            .map((entry) => ({ id: entry.id, username: entry.username, avatarUrl: entry.avatarUrl, isYou: entry.isYou })),
+            .map((entry) => ({
+                id: entry.id,
+                username: entry.username,
+                name: entry.name,
+                displayName: entry.displayName,
+                avatarUrl: entry.avatarUrl,
+                isYou: entry.isYou
+            })),
         participantCount: accepted.length
     };
 }
 
 function populated(id) {
     return FriendChallenge.findById(id)
-        .populate("creator", "username avatarUrl")
-        .populate("participants.user", "username avatarUrl");
+        .populate("creator", "username name avatarUrl")
+        .populate("participants.user", "username name avatarUrl");
 }
 
 async function listChallenges(viewerId) {
@@ -124,8 +149,8 @@ async function listChallenges(viewerId) {
             $elemMatch: { user: viewerId, status: { $in: ["pending", "accepted"] } }
         }
     })
-        .populate("creator", "username avatarUrl")
-        .populate("participants.user", "username avatarUrl")
+        .populate("creator", "username name avatarUrl")
+        .populate("participants.user", "username name avatarUrl")
         .sort({ createdAt: -1 });
 
     return docs.map((doc) => present(doc, viewerId));
@@ -186,7 +211,7 @@ async function createChallenge(viewer, { name, friends, startDate, period, endDa
             type: "challenge_invite",
             actor: viewer,
             title: "Challenge invitation",
-            body: `${viewer.username || "Someone"} invited you to "${cleanName}".`,
+            body: `${label(viewer)} invited you to "${cleanName}".`,
             link: "/challenges",
             data: { challengeId: String(challenge._id), challengeName: cleanName }
         });
@@ -194,7 +219,7 @@ async function createChallenge(viewer, { name, friends, startDate, period, endDa
         notify.safeDeliver(
             user,
             `<b>Hasanath</b> — Challenge invitation\n\n`
-            + `${notify.escapeHtml(viewer.username || "Someone")} invited you to `
+            + `${notify.escapeHtml(label(viewer))} invited you to `
             + `<b>${notify.escapeHtml(cleanName)}</b>.\nOpen Hasanath to accept.`
         ).catch(() => {});
     }
@@ -231,7 +256,7 @@ async function respond(viewer, challengeId, action) {
             type: action === "accept" ? "challenge_accepted" : "challenge_declined",
             actor: viewer,
             title: action === "accept" ? "Challenge accepted" : "Challenge declined",
-            body: `${viewer.username || "Someone"} ${action === "accept" ? "joined" : "declined"} "${challenge.name}".`,
+            body: `${label(viewer)} ${action === "accept" ? "joined" : "declined"} "${challenge.name}".`,
             link: "/challenges",
             data: { challengeId: String(challenge._id), challengeName: challenge.name }
         });
@@ -359,7 +384,7 @@ async function updateChallenge(viewer, challengeId, { name, friends, endDate, no
             type: "challenge_invite",
             actor: viewer,
             title: "Challenge invitation",
-            body: `${viewer.username || "Someone"} invited you to "${challenge.name}".`,
+            body: `${label(viewer)} invited you to "${challenge.name}".`,
             link: "/challenges",
             data: { challengeId: String(challenge._id), challengeName: challenge.name }
         });
@@ -367,7 +392,7 @@ async function updateChallenge(viewer, challengeId, { name, friends, endDate, no
         notify.safeDeliver(
             user,
             `<b>Hasanath</b> — Challenge invitation\n\n`
-            + `${notify.escapeHtml(viewer.username || "Someone")} invited you to `
+            + `${notify.escapeHtml(label(viewer))} invited you to `
             + `<b>${notify.escapeHtml(challenge.name)}</b>.\nOpen Hasanath to accept.`
         ).catch(() => {});
     }

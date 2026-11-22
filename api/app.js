@@ -24,6 +24,7 @@ const notify = require("./services/notifications.js");
 const scheduler = require("./services/notifyScheduler.js");
 const qstash = require("./utils/qstash.js");
 const usernameUtil = require("./utils/username.js");
+const displayName = require("./utils/displayName.js");
 const avatarStore = require("./utils/avatarStore.js");
 const avatarUpload = require("./utils/avatarUpload.js");
 const emailService = require("./services/email.js");
@@ -1249,7 +1250,7 @@ app.get("/api/app/meta", async function(req, res){
     // boot payload so the shell can paint them without a second round trip.
     let banners = { sticky: [], otb: null };
     try {
-        banners = await bannersService.deliverFor(userId);
+        banners = await bannersService.deliverFor(isLoggedIn ? req.user : null);
     } catch (err) {
         console.error("api/app/meta banners:", err.message);
     }
@@ -1259,6 +1260,10 @@ app.get("/api/app/meta", async function(req, res){
         session: {
             isLoggedIn,
             username: (isLoggedIn && req.user.username) || null,
+            // The friendly name shown in the chrome and account menu. Resolved
+            // server-side so a browser never has to choose between name,
+            // username and email, and so admin ${user} previews match delivery.
+            displayName: isLoggedIn ? displayName.displayNameFor(req.user) : null,
             // Carried on the boot payload so the navbar can paint the real
             // photo immediately, without waiting for the account page.
             avatarUrl: (isLoggedIn && req.user.avatarUrl) || null,
@@ -1751,7 +1756,9 @@ app.post("/api/posts", requireLogin, postIpLimiter, postAccountLimiter, postGapL
         const post = await Posts.create({
             postedDate: formattedDate,
             author: req.user._id,
-            authorName: req.user.username || req.user.email,
+            // Snapshot for the case where the account is later deleted. Live
+            // posts render the populated author's current name instead.
+            authorName: displayName.displayNameFor(req.user),
             content,
             reference: String(req.body.reference || ""),
             isVideo,
@@ -1951,6 +1958,7 @@ app.get("/api/account/blocks", requireLogin, async function(req, res){
                 id: String(person._id),
                 username: person.username || "",
                 name: person.name || "",
+                displayName: displayName.displayNameFor(person),
                 avatarUrl: person.avatarUrl || ""
             }))
         });
@@ -2450,7 +2458,10 @@ app.get("/api/u/:username", async function(req, res){
             filter.status = isOwner
                 ? { $ne: "rejected" }
                 : { $nin: ["pending", "rejected"] };
-            posts = await Posts.find(filter).sort({ _id: -1 });
+            // Populate the author so a post on this profile carries the same
+            // name/@handle attribution (and avatar) the feed shows, instead of
+            // falling back to the snapshot written at post time.
+            posts = await Posts.find(filter).sort({ _id: -1 }).populate("author", "username name avatarUrl");
         }
 
         // The profile carries the viewer's relationship to this handle, which
@@ -2474,6 +2485,7 @@ app.get("/api/u/:username", async function(req, res){
                 id: String(author._id),
                 username: author.username || "",
                 name: author.name || "",
+                displayName: displayName.displayNameFor(author),
                 avatarUrl: author.avatarUrl || "",
                 createdAt: author.createdAt
             },
@@ -2744,13 +2756,44 @@ app.get("/api/account", requireLogin, function(req, res){
     const username = user.username || "";
     res.json({
         username,
-        displayName: username || user.name || (user.email || "?").split("@")[0],
+        // `name` is the editable display name (may be empty); `displayName` is
+        // the resolved label the UI should show, falling back to the username.
+        name: user.name || "",
+        displayName: displayName.displayNameFor(user),
         email: user.email,
         // Null for an account without a photo; the client renders the initial.
         avatarUrl: user.avatarUrl || null,
         // emailVerifiedAt only exists on accounts created since OTP signup.
         verified: Boolean(user.emailVerifiedAt)
     });
+});
+
+// Change the friendly name. Unlike the username this is not an identity: it is
+// not unique, it does not appear in /u/<handle>, and changing it breaks no
+// links. So it does not need the password re-proof the username route asks for.
+// An empty value is allowed and falls back to the username for display.
+app.post("/api/account/display-name", requireLogin, async function(req, res){
+    try {
+        const raw = String(req.body.name == null ? "" : req.body.name);
+        const name = displayName.cleanName(raw);
+        // A value made only of control characters is a mistake, not a request
+        // to clear the name. Treat it as invalid rather than silently clearing.
+        if (raw.trim() && !name) return res.status(400).json({ error: "invalid-name" });
+
+        await User.updateOne({ _id: req.user._id }, { $set: { name } });
+        // Keep the session copy in step for anything that renders before the
+        // next /api/app/meta refresh.
+        if (req.user) req.user.name = name;
+
+        res.json({
+            ok: true,
+            name,
+            displayName: displayName.displayNameFor({ name, username: req.user.username, email: req.user.email })
+        });
+    } catch (err) {
+        console.error("api/account/display-name POST:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
 });
 
 // Update the public handle behind /u/<username>. The password re-proves it is
