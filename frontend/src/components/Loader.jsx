@@ -1,4 +1,5 @@
 import React from 'react';
+import LogoMark from './LogoMark';
 
 // Branded loading state.
 //
@@ -40,7 +41,7 @@ export default function Loader({ variant = 'inline', label = 'Loading', classNam
   return (
     <div className={rootClass} role="status" aria-live="polite" aria-busy="true">
       <div className="app-loader__ring">
-        <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+        <svg className="app-loader__spinner" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
           {/* Track, so the unfilled portion is visible rather than transparent. */}
           <circle className="app-loader__track" cx="50" cy="50" r={r} />
           <circle
@@ -50,15 +51,9 @@ export default function Loader({ variant = 'inline', label = 'Loading', classNam
             strokeDashoffset={c * 0.75}
           />
         </svg>
-        {/* The brand glyph is the same SVG the favicon and boot loader use, so
-            the loader never shows a ligature name while an icon font loads. */}
-        <img
-          className="app-loader__logo"
-          src="/logo-mark.svg"
-          alt=""
-          width={size.logo}
-          height={size.logo}
-        />
+        {/* Same drawing as the favicon and boot loader, inlined so it takes the
+            theme's accent instead of the file's fixed teal. */}
+        <LogoMark className="app-loader__logo" size={size.logo} />
       </div>
       {size.label && <span className="app-loader__label">{label}</span>}
       {/* Announced for screen readers; the visual label is decorative-ish. */}

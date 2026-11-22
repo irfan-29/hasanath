@@ -89,7 +89,9 @@
 .app-loader--page .app-loader__ring { width: 56px; height: 56px; }
 .app-loader--overlay .app-loader__ring { width: 48px; height: 48px; }
 
-.app-loader__ring svg {
+/* Only the ring's own SVG is the overlay; the logo mark is a grid item inside
+   the same box and must keep its own size and upright orientation. */
+.app-loader__spinner {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -120,7 +122,10 @@
 }
 
 .app-loader__logo {
-  color: var(--color-primary);
+  display: block;
+  /* The accent fill is the same saturated stop as the ring, so the mark and
+     the ring share one colour in every theme. */
+  color: var(--accent-fill-1);
   animation: app-loader-pulse 1.8s ease-in-out infinite;
 }
 

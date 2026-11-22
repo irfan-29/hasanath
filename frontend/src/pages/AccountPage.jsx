@@ -372,7 +372,7 @@ export default function AccountPage() {
             not have to be unique, and announcements can address you by it. Leave
             it empty to use your @username.
           </p>
-          <div className="username-input">
+          <div className={`username-input${nameEditing ? ' username-input-editing' : ''}`}>
             <input className="form-control display-name-input" type="text" name="displayName" id="inputDisplayName"
                    value={displayName} placeholder={d.username || 'Your name'}
                    maxLength={50} autoComplete="name"
@@ -411,7 +411,7 @@ export default function AccountPage() {
             links people have already shared. Your display name above is the part
             that does not need to be unique.
           </p>
-          <div className="username-input">
+          <div className={`username-input${editing ? ' username-input-editing' : ''}`}>
             <input className="form-control" type="text" name="username" id="inputUsername"
                    value={username} placeholder="your-name"
                    pattern="[a-zA-Z0-9._]{3,30}" maxLength={30}

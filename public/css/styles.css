@@ -3990,6 +3990,20 @@ hr {
   max-width: 420px;
 }
 
+/* While a name is being edited the field owns the first line and Update /
+   Cancel drop to a second, right-aligned row. On a phone the single-line row
+   squeezed the field to a few characters, which hid the value being edited. */
+.username-input-editing {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: none;
+}
+
+.username-input-editing .form-control {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
 /* The pencil that opens the otherwise read-only handle. Same icon-button
    treatment as the readers' share / bookmark pair. */
 .username-input .username-edit {
@@ -4034,6 +4048,13 @@ hr {
 }
 
 .username-input .material-symbols-rounded { font-size: 1.1rem; }
+
+@media (max-width: 640px) {
+  .username-input-editing .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
 
 .username-row code {
   padding: 0.1rem 0.35rem;
