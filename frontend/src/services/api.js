@@ -205,6 +205,21 @@ export const admin = {
   retriggerBanner: (id) => api.post(`/admin/banners/${id}/retrigger`, {}),
   broadcasts: () => api.get('/admin/broadcasts'),
   sendBroadcast: (payload) => api.post('/admin/broadcasts', payload),
+  contactMessages: ({ status = '', page = 1, limit = 50 } = {}) => {
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    if (page) params.set('page', page);
+    if (limit) params.set('limit', limit);
+    const qs = params.toString();
+    return api.get(`/admin/contact-messages${qs ? `?${qs}` : ''}`);
+  },
+  replyContactMessage: (id, payload) => api.request(`/admin/contact-messages/${id}`, { method: 'PATCH', body: payload }),
+};
+
+// Signed-in users contact the admin.
+export const contact = {
+  send: (payload) => api.post('/contact-admin', payload),
+  mine: () => api.get('/contact-admin/mine'),
 };
 
 // Acknowledgement for the one-time popup. Deliberately not under /admin: every

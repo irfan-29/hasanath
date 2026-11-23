@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, account, posts as postsApi, ApiError } from '../services/api';
+import { api, account, posts as postsApi, contact, ApiError } from '../services/api';
 import { useSession } from '../hooks/useSession.jsx';
 import { useToast } from '../components/ToastProvider';
 import Loader from '../components/Loader';
 import Avatar from '../components/Avatar';
 import AvatarUploader from '../components/AvatarUploader';
+import FormSelect from '../components/FormSelect';
 
 // Map the username route's error codes to plain sentences - the raw codes
 // ("taken", "invalid-username") are for programs, not for people.
@@ -66,6 +67,17 @@ export default function AccountPage() {
   // menu lives on every post, so the undo lives here.
   const [blocked, setBlocked] = useState([]);
   const [blockedBusy, setBlockedBusy] = useState('');
+  // Contact the admin: an in-app message or an email opened in the visitor's
+  // mail app. The replies come back as notifications and are listed here.
+  const [contactMethod, setContactMethod] = useState('message');
+  const [contactSubject, setContactSubject] = useState('');
+  const [contactMessage, setContactMessage] = useState('');
+  const [contactBusy, setContactBusy] = useState(false);
+  const [contactError, setContactError] = useState('');
+  const [contactMessages, setContactMessages] = useState([]);
+  const [contactMessagesOpen, setContactMessagesOpen] = useState(false);
+  const [contactMessagesLoading, setContactMessagesLoading] = useState(false);
+  const [contactMessagesLoaded, setContactMessagesLoaded] = useState(false);
   const { refresh } = useSession();
   const toast = useToast();
   const navigate = useNavigate();
@@ -102,6 +114,67 @@ export default function AccountPage() {
       toast('Could not unblock that account.', { kind: 'error' });
     } finally {
       setBlockedBusy('');
+    }
+  }
+
+  async function sendContact(event) {
+    event.preventDefault();
+    if (contactBusy) return;
+    const message = contactMessage.trim();
+    if (message.length < 5) {
+      setContactError('Write at least a few words so the admin can help.');
+      return;
+    }
+    if (contactMethod === 'email') {
+      const subject = (contactSubject.trim() || 'Hasanath feedback').slice(0, 120);
+      const body = [
+        message,
+        '',
+        `From: ${state.data && state.data.email ? state.data.email : ''}`,
+        `Account: ${state.data && state.data.username ? '@' + state.data.username : ''}`,
+      ].join('\n');
+      const mailto = `mailto:umiappsofficial@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.location.href = mailto;
+      setContactSubject('');
+      setContactMessage('');
+      toast('Opening your mail app…');
+      return;
+    }
+    setContactBusy(true);
+    setContactError('');
+    try {
+      const result = await contact.send({ subject: contactSubject.trim(), message });
+      setContactMessages((current) => [result.message, ...current]);
+      setContactMessagesLoaded(true);
+      setContactMessagesOpen(true);
+      setContactSubject('');
+      setContactMessage('');
+      toast('Message sent to the admin. You will get a reply in your notifications.');
+    } catch (err) {
+      setContactError((err.body && err.body.error) === 'too-short'
+        ? 'Write at least a few words so the admin can help.'
+        : 'Could not send that message. Try again.');
+    } finally {
+      setContactBusy(false);
+    }
+  }
+
+  async function toggleContactMessages() {
+    if (contactMessagesOpen) {
+      setContactMessagesOpen(false);
+      return;
+    }
+    setContactMessagesOpen(true);
+    if (contactMessagesLoaded) return;
+    setContactMessagesLoading(true);
+    try {
+      const data = await contact.mine();
+      setContactMessages(data.messages || []);
+    } catch (err) {
+      setContactMessages([]);
+    } finally {
+      setContactMessagesLoaded(true);
+      setContactMessagesLoading(false);
     }
   }
 
@@ -516,6 +589,99 @@ export default function AccountPage() {
               ))}
             </ul>
           )}
+        </div>
+      </section>
+
+      <section className="account-card" id="contact-admin">
+        <div className="account-field">
+          <label className="account-label">Contact admin</label>
+          <p className="account-hint">
+            Send a question or suggestion. Choose an in-app message for a reply in
+            your notifications, or email the team directly.
+          </p>
+          {contactError && (
+            <div className="auth-alert" role="alert">
+              <span className="material-symbols-rounded">error</span>
+              {contactError}
+            </div>
+          )}
+          <form onSubmit={sendContact} className="admin-form">
+            <FormSelect
+              id="contact-method"
+              label="How to reach us"
+              value={contactMethod}
+              options={[
+                { value: 'message', label: 'In-app message' },
+                { value: 'email', label: 'Email (umiappsofficial@gmail.com)' },
+              ]}
+              onChange={(value) => { setContactMethod(value); setContactError(''); }}
+            />
+            <label className="admin-field">
+              <span className="account-label">Subject (optional)</span>
+              <input
+                className="form-control"
+                type="text"
+                maxLength={120}
+                value={contactSubject}
+                onChange={(event) => setContactSubject(event.target.value)}
+                placeholder="Suggestion or question"
+              />
+            </label>
+            <label className="admin-field">
+              <span className="account-label">Message</span>
+              <textarea
+                className="form-control admin-textarea"
+                rows={5}
+                maxLength={2000}
+                value={contactMessage}
+                onChange={(event) => setContactMessage(event.target.value)}
+                placeholder="Tell the admin what you need."
+                required
+              />
+            </label>
+            <button type="submit" className="btn btn-primary" disabled={contactBusy}>
+              {contactBusy ? 'Sending…' : contactMethod === 'email' ? 'Open mail app' : 'Send message'}
+            </button>
+          </form>
+
+          <div style={{ marginTop: '1rem' }}>
+            <button
+              type="button"
+              className="challenge-completed-toggle"
+              aria-expanded={contactMessagesOpen}
+              aria-label={contactMessagesOpen ? 'Hide your messages' : 'Show your messages'}
+              onClick={toggleContactMessages}
+            >
+              <span>Your messages</span>
+              <span className="material-symbols-rounded" aria-hidden="true">
+                {contactMessagesOpen ? 'expand_less' : 'expand_more'}
+              </span>
+            </button>
+            {contactMessagesOpen && (
+              <div style={{ marginTop: '0.75rem' }}>
+                {contactMessagesLoading ? (
+                  <Loader variant="page" label="Loading messages" />
+                ) : contactMessages.length === 0 ? (
+                  <p className="post-empty">No messages yet.</p>
+                ) : (
+                  contactMessages.map((item) => (
+                    <article key={item.id} className="moderation-item">
+                      <div className="moderation-meta">
+                        <span>{new Date(item.createdAt).toLocaleString()} · {item.status}</span>
+                      </div>
+                      <p className="post-content" style={{ whiteSpace: 'pre-wrap' }}>{item.message}</p>
+                      {item.adminReply && (
+                        <div className="admin-preview">
+                          <strong>Admin reply:</strong> {item.adminReply}
+                          <div className="account-hint">{item.repliedAt ? new Date(item.repliedAt).toLocaleString() : ''}</div>
+                        </div>
+                      )}
+                    </article>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </section>
 

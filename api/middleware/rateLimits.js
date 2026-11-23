@@ -171,6 +171,19 @@ const postGapLimiter = rateLimit({
     handler: tooManyAttempts("post-gap", POST_GAP_MS)
 });
 
+const CONTACT_WINDOW_MS = 60 * 60 * 1000;
+const CONTACT_ACCOUNT_MAX = 5;
+
+const contactAccountLimiter = rateLimit({
+    windowMs: CONTACT_WINDOW_MS,
+    limit: CONTACT_ACCOUNT_MAX,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    store: new MongoRateLimitStore("contact-account:"),
+    keyGenerator: (req) => (req.user && req.user._id ? String(req.user._id) : ipKeyGenerator(req.ip || "")),
+    handler: tooManyAttempts("contact-account", CONTACT_WINDOW_MS)
+});
+
 module.exports = {
     loginIpLimiter,
     loginAccountLimiter,
@@ -179,5 +192,6 @@ module.exports = {
     postIpLimiter,
     postAccountLimiter,
     postGapLimiter,
+    contactAccountLimiter,
     resolveOtpTarget
 };

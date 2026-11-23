@@ -167,6 +167,8 @@ Grouped by area. All paths are under `/api`.
 
 ### Account and settings
 - `GET /account` — raw `name` plus the resolved `displayName`.
+- `POST /contact-admin` (any signed-in user) send a message/suggestion to the admin.
+- `GET /contact-admin/mine` (any signed-in user) list the visitor's messages and replies.
 - `POST /settings/username`, `POST /account/password`,
   `POST /account/display-name` (no password; empty clears the name),
   `POST /account/avatar`, `DELETE /account/avatar`, `DELETE /account`
@@ -194,6 +196,7 @@ Grouped by area. All paths are under `/api`.
 - CRUD `/admin/banners`, `POST /admin/banners/:id/retrigger`
 - `GET /admin/broadcasts`, `POST /admin/broadcasts`
 - `GET /admin/users`, `PATCH /admin/users/:id`
+- `GET /admin/contact-messages`, `PATCH /admin/contact-messages/:id` (reply/status)
 - `GET /admin/stats`
 - `POST /banners/:id/seen` — **any signed-in user**, not admin.
 

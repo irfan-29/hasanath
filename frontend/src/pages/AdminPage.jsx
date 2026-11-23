@@ -6,6 +6,7 @@ import ModerationPanel from '../components/admin/ModerationPanel';
 import BroadcastPanel from '../components/admin/BroadcastPanel';
 import BannersPanel from '../components/admin/BannersPanel';
 import UsersPanel from '../components/admin/UsersPanel';
+import ContactMessagesPanel from '../components/admin/ContactMessagesPanel';
 
 // The admin portal.
 //
@@ -23,6 +24,7 @@ const TABS = [
   { id: 'broadcast', label: 'Broadcast', icon: 'campaign' },
   { id: 'banners', label: 'Banners', icon: 'web_asset' },
   { id: 'users', label: 'Users', icon: 'group' },
+  { id: 'messages', label: 'Messages', icon: 'mail' },
 ];
 
 export default function AdminPage() {
@@ -71,6 +73,7 @@ export default function AdminPage() {
         {tab === 'broadcast' && <BroadcastPanel />}
         {tab === 'banners' && <BannersPanel />}
         {tab === 'users' && <UsersPanel />}
+        {tab === 'messages' && <ContactMessagesPanel />}
       </div>
     </>
   );

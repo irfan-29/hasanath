@@ -14,7 +14,7 @@ const { MongoStore } = require("connect-mongo");
 const { islamicFinderFetch } = require("../api/utils/islamic-finder.js");
 const { sendTelegramMessage, claimChatByCode, makeVerifyCode, buildStreakSummary, normalizeChatId, normalizeToken, extractToken, isValidToken, botIsConfigured, ERROR_MESSAGES } = require("../api/utils/telegram.js");
 const { passport, requireLogin, resolveLoginIdentifier } = require("./middleware/auth.js");
-const { loginIpLimiter, loginAccountLimiter, otpIpLimiter, otpEmailLimiter, postIpLimiter, postAccountLimiter, postGapLimiter, resolveOtpTarget } = require("./middleware/rateLimits.js");
+const { loginIpLimiter, loginAccountLimiter, otpIpLimiter, otpEmailLimiter, postIpLimiter, postAccountLimiter, postGapLimiter, contactAccountLimiter, resolveOtpTarget } = require("./middleware/rateLimits.js");
 // Named `userData` rather than `data`: several routes bind a local `data` to a
 // fetched surah/prayer payload, which would shadow the service module.
 const userData = require("./services/userData.js");
@@ -33,6 +33,7 @@ const favourites = require("./services/favourites.js");
 const statsService = require("./services/stats.js");
 const User = require("./models/User.js");
 const friendsService = require("./services/friends.js");
+const contactMessagesService = require("./services/contactMessages.js");
 const friendChallengesService = require("./services/friendChallenges.js");
 const prayerTimes = require("./services/prayerTimes.js");
 const challengeDays = require("./utils/challengeDays.js");
@@ -1946,6 +1947,68 @@ app.post("/api/posts/:id/report", requireLogin, async function(req, res){
 // Blocking hides an author's posts from the blocker's feed, profile view and
 // permalinks. It is one-directional and local: the other person is not told,
 // their account is untouched, and a Telegram broadcast is unaffected.
+// User-facing contact admin messages.
+app.post("/api/contact-admin", requireLogin, contactAccountLimiter, async function(req, res){
+    try {
+        const result = await contactMessagesService.send(req.user, {
+            subject: req.body && req.body.subject,
+            message: req.body && req.body.message
+        });
+        if (result.error) return res.status(400).json({ error: result.error });
+        res.status(201).json(result);
+    } catch (err) {
+        console.error("api/contact-admin POST:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.get("/api/contact-admin/mine", requireLogin, async function(req, res){
+    try {
+        const result = await contactMessagesService.listForUser(req.user._id);
+        res.json(result);
+    } catch (err) {
+        console.error("api/contact-admin/mine:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+// Admin inbox.
+app.get("/api/admin/contact-messages", requireLogin, requireAdmin, async function(req, res){
+    try {
+        const result = await contactMessagesService.listForAdmin({
+            status: req.query && req.query.status,
+            page: req.query && req.query.page,
+            limit: req.query && req.query.limit
+        });
+        res.json(result);
+    } catch (err) {
+        console.error("api/admin/contact-messages:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.patch("/api/admin/contact-messages/:id", requireLogin, requireAdmin, async function(req, res){
+    try {
+        const body = req.body || {};
+        let result;
+        if (body.reply) {
+            result = await contactMessagesService.reply(req.params.id, req.user, {
+                reply: body.reply,
+                status: body.status || "replied"
+            });
+        } else if (body.status) {
+            result = await contactMessagesService.updateStatus(req.params.id, body.status);
+        } else {
+            return res.status(400).json({ error: "nothing-to-update" });
+        }
+        if (result.error) return res.status(400).json({ error: result.error });
+        res.json(result);
+    } catch (err) {
+        console.error("api/admin/contact-messages PATCH:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
 app.get("/api/account/blocks", requireLogin, async function(req, res){
     try {
         const user = await User.findById(req.user._id).select("blockedUsers").lean();
