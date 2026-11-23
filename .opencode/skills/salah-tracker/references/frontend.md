@@ -69,7 +69,7 @@ Files: `hooks/useSession.jsx`, `App.jsx`, `api/app.js` `/api/app/meta`.
 
 ```
 {
-  session: { isLoggedIn, username, avatarUrl, isAdmin },
+  session: { isLoggedIn, username, displayName, avatarUrl, isAdmin },
   theme, accent, defaultHome, homePath,
   appFont, appFontSize, quranFontSize,
   banners: { sticky: [...], otb: {...}|null }
@@ -77,6 +77,10 @@ Files: `hooks/useSession.jsx`, `App.jsx`, `api/app.js` `/api/app/meta`.
 ```
 
 - `Cache-Control: no-store`.
+- `session.displayName` is resolved server-side (`name` → `username` → email
+  local-part → `friend`). The navbar greets with it and shows `@username` below;
+  pages use `personName`/`personHandle` from `utils/personalization.js` for the
+  same split. `username` remains the unique handle and profile route key.
 - `useSession()` returns the context or a `FALLBACK`: `isLoggedIn: null`,
   no-op setters, `banners: {sticky: [], otb: null}`. `null` means unknown,
   distinct from signed out.
@@ -170,9 +174,12 @@ Files: `pages/`.
 - **PostsPage / PostPage / ProfilePage** — feed + liked filter + composer; text
   or YouTube-ID post; like/report/block/edit/delete menus; permalink; profile
   with friendship states, suggestions/search, block/unblock, post/friends tabs.
+  Authors and friend rows show the display name first with the unique
+  `@handle` beside it.
 - **NotificationsPage** — event feed, unread state, mark-all-read,
   accept/decline friend and challenge invitations.
-- **AccountPage** — avatar cropper/upload/remove, username edit with password,
+- **AccountPage** — avatar cropper/upload/remove, display-name edit (no
+  password; empty falls back to the username), username edit with password,
   email/verified state, password change modal, blocked-account undo,
   password-confirmed deletion.
 - **SettingsPage** — theme, six accents, app font, app/Qur'an text sizes
@@ -180,7 +187,8 @@ Files: `pages/`.
   translation, location, calculation method, Asr, time format, Telegram
   modules, and **Phone Notifications** (Android app only).
 - **AdminPage** — unlisted; non-admins see `AdminLogin`; query-string tabs:
-  Overview, Moderation, Broadcast, Banners, Users.
+  Overview, Moderation, Broadcast, Banners, Users. Broadcast and Banners forms
+  accept `${user}` and render a live sample with `previewUserPlaceholder`.
 - **NotFound** — in-app 404 with a link to Qur'an.
 - **AnnouncementBanner / ToastProvider / ConfirmProvider** — global sticky/OTB,
   `role="status"` toasts, promise-based alert dialog.

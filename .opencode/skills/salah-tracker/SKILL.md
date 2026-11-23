@@ -108,6 +108,13 @@ task, then open only the specific source files it points to.
     `refreshPrayerReminders()` after `/settings` or `/auth/` writes so native
     alarms re-plan. Do not move this state to the server.
 16. **Do not commit** unless the user asks. Report changed files and checks.
+17. **Two names, two jobs:** `username` is unique and is the `/u/<handle>` route
+    key; `name` is the optional, non-unique display name. Resolve labels with
+    `displayNameFor` (`api/utils/displayName.js`) or `personName`/`personHandle`
+    (`frontend/src/utils/personalization.js`) — never replace the handle in links,
+    uniqueness checks or login. Admin broadcast/banner text supports the exact,
+    case-sensitive `${user}` placeholder, resolved per recipient at delivery;
+    keep templates raw in history and admin views.
 
 ## Common workflows
 
@@ -143,9 +150,12 @@ task, then open only the specific source files it points to.
 1. Read `references/backend.md` (banners service/routes) and
    `references/frontend.md` (AnnouncementBanner, BannersPanel).
 2. Remember the one-live-per-kind rule and the `id:revision` dismissal key.
-3. After changing the bar, test expand → collapse repeatedly; the measured
+3. `${user}` is resolved only on delivery (`deliverFor`); the admin editor and
+   history must keep the raw template. Check a signed-in reader, a guest and the
+   admin preview.
+4. After changing the bar, test expand → collapse repeatedly; the measured
    height and page padding must return to the collapsed values.
-4. Test with and without the audio dock, on `/salah` and `/posts`.
+5. Test with and without the audio dock, on `/salah` and `/posts`.
 
 ### Debug auth / sessions
 - `GET /api/app/meta` is the boot payload (session, theme, accent, home,

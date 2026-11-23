@@ -918,7 +918,7 @@ export function ProfilePage() {
 
   async function cancelRequest(entry) {
     const ok = await ask({
-      title: `Cancel your request to ${entry.username}?`,
+      title: `Cancel your request to ${personName(entry)}?`,
       message: 'They will no longer see it.',
       confirmLabel: 'Cancel request',
       danger: true,
@@ -1037,7 +1037,7 @@ export function ProfilePage() {
       {blocked ? (
         <div className="profile-blocked-panel">
           <span className="material-symbols-rounded" aria-hidden="true">block</span>
-          <h2>You blocked @{owner.username}</h2>
+          <h2>You blocked {ownerName}{personHandle(owner) ? ` (${personHandle(owner)})` : ''}</h2>
           <p>Their posts and friend list are hidden from you. Unblock them to see this profile again.</p>
         </div>
       ) : (
@@ -1283,7 +1283,7 @@ export function ProfilePage() {
 
               <section className="profile-friends-block">
                 <h3 className="profile-friends-title">
-                  {isOwner ? 'Your friends' : `${owner.username}'s friends`}
+                  {isOwner ? 'Your friends' : `${ownerName}'s friends`}
                 </h3>
                 {friends.length === 0 ? (
                   <p className="friend-empty">
@@ -1295,10 +1295,11 @@ export function ProfilePage() {
                   <div className="friends-list">
                     {friends.map((friend) => (
                       <div className="friend-row" key={friend.id}>
-                        <Avatar className="friend-avatar" src={friend.avatarUrl} name={friend.username} />
+                        <Avatar className="friend-avatar" src={friend.avatarUrl} name={personName(friend)} />
                         <div className="friend-identity">
-                          <Link className="friend-handle" to={`/u/${friend.username}`}>{friend.username}</Link>
+                          <Link className="friend-handle" to={`/u/${friend.username}`}>{personName(friend)}</Link>
                           <span className="friend-since">
+                            {personHandle(friend) && `${personHandle(friend)} · `}
                             Friends since {new Date(friend.since).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                           </span>
                         </div>
@@ -1306,7 +1307,7 @@ export function ProfilePage() {
                           <button
                             type="button"
                             className="friend-remove"
-                            aria-label={`Remove ${friend.username}`}
+                            aria-label={`Remove ${personName(friend)}`}
                             title="Remove friend"
                             disabled={friendBusy}
                             onClick={() => removeFriend(friend.username)}

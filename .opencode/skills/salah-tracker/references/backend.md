@@ -166,8 +166,9 @@ Grouped by area. All paths are under `/api`.
 - `PATCH /friend-challenges/:id`, `DELETE /friend-challenges/:id`
 
 ### Account and settings
-- `GET /account`
+- `GET /account` — raw `name` plus the resolved `displayName`.
 - `POST /settings/username`, `POST /account/password`,
+  `POST /account/display-name` (no password; empty clears the name),
   `POST /account/avatar`, `DELETE /account/avatar`, `DELETE /account`
 - `GET /settings`, `POST /settings`
 
@@ -250,7 +251,8 @@ Grouped by area. All paths are under `/api`.
   personal challenges, settings, favourites/bookmarks, `blockedUsers`, Telegram
   prefs/`lastSent`, username/isAdmin/avatar/emailVerifiedAt/lastSeenAt. Plugin
   adds unique lowercase `email` + hidden hash/salt. Unique sparse `username`;
-  indexes `lastSeenAt`, `isAdmin`. Caps favourites/bookmarks 300, last-read 5.
+  optional **`name`** display name (≤50, trimmed, not unique; presentation only).
+  Indexes `lastSeenAt`, `isAdmin`. Caps favourites/bookmarks 300, last-read 5.
 - **AyahOfTheDay**: unique `date`; `surahNo`, `ayahNo`, `variants` Map keyed by
   edition, legacy top-level text, `resolvedAt`.
 - **Post** (model name **`Posts`**): author/authorName/content/reference/
@@ -299,8 +301,10 @@ Grouped by area. All paths are under `/api`.
 - **postModeration** — admin check, visibility filters, holds, report
   threshold, lazy `publishDue`.
 - **banners** — live filtering, sticky/OTB delivery, idempotent mark-seen,
-  view counts.
-- **broadcasts** — fan-out to all users in 500-row batches; history record.
+  view counts; `present(banner, viewer)` resolves `${user}` per reader while
+  the admin view (no viewer) keeps the template.
+- **broadcasts** — fan-out to all users in 500-row batches; history record
+  stores the raw template while `${user}` is resolved per recipient's row.
 - **email** — Gmail SMTP or Resend; OTP generation/hash/compare; dev echo
   gated on `OTP_DEV_ECHO` + `NODE_ENV` strictly `development|test`.
 - **appNotifications** — push/list/unread/mark/remove; max 50.
@@ -351,7 +355,7 @@ No Redis use is implemented despite `@upstash/redis` being a dependency.
 
 ```
 {
-  session: { isLoggedIn, username, avatarUrl, isAdmin },
+  session: { isLoggedIn, username, displayName, avatarUrl, isAdmin },
   theme, accent, defaultHome, homePath,
   appFont, appFontSize, quranFontSize,
   banners: { sticky: [presentBanner], otb: presentBanner | null }
@@ -359,7 +363,8 @@ No Redis use is implemented despite `@upstash/redis` being a dependency.
 ```
 
 `presentBanner` = `{ id, kind, title, body, ctaLabel, ctaUrl, position,
-revision, createdAt }`. `Cache-Control: no-store`.
+revision, createdAt }`. Title/body/CTA are personalised for the signed-in
+reader; guests get `friend` for `${user}`. `Cache-Control: no-store`.
 
 ### `GET /api/salah?date=`
 

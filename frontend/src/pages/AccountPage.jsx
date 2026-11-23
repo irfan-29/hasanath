@@ -97,7 +97,7 @@ export default function AccountPage() {
     try {
       await postsApi.unblock(person.id);
       setBlocked((current) => current.filter((entry) => entry.id !== person.id));
-      toast(`Unblocked ${person.username ? '@' + person.username : person.name || 'that account'}`);
+      toast(`Unblocked ${person.displayName || (person.username ? '@' + person.username : person.name || 'that account')}`);
     } catch (err) {
       toast('Could not unblock that account.', { kind: 'error' });
     } finally {
@@ -496,10 +496,13 @@ export default function AccountPage() {
                   <Avatar
                     className="blocked-avatar"
                     src={person.avatarUrl}
-                    name={person.username || person.name || '?'}
+                    name={person.displayName || person.username || person.name || '?'}
                   />
                   <span className="blocked-name">
-                    {person.username ? `@${person.username}` : person.name || 'Account'}
+                    {person.displayName || person.username || person.name || 'Account'}
+                    {person.username && (person.displayName || person.name) !== person.username
+                      ? ` (@${person.username})`
+                      : ''}
                   </span>
                   <button
                     type="button"

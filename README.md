@@ -145,6 +145,11 @@ living spec; update this file when a requirement changes.
   code is verified. Login accepts email **or** username.
 - [x] Username rules: 3–30 chars, lowercase `[a-z0-9._]`, no leading/trailing
   separator, reserved names blocked, unique.
+- [x] Optional **display name** (≤50 chars, not unique) shown first on the
+  profile, feed, friend lists, challenge views and account menu, with the unique
+  `@username` beside it. Clearing it falls back to the username. It can be
+  changed without re-entering the password; changing the username still needs
+  the current password.
 - [x] Password: at least 8 characters; change requires the current password.
 - [x] Avatar upload/crop (JPEG/PNG/WebP, max 4 MB, stored in Vercel Blob) with
   initials fallback.
@@ -176,6 +181,10 @@ living spec; update this file when a requirement changes.
   revoked; you cannot revoke yourself.
 - [x] Broadcasts to all users (title 120, body 1200, link 500), recorded even
   after notifications expire.
+- [x] `${user}` placeholder in broadcast and banner title/body/CTA: resolved per
+  recipient at delivery (broadcast) or per reader on `/api/app/meta` (banner),
+  for example `Assalamu Alaikum ${user}, …`. Stored history and the admin editor
+  keep the raw template; the admin form shows a sample preview.
 
 ### 2.11 Landing, PWA and Android
 
@@ -371,6 +380,10 @@ always the final source of truth.
 - Android Phone Notification preferences live on the device through the native
   bridge, not in Mongo; `api.js` re-plans reminders after settings/auth writes.
 - Guest data wins on merge into an account; keep it sanitized and size-capped.
+- `username` is the unique identity and `/u/<handle>` route key. `name` is the
+  optional, non-unique display name. Resolve labels with
+  `api/utils/displayName.js` (`displayNameFor`, `interpolateUser`) and the
+  client's `personName`/`personHandle`; never swap one for the other.
 - Admin emails from `ADMIN_EMAILS` are roots and cannot be demoted in the
   portal; nobody can demote themselves.
 
@@ -401,6 +414,11 @@ always the final source of truth.
   variable, so collapsing actually returns the page to its smaller size.
 - **Local dates:** Salah, Charity and stats use `localDateKey()` so a user east
   or west of UTC does not lose or gain a day.
+- **Display name vs username:** an optional, non-unique display name leads the
+  profile, feed, friends and challenge labels; the unique `@username` stays
+  beside it. The display name is editable without a password; the username is
+  not. `${user}` in admin messages resolves to the same display-name fallback
+  chain (`name` → `username` → email local-part → `friend`).
 
 ---
 
