@@ -14938,7 +14938,31 @@ body:has(.sticky-banner-bottom) .global-audio-bar {
 
 .dhikr-search {
   max-width: 820px;
-  margin: 0 auto 1.75rem;
+  margin: 0 auto 0.7rem;
+}
+
+.dhikr-count {
+  max-width: 820px;
+  margin: 0 auto 1.4rem;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.dhikr-status {
+  max-width: 520px;
+  margin: 2rem auto;
+  text-align: center;
+}
+
+.dhikr-status .post-empty { margin-bottom: 1rem; }
+
+.dhikr-more {
+  display: flex;
+  justify-content: center;
+  margin: 1.5rem auto 2rem;
 }
 
 .dhikr-duas {

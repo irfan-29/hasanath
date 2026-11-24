@@ -3,12 +3,20 @@ import FormSelect from '../components/FormSelect';
 import { useToast } from '../components/ToastProvider';
 import { settings as settingsApi } from '../services/api';
 import { localDateKey } from '../utils/date';
-import { DHIKR_PRESETS, DUA_CATEGORIES, DUAS } from '../data/adhkar';
+import { DHIKR_PRESETS } from '../data/adhkar';
+import {
+  DUA_LANGUAGES,
+  loadDuaCollection,
+  preferredDuaLanguage,
+  rememberDuaLanguage,
+} from '../services/duaData';
 
-// A tiny, offline-first dhikr counter plus a searchable dua collection. The
-// counts live in localStorage, keyed by the local day, so the module needs no
-// account and no network - a PWA (or the Android WebView) can open it offline.
+// An offline-first dhikr counter plus a lazily loaded dua collection. Counts
+// live in localStorage, keyed by the local day, so the counter needs no account
+// and no network. The dua data is a generated chunk that the service worker
+// keeps offline after its first open.
 const STORAGE_KEY = 'hasanath-dhikr';
+const DUA_PAGE_SIZE = 30;
 
 const TABS = [
   { id: 'dhikr', label: 'Dhikr', icon: 'repeat' },
@@ -38,6 +46,11 @@ export default function DhikrDuaPage() {
   const [state, setState] = useState(loadCounts);
   const [category, setCategory] = useState('All');
   const [query, setQuery] = useState('');
+  const [duaLang, setDuaLang] = useState(preferredDuaLanguage);
+  const [collection, setCollection] = useState(null);
+  const [duaStatus, setDuaStatus] = useState('idle');
+  const [duaReload, setDuaReload] = useState(0);
+  const [duaLimit, setDuaLimit] = useState(DUA_PAGE_SIZE);
   // The reader's Quran Font preference, fetched from the same settings the
   // reader uses. Arabic here is prose, but it should wear the face they chose.
   const [arabicFont, setArabicFont] = useState('QPC-Hafs');
@@ -67,6 +80,31 @@ export default function DhikrDuaPage() {
     }
   }, [state]);
 
+  // The dua dataset is a cached dynamic import, so opening this tab the first
+  // time is the only network cost. The chosen language is remembered, which is
+  // also why the module is imported only once per session.
+  useEffect(() => {
+    if (tab !== 'duas') return undefined;
+    let cancelled = false;
+    setDuaStatus('loading');
+    loadDuaCollection(duaLang)
+      .then((data) => {
+        if (cancelled) return;
+        setCollection(data);
+        setDuaStatus('ready');
+      })
+      .catch(() => {
+        if (!cancelled) setDuaStatus('error');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, duaLang, duaReload]);
+
+  useEffect(() => {
+    setDuaLimit(DUA_PAGE_SIZE);
+  }, [category, query, duaLang]);
+
   const count = state.counts[presetId] || 0;
   const total = state.totals[presetId] || 0;
   const todayTotal = useMemo(
@@ -92,17 +130,35 @@ export default function DhikrDuaPage() {
     }));
   }, [presetId]);
 
+  const activeCollection = collection?.code === duaLang ? collection : null;
+  const duas = activeCollection?.duas || [];
+  const categories = activeCollection?.categories || [];
+
   const filteredDuas = useMemo(() => {
     const term = query.trim().toLowerCase();
-    return DUAS.filter((dua) => {
+    return duas.filter((dua) => {
       if (category !== 'All' && dua.category !== category) return false;
       if (!term) return true;
-      return [dua.title, dua.arabic, dua.transliteration, dua.translation, dua.category]
+      return [
+        dua.title,
+        dua.subcategory,
+        dua.arabic,
+        dua.transliteration,
+        dua.translation,
+        dua.reference,
+      ]
         .join(' ')
         .toLowerCase()
         .includes(term);
     });
-  }, [category, query]);
+  }, [category, duas, query]);
+
+  const visibleDuas = filteredDuas.slice(0, duaLimit);
+
+  function chooseDuaLanguage(code) {
+    setDuaLang(code);
+    rememberDuaLanguage(code);
+  }
 
   async function copy(text) {
     try {
@@ -206,76 +262,171 @@ export default function DhikrDuaPage() {
         </div>
       ) : (
         <>
-          {/* The category rail reuses the hadith reader's chip rail, so the
-              filter reads exactly like the other collection screens. */}
-          <div className="hadith-langs">
-            <span className="hadith-langs-label">Category</span>
+          {/* Both rails mirror the hadith reader: a small pinned label and a
+              horizontally scrolling chip row, so the collection filters read
+              exactly like the other reading screens. */}
+          <div className="hadith-langs" role="group" aria-label="Dua translation language">
+            <span className="hadith-langs-label">Translation</span>
             <div className="hadith-sections-chips">
-              {['All', ...DUA_CATEGORIES].map((item) => (
+              {DUA_LANGUAGES.map((item) => (
                 <button
-                  key={item}
+                  key={item.code}
                   type="button"
-                  className={`hadith-chip${category === item ? ' is-active' : ''}`}
-                  aria-pressed={category === item}
-                  onClick={() => setCategory(item)}
+                  lang={item.code}
+                  className={`hadith-chip hadith-lang-chip${duaLang === item.code ? ' is-active' : ''}`}
+                  aria-pressed={duaLang === item.code}
+                  onClick={() => chooseDuaLanguage(item.code)}
                 >
-                  {item}
+                  {item.label}
                 </button>
               ))}
             </div>
           </div>
 
-          <form className="friend-search dhikr-search" role="search" onSubmit={(event) => event.preventDefault()}>
-            <input
-              className="form-control"
-              type="search"
-              placeholder="Search duas"
-              aria-label="Search duas"
-              value={query}
-              autoComplete="off"
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </form>
+          {activeCollection && (
+            <div className="hadith-langs">
+              <span className="hadith-langs-label">Category</span>
+              <div className="hadith-sections-chips">
+                {[{ id: 'All', label: 'All' }, ...categories].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`hadith-chip${category === item.id ? ' is-active' : ''}`}
+                    aria-pressed={category === item.id}
+                    onClick={() => setCategory(item.id)}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-          {filteredDuas.length === 0 ? (
-            <p className="post-empty">No duas match.</p>
+          {duaStatus === 'error' ? (
+            <div className="dhikr-status">
+              <p className="post-empty">
+                Could not load the duas. Connect once and try again; the collection is saved for
+                offline reading afterwards.
+              </p>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => setDuaReload((value) => value + 1)}
+              >
+                Try again
+              </button>
+            </div>
+          ) : !activeCollection ? (
+            <p className="post-empty">Loading duas…</p>
           ) : (
-            <div className="dhikr-duas">
-              {filteredDuas.map((dua) => (
-                <article className="ayah-block" key={dua.id}>
-                  <header className="favourite-head">
-                    <div className="favourite-heading">
-                      <span className="dhikr-dua-title">{dua.title}</span>
-                      <span className="favourite-num">{dua.category}</span>
-                      {dua.repeat > 1 && <span className="favourite-num">×{dua.repeat}</span>}
-                    </div>
-                    <div className="ayah-actions">
-                      <button
-                        type="button"
-                        className="fav-btn"
-                        title="Copy dua"
-                        aria-label={`Copy ${dua.title}`}
-                        onClick={() => copy(`${dua.arabic}\n${dua.transliteration}\n${dua.translation}`)}
-                      >
-                        <span className="material-symbols-rounded">content_copy</span>
-                      </button>
-                    </div>
-                  </header>
+            <>
+              <form className="friend-search dhikr-search" role="search" onSubmit={(event) => event.preventDefault()}>
+                <input
+                  className="form-control"
+                  type="search"
+                  placeholder="Search duas"
+                  aria-label="Search duas"
+                  value={query}
+                  autoComplete="off"
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+              </form>
 
-                  <p className="ayah-arabic-text dhikr-dua-arabic" dir="rtl" lang="ar" style={arabicStyle}>
-                    {dua.arabic}
-                  </p>
-                  <p className="dhikr-dua-transliteration">{dua.transliteration}</p>
+              <p className="dhikr-count">
+                {filteredDuas.length === duas.length
+                  ? `${duas.length} duas`
+                  : `${filteredDuas.length} of ${duas.length} duas`}
+              </p>
 
-                  <div className="ayah-translation">
-                    <p className="ayah-translation-label">Translation</p>
-                    <p className="ayah-translation-text">{dua.translation}</p>
+              {filteredDuas.length === 0 ? (
+                <p className="post-empty">No duas match.</p>
+              ) : (
+                <>
+                  <div className="dhikr-duas">
+                    {visibleDuas.map((dua) => (
+                      <article className="ayah-block" key={dua.id}>
+                        <header className="favourite-head">
+                          <div className="favourite-heading">
+                            <span
+                              className="dhikr-dua-title"
+                              dir={activeCollection.dir}
+                              lang={duaLang}
+                            >
+                              {dua.title}
+                            </span>
+                            {dua.subcategory && (
+                              <span
+                                className="favourite-num"
+                                dir={activeCollection.dir}
+                                lang={duaLang}
+                              >
+                                {dua.subcategory}
+                              </span>
+                            )}
+                          </div>
+                          <div className="ayah-actions">
+                            <button
+                              type="button"
+                              className="fav-btn"
+                              title="Copy dua"
+                              aria-label={`Copy ${dua.title || 'dua'}`}
+                              onClick={() =>
+                                copy(
+                                  [dua.arabic, dua.transliteration, dua.translation, dua.reference && `Source: ${dua.reference}`]
+                                    .filter(Boolean)
+                                    .join('\n\n')
+                                )
+                              }
+                            >
+                              <span className="material-symbols-rounded">content_copy</span>
+                            </button>
+                          </div>
+                        </header>
+
+                        <p className="ayah-arabic-text dhikr-dua-arabic" dir="rtl" lang="ar" style={arabicStyle}>
+                          {dua.arabic}
+                        </p>
+                        {dua.transliteration && (
+                          <p className="dhikr-dua-transliteration">{dua.transliteration}</p>
+                        )}
+
+                        <div className="ayah-translation">
+                          <p className="ayah-translation-label">Translation</p>
+                          <p
+                            className="ayah-translation-text"
+                            dir={activeCollection.dir}
+                            lang={duaLang}
+                          >
+                            {dua.translation}
+                          </p>
+                        </div>
+
+                        {dua.reference && (
+                          <p className="dhikr-dua-source">
+                            Source:{' '}
+                            <span dir={activeCollection.dir} lang={duaLang}>
+                              {dua.reference}
+                            </span>
+                          </p>
+                        )}
+                      </article>
+                    ))}
                   </div>
 
-                  <p className="dhikr-dua-source">Source: {dua.source}</p>
-                </article>
-              ))}
-            </div>
+                  {filteredDuas.length > duaLimit && (
+                    <div className="dhikr-more">
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-sm"
+                        onClick={() => setDuaLimit((value) => value + DUA_PAGE_SIZE)}
+                      >
+                        Show more ({filteredDuas.length - duaLimit} left)
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </>
           )}
         </>
       )}

@@ -155,9 +155,12 @@ Files: `pages/`.
 - **HadithPage** — collection grid + bookmark tab with sign-in gate.
 - **DhikrDuaPage** — `/dhikr`; offline-first. Dhikr tab counts a preset (or free
   count) into `localStorage` under `hasanath-dhikr`, reset by `localDateKey()`;
-  Duas tab filters `src/data/adhkar.js` by category/search and copies a dua.
-  Arabic uses the user's `favoriteFont` (fallback `QPC-Hafs`); the bundled text
-  avoids U+060C because that face draws it as a pause dot.
+  Duas tab lazily loads the generated Masnun Dua collection from
+  `src/data/duas/` (743 unique duas; English, Tamil, Malayalam, Urdu) through
+  `services/duaData.js`, filters by category/search and paginates 30 at a time.
+  The chosen language is remembered in `hasanath-dua-lang`. Arabic uses the
+  user's `favoriteFont` (fallback `QPC-Hafs`); the generated text avoids U+060C
+  because that face draws it as a pause dot.
 - **HadithBookPage** — collection manifest, section chips, pagination,
   language chips persisted in `salah-hadith-lang`, `?no=`/jump-to-number
   resolution, highlight, share/copy, bookmark.
@@ -298,9 +301,9 @@ Files: `public/css/styles.css` (canonical), `frontend/src/styles/base.css`
   it and run `node scripts/build-icon-font.js`, then bump the `vN` suffix in the
   script, `styles.css` and `frontend/index.html`. Prefer names already listed.
 - Dhikr/Dua reuses the shared pieces rather than inventing a layout:
-  `.quran-tabs` for the two sections, the hadith chip rail for categories,
-  `.ayah-block`/`.ayah-translation` for each dua, and `.dhikr-*` only for the
-  counter card.
+  `.quran-tabs` for the two sections, the hadith chip rails for translation and
+  categories, `.ayah-block`/`.ayah-translation` for each dua, and `.dhikr-*`
+  only for the counter card and list status/more rows.
 - Responsive: main app at 1024/768/600/1200; landing at
   1080/980/900/780/700/640/560/400. Reduced-motion rules exist in both
   stylesheets.

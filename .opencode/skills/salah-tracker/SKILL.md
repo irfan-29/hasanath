@@ -27,7 +27,7 @@ salah-tracker/
 │   ├── src/components/      Shell, player, admin panels, shared UI
 │   ├── src/hooks/           Session, favourites, notifications, share
 │   ├── src/services/        api.js, accent, typography
-│   ├── src/data/            Bundled offline content (dhikr/dua)
+│   ├── src/data/            Bundled offline content (dhikr presets, generated duas)
 │   └── src/styles/          base.css (generated) + shell.css
 ├── public/                  Shared assets: CSS canonical, fonts, icons, PWA, APK
 ├── scripts/                 Build gates, CSS sync, QStash, maintenance
@@ -172,6 +172,25 @@ task, then open only the specific source files it points to.
    `public/css/styles.css`, and the preload in `frontend/index.html`.
 4. Run `npm run frontend:sync-css` and confirm the glyph is 24 px wide, not the
    ligature text.
+
+### Work on Dhikr & Dua
+1. Dhikr presets are hand-written in `frontend/src/data/adhkar.js`; keep them
+   small and offline-safe (they are the whole counter screen).
+2. The dua collection is **generated**: never edit `frontend/src/data/duas/`
+   by hand. Run
+   `node scripts/build-duas.js --source <masnun-dua sparse checkout>`
+   (see the script header for the clone command) and commit the result.
+3. The dataset is Masnun Dua (Hisnul Muslim), free for app use:
+   https://github.com/islamicapi/masnun-dua. Arabic is normalised for the
+   bundled reader faces (no U+060C, ornate brackets or standalone ﷺ glyph).
+4. `services/duaData.js` dynamically imports `core` plus one language chunk, so
+   the collection only downloads when the Duas tab opens. Each language is a
+   Vite chunk cached by the service worker's `/assets/*` rule.
+5. Adding a language: fetch that `translation/<code>` directory, add the code to
+   `LANGUAGES` in the generator and to `DUA_LANGUAGES`/`PACK_LOADERS` in
+   `services/duaData.js`, then rerun the generator.
+6. Keep the language and category rails as hadith-style chips; do not introduce
+   a native `<select>` or a parallel card layout.
 
 ### Work on banners
 1. Read `references/backend.md` (banners service/routes) and
