@@ -17,6 +17,7 @@ const PRIMARY = [
   { to: '/qibla', path: '/qibla', icon: 'explore', label: 'Qibla' },
   { to: '/calendar', path: '/calendar', icon: 'calendar_month', label: 'Islamic Calendar' },
   { to: '/challenges', path: '/challenges', icon: 'emoji_events', label: 'Challenges' },
+  { to: '/dhikr', path: '/dhikr', icon: 'menu_book', label: 'Dhikr & Dua' },
   { to: '/charity', path: '/charity', icon: 'volunteer_activism', label: 'Charity' },
   { to: '/stats', path: '/stats', icon: 'insights', label: 'Stats' },
   { to: '/posts', path: '/posts', icon: 'favorite', label: 'Posts' },

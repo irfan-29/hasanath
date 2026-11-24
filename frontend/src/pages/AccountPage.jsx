@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { api, account, posts as postsApi, contact, ApiError } from '../services/api';
 import { useSession } from '../hooks/useSession.jsx';
 import { useToast } from '../components/ToastProvider';
@@ -81,6 +81,7 @@ export default function AccountPage() {
   const { refresh } = useSession();
   const toast = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const load = useCallback(async () => {
     try {
@@ -102,6 +103,13 @@ export default function AccountPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // A reply notification links here; open the message list and scroll to it.
+  useEffect(() => {
+    if (location.hash !== '#contact-admin') return;
+    toggleContactMessages(true);
+    document.getElementById('contact-admin')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [location.hash]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function unblock(person) {
     if (blockedBusy) return;
@@ -159,8 +167,8 @@ export default function AccountPage() {
     }
   }
 
-  async function toggleContactMessages() {
-    if (contactMessagesOpen) {
+  async function toggleContactMessages(forceOpen = false) {
+    if (contactMessagesOpen && !forceOpen) {
       setContactMessagesOpen(false);
       return;
     }
@@ -650,7 +658,7 @@ export default function AccountPage() {
               className="challenge-completed-toggle"
               aria-expanded={contactMessagesOpen}
               aria-label={contactMessagesOpen ? 'Hide your messages' : 'Show your messages'}
-              onClick={toggleContactMessages}
+              onClick={() => toggleContactMessages()}
             >
               <span>Your messages</span>
               <span className="material-symbols-rounded" aria-hidden="true">

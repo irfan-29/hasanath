@@ -238,6 +238,7 @@ Grouped by area. All paths are under `/api`.
 | Friends | Search results **8**; suggestions **12**; query ≥ **2** chars |
 | Admin users | Default **25**, max **100**/page |
 | Notifications | List **50**; TTL **60 days** |
+| Contact admin | Send **5/hour/account**; message **5–2000** chars, subject ≤**120**; admin list **50**/page (max **100**); user list **20** |
 | Moderation queue | **100** posts / **200** reports |
 | Banners | Title **120**, body **600**, CTA **40**, URL **500**; list **200** |
 | Broadcasts | Title **120**, body **1200**, link **500**; list **100**; fan-out batches **500** |
@@ -277,6 +278,9 @@ Grouped by area. All paths are under `/api`.
 - **BannerView**: unique `{banner,user}`; idempotent acknowledgements.
 - **Broadcast**: title/body/link/sentBy/recipients; timestamped history that
   outlives notification TTL.
+- **ContactMessage**: user ref + copied `fromName`/`fromEmail`, subject ≤120,
+  message ≤2000, status `new|read|replied|resolved`, `adminReply`/`repliedBy`/
+  `repliedAt`; indexes `{status,createdAt}` and `{user,createdAt}`.
 - **RateLimitCounter**: `_id = prefix+key+windowStart`, hits, expiresAt; TTL
   **0** on `expiresAt`.
 
@@ -311,6 +315,10 @@ Grouped by area. All paths are under `/api`.
 - **email** — Gmail SMTP or Resend; OTP generation/hash/compare; dev echo
   gated on `OTP_DEV_ECHO` + `NODE_ENV` strictly `development|test`.
 - **appNotifications** — push/list/unread/mark/remove; max 50.
+- **contactMessages** — send (copies the display name/email at send time),
+  list for admin (status filter, max 100/page) and for the user (20 latest),
+  reply (also pushes an `admin_reply` notification linking to
+  `/account#contact-admin`), status updates.
 - **adminUsers / adminStats** — paginated search + counts; overview timelines
   from ObjectId timestamps and `lastSeenAt`.
 - **favourites** — coordinate validation (`1–114`, ayah ≤286 and ≤ real

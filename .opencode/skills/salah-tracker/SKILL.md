@@ -6,9 +6,10 @@ description: Use for any work in the Hasanath (formerly Salah Tracker) repositor
 # Hasanath — agent guide
 
 Hasanath is a mobile-first Islamic companion: Salah tracker, Qur'an and hadith
-reader, prayer tools, challenges, charity, stats, and a small social layer.
-Motto: **Pray · Track · Grow**. This skill is the agent's entry point; load only
-the reference file you need so the context window stays small.
+reader, dhikr and dua collection, prayer tools, challenges, charity, stats, and a
+small social layer. Motto: **Pray · Track · Grow**. This skill is the agent's
+entry point; load only the reference file you need so the context window stays
+small.
 
 ## Repo at a glance
 
@@ -26,6 +27,7 @@ salah-tracker/
 │   ├── src/components/      Shell, player, admin panels, shared UI
 │   ├── src/hooks/           Session, favourites, notifications, share
 │   ├── src/services/        api.js, accent, typography
+│   ├── src/data/            Bundled offline content (dhikr/dua)
 │   └── src/styles/          base.css (generated) + shell.css
 ├── public/                  Shared assets: CSS canonical, fonts, icons, PWA, APK
 ├── scripts/                 Build gates, CSS sync, QStash, maintenance
@@ -115,6 +117,23 @@ task, then open only the specific source files it points to.
     uniqueness checks or login. Admin broadcast/banner text supports the exact,
     case-sensitive `${user}` placeholder, resolved per recipient at delivery;
     keep templates raw in history and admin views.
+18. **Icons are a subset.** `public/fonts/material-symbols-rounded-v8.woff2`
+    only contains names listed in `scripts/icon-names.txt`; an unlisted name
+    paints as its ligature text (e.g. `SELF_IMPROVEMENT`, `REPLY`). Add the name
+    to that file, run `node scripts/build-icon-font.js`, bump the version suffix
+    in the script, both stylesheets and `frontend/index.html`, then
+    `npm run frontend:sync-css`. Prefer an icon already in the list.
+19. **Contact admin is an in-app conversation.** `ContactMessage` stores the
+    message; the admin reply is delivered as an `admin_reply` notification that
+    links to `/account#contact-admin`. Never send the reply by email; the
+    `mailto:` path is only the user's own compose action.
+20. **Follow the existing UI pattern.** New screens start from the nearest
+    module: `.page-header`, `.quran-tabs`/`.challenge-tabs`, the hadith chip
+    rail, `.ayah-block`/`.ayah-translation`, `.container1`, `.card-header`, and
+    `moderation-*`/`account-*` rows. Reuse `FormSelect`, `DateField`, `Loader`,
+    toasts and confirms. No native `<select>`, no one-off layout, no static
+    inline styles; add prefixed module classes (e.g. `.dhikr-*`) to
+    `public/css/styles.css` and use the accent/theme tokens.
 
 ## Common workflows
 
@@ -145,6 +164,14 @@ task, then open only the specific source files it points to.
 2. Follow the existing token/theme/accent structure; check both light and dark.
 3. Run `npm run frontend:sync-css`, then `npm run frontend:build`.
 4. Verify the affected page at desktop and 390 px.
+
+### Add an icon
+1. Check `scripts/icon-names.txt`; if the name is missing, add it.
+2. Run `node scripts/build-icon-font.js` (fetches the Google Fonts subset).
+3. Bump the `vN` suffix in `scripts/build-icon-font.js`, the `@font-face` in
+   `public/css/styles.css`, and the preload in `frontend/index.html`.
+4. Run `npm run frontend:sync-css` and confirm the glyph is 24 px wide, not the
+   ligature text.
 
 ### Work on banners
 1. Read `references/backend.md` (banners service/routes) and

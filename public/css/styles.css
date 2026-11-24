@@ -28,7 +28,7 @@
   font-style: normal;
   font-weight: 100 700;
   font-display: block;
-  src: url('/fonts/material-symbols-rounded-v7.woff2') format('woff2');
+  src: url('/fonts/material-symbols-rounded-v8.woff2') format('woff2');
 }
 
 .material-symbols-rounded {
@@ -14786,4 +14786,192 @@ body:has(.sticky-banner-bottom) .global-audio-bar {
 
 @media (prefers-reduced-motion: reduce) {
   .otb-card { animation: none; }
+}
+
+/* ---- Dhikr & Dua ------------------------------------------------------------
+   The counter is one calm card: the Arabic line in the reader's face, a single
+   round tap target, and a thin progress bar. The dua list reuses the reader's
+   ayah blocks (and the hadith chip rail for categories) so the module reads
+   exactly like the rest of the app instead of as a bolt-on. */
+
+.dhikr-panel {
+  max-width: 640px;
+  text-align: center;
+}
+
+.dhikr-panel .app-field {
+  margin-bottom: 1.5rem;
+  text-align: left;
+}
+
+.dhikr-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.dhikr-arabic { margin: 0 0 0.35rem; }
+
+.dhikr-transliteration {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.dhikr-meaning {
+  margin: 0.2rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.dhikr-tap {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  width: 9.5rem;
+  height: 9.5rem;
+  margin: 1.5rem 0 0.25rem;
+  padding: 0;
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent-fill-1), var(--accent-fill-2));
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 12px 28px rgb(var(--accent-rgb) / 0.28);
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow var(--transition);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dhikr-tap:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 34px rgb(var(--accent-rgb) / 0.34);
+}
+
+.dhikr-tap:active { transform: scale(0.97); }
+
+.dhikr-tap:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 4px;
+}
+
+.dhikr-tap-count {
+  font-size: 2.35rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.dhikr-tap-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.dhikr-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  justify-content: center;
+  margin: 0.9rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.dhikr-reached {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  color: var(--color-primary);
+}
+
+.dhikr-reached .material-symbols-rounded { font-size: 1rem; }
+
+.dhikr-bar {
+  width: min(320px, 100%);
+  height: 0.4rem;
+  margin: 0.65rem auto 0;
+  overflow: hidden;
+  background: var(--color-border-light);
+  border-radius: 999px;
+}
+
+.dhikr-bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-fill-1), var(--accent-fill-2));
+  border-radius: inherit;
+  transition: width 0.2s ease;
+}
+
+.dhikr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.dhikr-actions .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dhikr-total {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* ---- Dhikr & Dua: dua collection ------------------------------------------- */
+
+.dhikr-search {
+  max-width: 820px;
+  margin: 0 auto 1.75rem;
+}
+
+.dhikr-duas {
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+.dhikr-dua-title {
+  font-weight: 700;
+  font-size: 0.9375rem;
+}
+
+.dhikr-dua-arabic { margin: 0.35rem 0 0.6rem; }
+
+.dhikr-dua-transliteration {
+  margin: 0 0 1rem;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.dhikr-dua-source {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .dhikr-panel { padding: 1.35rem 1.1rem; }
+  .dhikr-tap { width: 8rem; height: 8rem; }
+  .dhikr-tap-count { font-size: 2rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dhikr-tap,
+  .dhikr-tap:hover,
+  .dhikr-tap:active { transform: none; }
+  .dhikr-bar span { transition: none; }
 }

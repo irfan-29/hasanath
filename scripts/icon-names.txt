@@ -1,6 +1,7 @@
 account_circle
 add
 admin_panel_settings
+alarm
 android
 arrow_back
 arrow_forward
@@ -22,6 +23,7 @@ chevron_right
 close
 code
 collections
+content_copy
 dark_mode
 dashboard
 delete
@@ -55,10 +57,12 @@ light_mode
 link
 list
 local_fire_department
+location_off
 location_on
 lock
 login
 logout
+mail
 mark_email_read
 menu
 menu_book
@@ -68,6 +72,8 @@ mosque
 my_location
 nightlight
 notifications
+notifications_active
+notifications_off
 open_in_new
 password
 pause
@@ -82,6 +88,7 @@ radio
 radio_button_unchecked
 refresh
 repeat
+reply
 resize
 schedule
 search

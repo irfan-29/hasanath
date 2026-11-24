@@ -20,6 +20,7 @@ const TABS = [
 // icon in the top bar beside the account.
 const MORE = [
   { to: '/hadith', path: '/hadith', icon: 'format_quote', label: 'Hadith' },
+  { to: '/dhikr', path: '/dhikr', icon: 'menu_book', label: 'Dhikr & Dua' },
   { to: '/calendar', path: '/calendar', icon: 'calendar_month', label: 'Islamic Calendar' },
   { to: '/charity', path: '/charity', icon: 'volunteer_activism', label: 'Charity' },
   { to: '/stats', path: '/stats', icon: 'insights', label: 'Stats' },

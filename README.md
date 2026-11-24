@@ -1,8 +1,8 @@
 # Hasanath — Pray · Track · Grow
 
 Hasanath is a personal Islamic companion: a salah tracker that grew into a
-quiet place to read Qur'an, follow hadith, build habits and challenges, give
-charity, and share reflections with friends.
+quiet place to read Qur'an, follow hadith, keep daily dhikr and duas, build
+habits and challenges, give charity, and share reflections with friends.
 
 - **Motto:** Pray · Track · Grow
 - **Production web:** <https://hasanath.vercel.app>
@@ -157,6 +157,10 @@ living spec; update this file when a requirement changes.
   Qur'an font/reciter/translation, location, calculation method, Asr school,
   time format, Telegram notifications.
 - [x] Password-confirmed account deletion; blocked-account undo.
+- [x] **Contact admin** from the Account page: send an in-app message (stored,
+  answered by an admin) or open the phone's mail app addressed to the project
+  inbox with the user's details in the body. Replies arrive as notifications
+  and the message history sits behind a collapsed “Your messages” row.
 - [x] Android-only **Phone Notifications**: prayer reminders (at time / 10
   minutes before / both), friend and announcement alerts, notification
   permission and exact-alarm prompts. These settings live on the phone, not the
@@ -214,6 +218,20 @@ living spec; update this file when a requirement changes.
   Vite build.
 - [ ] Automated unit/integration tests (none yet; build checks only).
 
+### 2.13 Dhikr & Dua
+
+- [x] `/dhikr` page with Dhikr and Duas sections, available to guests and
+  signed-in users, and fully offline (content bundled in
+  `frontend/src/data/adhkar.js`).
+- [x] Dhikr counter: presets (SubhanAllah, Alhamdulillah, Allahu Akbar, tahlil,
+  istighfar, salawat) or a free count, a single tap target, target progress, and
+  a per-day count persisted in `localStorage` (`hasanath-dhikr`). The day rolls
+  over with `localDateKey()`.
+- [x] Duas: category chips and search, Arabic + transliteration + translation +
+  source, and copy. Arabic follows the user's Qur'an Font setting
+  (`favoriteFont`, default `QPC-Hafs`).
+- [x] No backend route: the module must keep working with no network.
+
 ---
 
 ## 3. Feature map
@@ -225,6 +243,7 @@ living spec; update this file when a requirement changes.
 | `/salah` | Salah tracker | Yes |
 | `/quran`, `/surah/:surahNo` | Qur'an index, reader, audio, bookmarks | No |
 | `/hadith`, `/hadith/:collection` | Hadith collections and reader | No |
+| `/dhikr` | Dhikr counter and dua collection (offline) | No |
 | `/challenges` | Personal and friend challenges | Yes |
 | `/charity` | Charity targets and donations | Yes |
 | `/stats` | Salah/challenge/charity report | Yes |
@@ -386,6 +405,13 @@ always the final source of truth.
   client's `personName`/`personHandle`; never swap one for the other.
 - Admin emails from `ADMIN_EMAILS` are roots and cannot be demoted in the
   portal; nobody can demote themselves.
+- Icons come from a **subset font**. Add a new name to `scripts/icon-names.txt`
+  and run `node scripts/build-icon-font.js`; bump the version suffix in the
+  script, `public/css/styles.css` and `frontend/index.html`, then sync the CSS.
+  An unlisted name paints as text (`REPLY`, `SELF_IMPROVEMENT`).
+- Contact-admin replies are in-app notifications (`admin_reply` →
+  `/account#contact-admin`), never email; the `mailto:` option only prepares a
+  message in the user's own mail app.
 
 ---
 
@@ -419,6 +445,10 @@ always the final source of truth.
   beside it. The display name is editable without a password; the username is
   not. `${user}` in admin messages resolves to the same display-name fallback
   chain (`name` → `username` → email local-part → `friend`).
+- **Dhikr & Dua:** kept small and server-free: the counter is localStorage-only
+  and the content ships with the app, so the PWA and Android wrapper work
+  offline. The page reuses the Qur'an/hadith tab, chip and ayah-block patterns
+  rather than introducing a parallel design.
 
 ---
 

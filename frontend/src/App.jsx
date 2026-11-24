@@ -25,6 +25,7 @@ import SettingsPage from './pages/SettingsPage';
 import SalahTimingsPage from './pages/SalahTimingsPage';
 import QiblaPage from './pages/QiblaPage';
 import CalendarPage from './pages/CalendarPage';
+import DhikrDuaPage from './pages/DhikrDuaPage';
 import { LoginPage, RegisterPage, VerifyPage, ForgotPasswordPage, ResetPasswordPage } from './pages/AuthPage';
 import LandingPage from './pages/LandingPage';
 import AccountPage from './pages/AccountPage';
@@ -279,6 +280,7 @@ function Shell() {
           <Route path="/salah-timings" element={<SalahTimingsPage />} />
           <Route path="/qibla" element={<QiblaPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/dhikr" element={<DhikrDuaPage />} />
           <Route path="/post/:id" element={<PostPage />} />
           <Route path="/u/:username" element={<ProfilePage />} />
           {/* Every page is ported, so the fallback is now a genuine 404 rather

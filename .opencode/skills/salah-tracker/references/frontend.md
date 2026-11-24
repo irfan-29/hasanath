@@ -18,6 +18,7 @@ Source: `frontend/src/App.jsx`.
 | `/quran` | `QuranPage` | Audio / Read / Bookmarks tabs from the hash. |
 | `/hadith` | `HadithPage` | Collection grid + bookmarks. |
 | `/hadith/:collection` | `HadithBookPage` | Reader with section/page/language state. |
+| `/dhikr` | `DhikrDuaPage` | Offline dhikr counter + searchable duas. |
 | `/surah/:surahNo` | `SurahPage` | Reader, `?ayah=` deep link. |
 | `/challenges` | `ChallengesPage` | Personal + friend challenges. |
 | `/charity` | `CharityPage` | Account only. |
@@ -121,7 +122,8 @@ File: `services/api.js`.
 - `moderation`: `queue`, `approve`, `reject`.
 - `admin`: `login`, `stats`, `users`, `setUserAdmin`, `banners`,
   `createBanner`, `updateBanner`, `removeBanner`, `retriggerBanner`,
-  `broadcasts`, `sendBroadcast`.
+  `broadcasts`, `sendBroadcast`, `contactMessages`, `replyContactMessage`.
+- `contact`: `send`, `mine`.
 - `banners.seen`.
 - `friends`: `list`, `suggestions`, `search`, `request`, `accept`, `decline`,
   `remove`, `respondChallenge`.
@@ -151,6 +153,11 @@ Files: `pages/`.
   bar via `IntersectionObserver`, share/copy, bookmark toggle, all translations
   with a primary marker, previous/next surah.
 - **HadithPage** — collection grid + bookmark tab with sign-in gate.
+- **DhikrDuaPage** — `/dhikr`; offline-first. Dhikr tab counts a preset (or free
+  count) into `localStorage` under `hasanath-dhikr`, reset by `localDateKey()`;
+  Duas tab filters `src/data/adhkar.js` by category/search and copies a dua.
+  Arabic uses the user's `favoriteFont` (fallback `QPC-Hafs`); the bundled text
+  avoids U+060C because that face draws it as a pause dot.
 - **HadithBookPage** — collection manifest, section chips, pagination,
   language chips persisted in `salah-hadith-lang`, `?no=`/jump-to-number
   resolution, highlight, share/copy, bookmark.
@@ -181,14 +188,19 @@ Files: `pages/`.
 - **AccountPage** — avatar cropper/upload/remove, display-name edit (no
   password; empty falls back to the username), username edit with password,
   email/verified state, password change modal, blocked-account undo,
-  password-confirmed deletion.
+  password-confirmed deletion, and **Contact admin** (`#contact-admin`):
+  message/email method picker, stored message, and a collapsed “Your messages”
+  list that fetches only on first expand. A `#contact-admin` hash (from an
+  `admin_reply` notification) opens the list and scrolls to it.
 - **SettingsPage** — theme, six accents, app font, app/Qur'an text sizes
   (Set then reload), default home, Qur'an font/reciter, edition picker/primary
   translation, location, calculation method, Asr, time format, Telegram
   modules, and **Phone Notifications** (Android app only).
 - **AdminPage** — unlisted; non-admins see `AdminLogin`; query-string tabs:
-  Overview, Moderation, Broadcast, Banners, Users. Broadcast and Banners forms
-  accept `${user}` and render a live sample with `previewUserPlaceholder`.
+  Overview, Moderation, Broadcast, Banners, Users, Messages. Broadcast and
+  Banners forms accept `${user}` and render a live sample with
+  `previewUserPlaceholder`. Messages lists `ContactMessage` rows, marks
+  read/replied/resolved, and sends the reply as an `admin_reply` notification.
 - **NotFound** — in-app 404 with a link to Qur'an.
 - **AnnouncementBanner / ToastProvider / ConfirmProvider** — global sticky/OTB,
   `role="status"` toasts, promise-based alert dialog.
@@ -281,6 +293,14 @@ Files: `public/css/styles.css` (canonical), `frontend/src/styles/base.css`
   in `shell.css` (audio list, Loader).
 - Bootstrap is loaded from `/vendor/bootstrap.min.css`; Material Symbols is
   self-hosted/preloaded; the icon subset list is `scripts/icon-names.txt`.
+- Icons are a **subset font** (`material-symbols-rounded-v8.woff2` today). A
+  name missing from `scripts/icon-names.txt` paints as its ligature text, so add
+  it and run `node scripts/build-icon-font.js`, then bump the `vN` suffix in the
+  script, `styles.css` and `frontend/index.html`. Prefer names already listed.
+- Dhikr/Dua reuses the shared pieces rather than inventing a layout:
+  `.quran-tabs` for the two sections, the hadith chip rail for categories,
+  `.ayah-block`/`.ayah-translation` for each dua, and `.dhikr-*` only for the
+  counter card.
 - Responsive: main app at 1024/768/600/1200; landing at
   1080/980/900/780/700/640/560/400. Reduced-motion rules exist in both
   stylesheets.
