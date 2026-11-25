@@ -241,6 +241,7 @@ public class PrayerReminders {
             new Intent(c, Receiver.class).setAction(ACTION_REFRESH),
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         am.set(AlarmManager.RTC, refreshAt, refresh);
+        AyahReminder.schedule(c);
     }
 
     // ---- Receiving ----------------------------------------------------------

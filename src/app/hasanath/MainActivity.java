@@ -96,6 +96,9 @@ public class MainActivity extends Activity {
     static final int FILE_CHOOSER_REQUEST = 41;
 
     private WebView webView;
+    private volatile boolean dhikrKeys;
+    private String geoOrigin;
+    private android.webkit.GeolocationPermissions.Callback geoCallback;
     private View splash;
     private long splashShownAt;
     private boolean splashHiding;
@@ -136,6 +139,7 @@ public class MainActivity extends Activity {
         s.setUseWideViewPort(true);
         s.setSupportMultipleWindows(false);
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        s.setGeolocationEnabled(true);
         s.setUserAgentString(s.getUserAgentString() + " HasanathAndroid/1.0");
 
         CookieManager cookies = CookieManager.getInstance();
@@ -219,6 +223,9 @@ public class MainActivity extends Activity {
 
         @Override
         public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
+            // A fresh page never inherits eyes-closed mode from the one before it.
+            dhikrKeys = false;
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             pollReady();
         }
 
@@ -278,6 +285,22 @@ public class MainActivity extends Activity {
             webView.evaluateJavascript("window.__hsSync&&window.__hsSync()", null);
             if (customViewCallback != null) customViewCallback.onCustomViewHidden();
             customViewCallback = null;
+        }
+
+        // "Use my current location": the page asks the WebView, the WebView asks
+        // here, and Android's own permission prompt is shown the first time.
+        @Override
+        public void onGeolocationPermissionsShowPrompt(String origin, android.webkit.GeolocationPermissions.Callback callback) {
+            if (!isAppHost(Uri.parse(origin))) { callback.invoke(origin, false, false); return; }
+            if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                    || checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                callback.invoke(origin, true, false);
+                return;
+            }
+            geoOrigin = origin;
+            geoCallback = callback;
+            requestPermissions(new String[] { android.Manifest.permission.ACCESS_FINE_LOCATION,
+                android.Manifest.permission.ACCESS_COARSE_LOCATION }, 21);
         }
 
         @Override
@@ -407,6 +430,22 @@ public class MainActivity extends Activity {
                 }
                 Notifier.post(MainActivity.this, 4999, Notifier.CH_PRAYER, "It's time for Asr",
                     "This is a test. Your prayer reminders will look like this.", "/salah", "Log prayer", "/salah");
+            }});
+        }
+
+        // ---- Dhikr counter ----
+
+        @JavascriptInterface
+        public void vibrate(final String kind) { buzz(String.valueOf(kind)); }
+
+        @JavascriptInterface
+        public void dhikrKeys(final boolean on) { dhikrKeys = on; }
+
+        @JavascriptInterface
+        public void keepAwake(final boolean on) {
+            runOnUiThread(new Runnable() { public void run() {
+                if (on) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             }});
         }
 
@@ -591,7 +630,7 @@ public class MainActivity extends Activity {
         name.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
         name.setLetterSpacing(0.01f);
         TextView tag = new TextView(this);
-        tag.setText("Track · Pray · Grow");
+        tag.setText("Pray · Track · Grow");
         tag.setTextColor(Color.argb(210, 255, 255, 255));
         tag.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
         tag.setPadding(0, (int) (4 * dp), 0, 0);
@@ -677,6 +716,8 @@ public class MainActivity extends Activity {
                 Notifier.ensureChannels(MainActivity.this);
                 PrayerReminders.refreshAsync(MainActivity.this);
                 NotificationPoller.schedule(MainActivity.this);
+                final android.content.Context appCtx = getApplicationContext();
+                new Thread(new Runnable() { public void run() { AyahReminder.sendIfDue(appCtx); }}).start();
                 root.postDelayed(new Runnable() { public void run() {
                     if (!isFinishing()) offerNotificationsOnce();
                 }}, 1200);
@@ -720,11 +761,50 @@ public class MainActivity extends Activity {
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
+        // Dhikr, eyes-closed mode: a volume key is one count, so the phone can be
+        // held like a tasbih counter without finding the screen.
+        if (dhikrKeys && (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)) {
+            if (event.getRepeatCount() == 0) {
+                webView.evaluateJavascript("window.__hasanathDhikr&&window.__hasanathDhikr()", null);
+            }
+            return true;
+        }
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             if (customView != null) { new AppChrome().onHideCustomView(); return true; }
             if (webView.canGoBack()) { webView.goBack(); return true; }
         }
         return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    public boolean onKeyUp(int keyCode, KeyEvent event) {
+        // Swallow the release too, so the volume slider never appears mid-dhikr.
+        if (dhikrKeys && (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)) return true;
+        return super.onKeyUp(keyCode, event);
+    }
+
+    /** Haptics for the dhikr counter: "tick" per count, "milestone" at each 33, "done" at the target. */
+    void buzz(String kind) {
+        try {
+            android.os.Vibrator v = (android.os.Vibrator) getSystemService(VIBRATOR_SERVICE);
+            if (v == null || !v.hasVibrator()) return;
+            if ("done".equals(kind)) {
+                long[] p = {0, 240, 120, 240, 120, 460};
+                if (Build.VERSION.SDK_INT >= 26) v.vibrate(android.os.VibrationEffect.createWaveform(p, -1)); else v.vibrate(p, -1);
+            } else if ("milestone".equals(kind)) {
+                long[] p = {0, 70, 80, 70};
+                if (Build.VERSION.SDK_INT >= 26) v.vibrate(android.os.VibrationEffect.createWaveform(p, -1)); else v.vibrate(p, -1);
+            } else if (Build.VERSION.SDK_INT >= 29) {
+                // The phone's own crisp "click", the same one its keyboard uses.
+                v.vibrate(android.os.VibrationEffect.createPredefined(android.os.VibrationEffect.EFFECT_CLICK));
+            } else if (Build.VERSION.SDK_INT >= 26) {
+                v.vibrate(android.os.VibrationEffect.createOneShot(18, android.os.VibrationEffect.DEFAULT_AMPLITUDE));
+            } else {
+                v.vibrate(18);
+            }
+        } catch (Exception e) {
+            // No vibrator, or blocked by battery saver: counting carries on.
+        }
     }
 
     @Override
@@ -809,6 +889,14 @@ public class MainActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
         super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode == 21) {
+            boolean ok = false;
+            for (int r : results) if (r == PackageManager.PERMISSION_GRANTED) ok = true;
+            if (geoCallback != null) geoCallback.invoke(geoOrigin, ok, false);
+            geoCallback = null;
+            if (!ok) Toast.makeText(this, "Location is off for Hasanath. You can still search for your city.", Toast.LENGTH_LONG).show();
+            return;
+        }
         // Android stops showing its prompt after two refusals; from then on the
         // "Turn on" button goes straight to the app's notification settings.
         if (Build.VERSION.SDK_INT >= 33 && results.length > 0 && results[0] != PackageManager.PERMISSION_GRANTED

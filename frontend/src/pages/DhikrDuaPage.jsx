@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import FormSelect from '../components/FormSelect';
 import { useToast } from '../components/ToastProvider';
 import { settings as settingsApi } from '../services/api';
+import { canVibrate, click, keepAwake, vibrate } from '../services/haptics';
 import { localDateKey } from '../utils/date';
 import { DHIKR_PRESETS } from '../data/adhkar';
 import {
@@ -64,11 +65,26 @@ function loadCounts() {
   }
 }
 
+// How the counter answers a tap. Kept on the device, like the counts.
+const PREFS_KEY = 'hasanath.dhikr.prefs';
+const TASBIH_ORDER = ['subhanallah', 'alhamdulillah', 'allahuakbar'];
+
+function loadPrefs() {
+  const defaults = { vibrate: true, sound: false, autoNext: false };
+  try {
+    return { ...defaults, ...(JSON.parse(localStorage.getItem(PREFS_KEY)) || {}) };
+  } catch {
+    return defaults;
+  }
+}
+
 export default function DhikrDuaPage() {
   const toast = useToast();
   const [tab, setTab] = useState('dhikr');
   const [presetId, setPresetId] = useState('subhanallah');
   const [state, setState] = useState(loadCounts);
+  const [prefs, setPrefs] = useState(loadPrefs);
+  const [focus, setFocus] = useState(false);
   const [category, setCategory] = useState('All');
   const [query, setQuery] = useState('');
   const [duaLang, setDuaLang] = useState(preferredDuaLanguage);
@@ -140,13 +156,71 @@ export default function DhikrDuaPage() {
   const reached = preset.target > 0 && count >= preset.target;
   const arabicStyle = { fontFamily: `'${arabicFont}', serif` };
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+    } catch {
+      // Storage unavailable: the choices last for this visit.
+    }
+  }, [prefs]);
+
+  const togglePref = (key) => setPrefs((current) => ({ ...current, [key]: !current[key] }));
+
+  // Every count is answered so it can be felt with eyes closed: a light tap
+  // for each one, two short pulses at 33 / 66 / 99 on the way to 100, and a
+  // long, unmistakable pattern the moment the target is reached.
   const increment = useCallback(() => {
+    const next = count + 1;
+    const target = preset.target;
+    const kind = target > 0 && next === target ? 'done'
+      : target > 33 && next < target && next % 33 === 0 ? 'milestone'
+        : 'tick';
+    if (prefs.vibrate) vibrate(kind);
+    if (prefs.sound) click(kind);
+
     setState((current) => ({
       ...current,
       counts: { ...current.counts, [presetId]: (current.counts[presetId] || 0) + 1 },
       totals: { ...current.totals, [presetId]: (current.totals[presetId] || 0) + 1 },
     }));
-  }, [presetId]);
+
+    // The tasbih after salah (33, 33, 34) can flow on by itself.
+    const order = TASBIH_ORDER.indexOf(presetId);
+    if (kind === 'done' && prefs.autoNext && order >= 0 && order < TASBIH_ORDER.length - 1) {
+      window.setTimeout(() => setPresetId(TASBIH_ORDER[order + 1]), 900);
+    }
+  }, [count, preset.target, presetId, prefs.vibrate, prefs.sound, prefs.autoNext]);
+
+  // Eyes-closed mode: the whole screen counts, the screen stays awake, and in
+  // the Android app the volume keys count too.
+  const incrementRef = useRef(increment);
+  incrementRef.current = increment;
+
+  useEffect(() => {
+    if (!focus) return undefined;
+    const bridge = typeof window !== 'undefined' ? window.HasanathAndroid : null;
+    const hasKeys = bridge && typeof bridge.dhikrKeys === 'function';
+    keepAwake(true);
+    window.__hasanathDhikr = () => incrementRef.current();
+    if (hasKeys) bridge.dhikrKeys(true);
+
+    // The phone's Back button leaves the mode instead of the page.
+    window.history.pushState({ dhikrFocus: true }, '');
+    const onPop = () => setFocus(false);
+    window.addEventListener('popstate', onPop);
+
+    return () => {
+      keepAwake(false);
+      delete window.__hasanathDhikr;
+      if (hasKeys) bridge.dhikrKeys(false);
+      window.removeEventListener('popstate', onPop);
+    };
+  }, [focus]);
+
+  const closeFocus = () => {
+    if (window.history.state && window.history.state.dhikrFocus) window.history.back();
+    else setFocus(false);
+  };
 
   const reset = useCallback(() => {
     setState((current) => ({
@@ -283,7 +357,52 @@ export default function DhikrDuaPage() {
               </button>
               {total > 0 && <span className="dhikr-total">{total} counted today</span>}
             </div>
+
+            <div className="dhikr-feel">
+              <button type="button" className="btn btn-primary dhikr-focus-open" onClick={() => setFocus(true)}>
+                Eyes-closed mode
+              </button>
+              <p className="dhikr-feel-hint">
+                Tap anywhere to count. You will feel each count, and a long vibration when you reach the target.
+              </p>
+              <div className="dhikr-opts" role="group" aria-label="Counter feedback">
+                {canVibrate() && (
+                  <button type="button" className="dhikr-opt" aria-pressed={prefs.vibrate} onClick={() => togglePref('vibrate')}>
+                    Vibration
+                  </button>
+                )}
+                <button type="button" className="dhikr-opt" aria-pressed={prefs.sound} onClick={() => togglePref('sound')}>
+                  Sound
+                </button>
+                <button type="button" className="dhikr-opt" aria-pressed={prefs.autoNext} onClick={() => togglePref('autoNext')}>
+                  Auto next (33 · 33 · 34)
+                </button>
+              </div>
+            </div>
           </div>
+
+          {focus && (
+            <div className="dhikr-focus" role="dialog" aria-modal="true" aria-label={`Counting ${preset.label}`}>
+              <button
+                type="button"
+                className="dhikr-focus-surface"
+                onPointerDown={(event) => { event.preventDefault(); increment(); }}
+                onKeyDown={(event) => { if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); increment(); } }}
+                aria-label={`Count ${preset.label}. Currently ${count}.`}
+                autoFocus
+              >
+                <span className="dhikr-focus-name">{preset.label}</span>
+                <span className="dhikr-focus-count">{count}</span>
+                <span className="dhikr-focus-target">
+                  {preset.target > 0 ? (reached ? 'Target reached' : `of ${preset.target}`) : 'Free count'}
+                </span>
+                <span className="dhikr-focus-hint">Tap anywhere{typeof window !== 'undefined' && window.HasanathAndroid && typeof window.HasanathAndroid.dhikrKeys === 'function' ? ', or press a volume key' : ''}</span>
+              </button>
+              <button type="button" className="dhikr-focus-close" onClick={closeFocus}>
+                Done
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <>

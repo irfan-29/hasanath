@@ -148,6 +148,31 @@ export default function PhoneNotifications({ toast }) {
         </label>
       </div>
 
+      {/* Ayah of the Day at a chosen time: needs app 1.9+, which reports `ayah` in its settings. */}
+      {typeof s.ayah === 'boolean' && (
+        <>
+          <div className="tg-row tg-row-head">
+            <div>
+              <div className="tg-title">Ayah of the Day</div>
+              <div className="tg-sub">One ayah a day in your translation, at the time you choose</div>
+            </div>
+            <label className="tg-switch">
+              <input type="checkbox" checked={s.ayah} onChange={(e) => save({ ayah: e.target.checked })} />
+              <span className="tg-slider"></span>
+            </label>
+          </div>
+          {s.ayah && (
+            <div className="tg-modules">
+              <div className="form-floating tg-time">
+                <input className="form-control" type="time" id="phone-ayah-time" value={s.ayahTime || '05:30'}
+                       onChange={(e) => { if (e.target.value) save({ ayahTime: e.target.value }); }} />
+                <label htmlFor="phone-ayah-time">Send at</label>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
       <div className="tg-row tg-row-head">
         <div>
           <div className="tg-title">Announcements</div>

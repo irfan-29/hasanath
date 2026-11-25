@@ -59,6 +59,7 @@ public class NotificationPoller extends JobService {
         // Keep prayer timings fresh too, at most twice a day.
         long refreshed = Notifier.prefs(c).getLong(PrayerReminders.PREF_REFRESHED, 0);
         if (System.currentTimeMillis() - refreshed > 12 * 60 * 60 * 1000L) PrayerReminders.refreshNow(c);
+        AyahReminder.sendIfDue(c);
 
         JSONObject s = Notifier.settings(c);
         boolean social = s.optBoolean("social", true), announce = s.optBoolean("announcements", true);

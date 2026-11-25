@@ -19,12 +19,14 @@ import org.json.JSONObject;
  *   prayer        - prayer-time reminders (high importance, makes a sound)
  *   social        - friend requests, challenge invites and replies
  *   announcements - messages from the Hasanath admin portal
+ *   ayah          - the Ayah of the Day, once a day at a chosen time
  */
 public class Notifier {
 
     static final String CH_PRAYER = "prayer";
     static final String CH_SOCIAL = "social";
     static final String CH_ANNOUNCE = "announcements";
+    static final String CH_AYAH = "ayah";
     static final String[] PRAYERS = {"Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"};
     static final String EXTRA_OPEN = "app.hasanath.OPEN_PATH";
 
@@ -43,6 +45,8 @@ public class Notifier {
             if (!s.has("beforeMin")) s.put("beforeMin", 10);
             if (!s.has("social")) s.put("social", true);
             if (!s.has("announcements")) s.put("announcements", true);
+            if (!s.has("ayah")) s.put("ayah", true);
+            if (!s.has("ayahTime")) s.put("ayahTime", "05:30");
             JSONObject p = s.optJSONObject("prayers");
             if (p == null) { p = new JSONObject(); s.put("prayers", p); }
             for (String name : PRAYERS) if (!p.has(name)) p.put(name, true);
@@ -60,6 +64,9 @@ public class Notifier {
         out.put("beforeMin", Math.max(1, Math.min(60, before)));
         if (in.has("social")) out.put("social", in.optBoolean("social", true));
         if (in.has("announcements")) out.put("announcements", in.optBoolean("announcements", true));
+        if (in.has("ayah")) out.put("ayah", in.optBoolean("ayah", true));
+        String ayahTime = in.optString("ayahTime", "");
+        if (ayahTime.matches("([01]\\d|2[0-3]):[0-5]\\d")) out.put("ayahTime", ayahTime);
         JSONObject p = in.optJSONObject("prayers");
         if (p != null) {
             JSONObject cur = out.getJSONObject("prayers");
@@ -86,6 +93,11 @@ public class Notifier {
         nm.createNotificationChannel(prayer);
         nm.createNotificationChannel(social);
         nm.createNotificationChannel(announce);
+        NotificationChannel ayah = new NotificationChannel(CH_AYAH, "Ayah of the Day",
+            NotificationManager.IMPORTANCE_DEFAULT);
+        ayah.setDescription("One ayah a day, at the time you choose in Settings");
+        ayah.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+        nm.createNotificationChannel(ayah);
     }
 
     static boolean permissionGranted(Context c) {

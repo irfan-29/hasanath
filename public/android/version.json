@@ -1,8 +1,8 @@
 {
-  "versionCode": 9,
-  "versionName": "1.8",
-  "apkUrl": "https://hasanath.vercel.app/android/Hasanath-1.8.apk",
-  "sha256": "7a738788f88fed3204801eaea34dc7c330d7f9b8feb32de914aebc75b2dbdae8",
-  "notes": "Pull down at the top of any page to refresh\nPrayer reminders as phone notifications, on the minute\nFriend requests and challenge invites on your phone\nLaunch screen in your theme colour",
+  "versionCode": 11,
+  "versionName": "2.0",
+  "apkUrl": "https://hasanath.vercel.app/android/Hasanath-2.0.apk",
+  "sha256": "3c268a547183ebf444eb0423980e672ad9fb4c01b051581183050e1c0842a93a",
+  "notes": "Dhikr you can feel: a vibration on every count and a long one at the target\nEyes-closed mode: tap anywhere, or count with the volume keys\nAyah of the Day at the time you choose\n\"Use my current location\" now works\nNew app icon, matching the website",
   "minSupportedVersionCode": 1
 }
