@@ -160,7 +160,11 @@ Files: `pages/`.
   `services/duaData.js`, filters by category/search and paginates 30 at a time.
   The chosen language is remembered in `hasanath-dua-lang`. Arabic uses the
   user's `favoriteFont` (fallback `QPC-Hafs`); the generated text avoids U+060C
-  because that face draws it as a pause dot.
+  because that face draws it as a pause dot. Translated nodes carry `lang=`
+  and `.dhikr-script`, which selects a per-script face (Mukta Malar/Noto Sans
+  Tamil, Noto Sans Malayalam, Noto Naskh Arabic) instead of the Latin-only UI
+  font. U+FDFA (ﷺ) is split out by `DuaText` and drawn with `.dua-honorific`,
+  because the Indic and Latin faces have no glyph for it.
 - **HadithBookPage** — collection manifest, section chips, pagination,
   language chips persisted in `salah-hadith-lang`, `?no=`/jump-to-number
   resolution, highlight, share/copy, bookmark.

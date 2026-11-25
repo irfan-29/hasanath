@@ -191,6 +191,10 @@ task, then open only the specific source files it points to.
    `services/duaData.js`, then rerun the generator.
 6. Keep the language and category rails as hadith-style chips; do not introduce
    a native `<select>` or a parallel card layout.
+7. Translated nodes need `lang=` plus `.dhikr-script` so the per-script face is
+   used; the UI font is Latin-only and Tamil/Malayalam/Urdu text falls back to
+   tofu on devices without system fonts. U+FDFA (ﷺ) is rendered by `DuaText`
+   through `.dua-honorific` because the Indic/Latin faces do not carry it.
 
 ### Work on banners
 1. Read `references/backend.md` (banners service/routes) and

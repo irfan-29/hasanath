@@ -124,14 +124,16 @@
          body face still comes from Google, and it is `swap`, so text paints
          immediately in the fallback. -->
     <link rel="preload" href="/fonts/material-symbols-rounded-v8.woff2" as="font" type="font/woff2" crossorigin />
-    <!-- The body face is loaded without blocking: a stylesheet from a third
-         party must never hold up the first paint. It applies once it arrives
-         and the text swaps to Mukta Malar. -->
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Mukta+Malar:wght@400;500;700&display=swap" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mukta+Malar:wght@400;500;700&display=swap"
+    <!-- The reading faces are loaded without blocking: a stylesheet from a
+         third party must never hold up the first paint. Mukta Malar carries
+         Tamil and Latin; the Malayalam and Urdu faces are listed too because
+         the UI font has no glyphs for those scripts. Google only downloads a
+         face once a matching glyph is painted, so non-readers pay nothing. -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Mukta+Malar:wght@400;500;700&family=Noto+Sans+Malayalam:wght@400;500;700&family=Noto+Naskh+Arabic:wght@400;500;700&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mukta+Malar:wght@400;500;700&family=Noto+Sans+Malayalam:wght@400;500;700&family=Noto+Naskh+Arabic:wght@400;500;700&display=swap"
       media="print" onload="this.media='all'" />
     <noscript>
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mukta+Malar:wght@400;500;700&display=swap" />
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mukta+Malar:wght@400;500;700&family=Noto+Sans+Malayalam:wght@400;500;700&family=Noto+Naskh+Arabic:wght@400;500;700&display=swap" />
     </noscript>
 
     <style>

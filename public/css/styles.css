@@ -14987,6 +14987,35 @@ body:has(.sticky-banner-bottom) .global-audio-bar {
   font-weight: 600;
 }
 
+/* The UI face (Plus Jakarta Sans and the other font choices) only carries
+   Latin. Leaving a translation to the generic fallback is what turned Tamil
+   titles into boxes on devices whose system sans has no Indic glyphs, while
+   the body translation looked fine because it names Mukta Malar explicitly.
+   Every translated node carries lang=, so pick a face per script here instead
+   of hoping the platform fallback knows the language. */
+.dhikr-script:lang(ta) {
+  font-family: 'Mukta Malar', 'Noto Sans Tamil', 'Latha', system-ui, sans-serif;
+}
+
+.dhikr-script:lang(ml) {
+  font-family: 'Noto Sans Malayalam', 'Manjari', 'Nirmala UI', system-ui, sans-serif;
+}
+
+/* Urdu is Arabic script, so the UI font has no glyphs for it either. Naskh is
+   used rather than Nastaliq: it is a fraction of the download, needs no extra
+   line-height, and still covers the Urdu-specific letters. QPC-Hafs, the
+   Arabic face the reader already ships, is the last-resort fallback. */
+.dhikr-script:lang(ur) {
+  font-family: 'Noto Naskh Arabic', 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'QPC-Hafs', serif;
+}
+
+/* U+FDFA is an Arabic ligature; none of the reading faces above carry it, so
+   the honourific is split out at render time and gets an Arabic face here. */
+.dua-honorific {
+  font-family: 'Noto Naskh Arabic', 'Noto Sans Arabic', 'QPC-Hafs', serif;
+  font-weight: inherit;
+}
+
 @media (max-width: 480px) {
   .dhikr-panel { padding: 1.35rem 1.1rem; }
   .dhikr-tap { width: 8rem; height: 8rem; }

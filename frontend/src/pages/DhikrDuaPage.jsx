@@ -23,6 +23,31 @@ const TABS = [
   { id: 'duas', label: 'Duas', icon: 'format_quote' },
 ];
 
+// The source translations write the honourific as U+FDFA (ﷺ). That glyph only
+// exists in Arabic faces, so in a Tamil, Malayalam or Latin sentence it paints
+// as a box. Give the symbol its own face rather than altering the wording.
+function DuaText({ text }) {
+  if (!text || !String(text).includes('\uFDFA')) return text;
+  return String(text)
+    .split('\uFDFA')
+    .flatMap((part, index) =>
+      index === 0
+        ? [part]
+        : [
+            <span
+              className="dua-honorific"
+              role="img"
+              aria-label="peace be upon him"
+              title="peace be upon him"
+              key={index}
+            >
+              ﷺ
+            </span>,
+            part,
+          ]
+    );
+}
+
 function loadCounts() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -273,7 +298,7 @@ export default function DhikrDuaPage() {
                   key={item.code}
                   type="button"
                   lang={item.code}
-                  className={`hadith-chip hadith-lang-chip${duaLang === item.code ? ' is-active' : ''}`}
+                  className={`hadith-chip hadith-lang-chip dhikr-script${duaLang === item.code ? ' is-active' : ''}`}
                   aria-pressed={duaLang === item.code}
                   onClick={() => chooseDuaLanguage(item.code)}
                 >
@@ -291,7 +316,8 @@ export default function DhikrDuaPage() {
                   <button
                     key={item.id}
                     type="button"
-                    className={`hadith-chip${category === item.id ? ' is-active' : ''}`}
+                    lang={item.id === 'All' ? undefined : duaLang}
+                    className={`hadith-chip dhikr-script${category === item.id ? ' is-active' : ''}`}
                     aria-pressed={category === item.id}
                     onClick={() => setCategory(item.id)}
                   >
@@ -348,19 +374,19 @@ export default function DhikrDuaPage() {
                         <header className="favourite-head">
                           <div className="favourite-heading">
                             <span
-                              className="dhikr-dua-title"
+                              className="dhikr-dua-title dhikr-script"
                               dir={activeCollection.dir}
                               lang={duaLang}
                             >
-                              {dua.title}
+                              <DuaText text={dua.title} />
                             </span>
                             {dua.subcategory && (
                               <span
-                                className="favourite-num"
+                                className="favourite-num dhikr-script"
                                 dir={activeCollection.dir}
                                 lang={duaLang}
                               >
-                                {dua.subcategory}
+                                <DuaText text={dua.subcategory} />
                               </span>
                             )}
                           </div>
@@ -393,19 +419,19 @@ export default function DhikrDuaPage() {
                         <div className="ayah-translation">
                           <p className="ayah-translation-label">Translation</p>
                           <p
-                            className="ayah-translation-text"
+                            className="ayah-translation-text dhikr-script"
                             dir={activeCollection.dir}
                             lang={duaLang}
                           >
-                            {dua.translation}
+                            <DuaText text={dua.translation} />
                           </p>
                         </div>
 
                         {dua.reference && (
                           <p className="dhikr-dua-source">
                             Source:{' '}
-                            <span dir={activeCollection.dir} lang={duaLang}>
-                              {dua.reference}
+                            <span className="dhikr-script" dir={activeCollection.dir} lang={duaLang}>
+                              <DuaText text={dua.reference} />
                             </span>
                           </p>
                         )}
