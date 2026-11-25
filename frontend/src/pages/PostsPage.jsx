@@ -467,7 +467,7 @@ function LoadMore({ hasMore, busy, onMore }) {
 
   if (!hasMore) return null;
   return (
-    <div className="post-more" ref={ref}>
+    <div className="post-load-more" ref={ref}>
       <button type="button" className="btn btn-outline btn-sm" onClick={onMore} disabled={busy}>
         {busy ? 'Loading…' : 'Load more'}
       </button>

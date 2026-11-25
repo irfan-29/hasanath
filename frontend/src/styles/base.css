@@ -3895,8 +3895,9 @@ hr {
 .post-back { margin-top: 1.5rem; }
 
 /* The end of a paged list of posts: loads the next page as it nears the
-   screen, and is a button for everyone else. */
-.post-more {
+   screen, and is a button for everyone else. Named post-load-more because
+   .post-more already belongs to the card's options menu. */
+.post-load-more {
   display: flex;
   justify-content: center;
   margin: 1.5rem auto 2rem;
