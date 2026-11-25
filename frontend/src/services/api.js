@@ -153,8 +153,18 @@ export const salah = {
   clear: (payload) => api.delete('/salah', payload),
 };
 
+// "?a=1&b=2" from the values that are set; "" when none are.
+function pageQuery(params) {
+  const parts = Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== null && value !== '')
+    .map(([key, value]) => `${key}=${encodeURIComponent(value)}`);
+  return parts.length ? `?${parts.join('&')}` : '';
+}
+
 export const posts = {
-  list: () => api.get('/posts'),
+  // Posts arrive a page at a time. `before` is the id of the last post already
+  // shown (the server's nextCursor); `liked` narrows the feed to liked posts.
+  list: ({ before, liked } = {}) => api.get(`/posts${pageQuery({ before, liked: liked ? 1 : '' })}`),
   create: (payload) => api.post('/posts', payload),
   one: (id) => api.get(`/posts/${id}`),
   // PATCH, not PUT: only content/reference are accepted, and the server keeps
@@ -162,7 +172,9 @@ export const posts = {
   update: (id, payload) => api.request(`/posts/${id}`, { method: 'PATCH', body: payload }),
   remove: (id) => api.request(`/posts/${id}`, { method: 'DELETE' }),
   toggleLike: (id) => api.post(`/posts/${id}/like`),
-  profile: (username) => api.get(`/u/${encodeURIComponent(username)}`),
+  // Without `before`: the whole profile and its newest posts. With it: only the
+  // next page of that profile's posts.
+  profile: (username, { before } = {}) => api.get(`/u/${encodeURIComponent(username)}${pageQuery({ before })}`),
   // One report per account per post; repeats are accepted and change nothing.
   report: (id, payload) => api.post(`/posts/${id}/report`, payload),
   block: (userId) => api.post(`/users/${userId}/block`, {}),

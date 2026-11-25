@@ -49,6 +49,12 @@ const postSchema = new mongoose.Schema({
 // hold has expired. This index serves both.
 postSchema.index({ status: 1, autoPublishAt: 1 });
 
+// Paging reads "this author's posts, newest first" (a profile) and "posts this
+// person liked, newest first" (the Liked filter). Without these, each page
+// would scan the whole collection once it grows.
+postSchema.index({ author: 1, _id: -1 });
+postSchema.index({ likedBy: 1, _id: -1 });
+
 // The model is still named "Posts": the collection and the notification
 // service's `mongoose.models.Posts` lookup both depend on it.
 module.exports = mongoose.model("Posts", postSchema);

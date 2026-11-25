@@ -447,29 +447,99 @@ export function PostCard({ post, permalinkBase = '', canManage, onChanged, onDel
   );
 }
 
+// The end of a paged list. It loads the next page by itself when it scrolls
+// near the screen, and stays a real button for keyboards, screen readers and
+// any browser where the observer does not fire.
+function LoadMore({ hasMore, busy, onMore }) {
+  const ref = useRef(null);
+  const onMoreRef = useRef(onMore);
+  onMoreRef.current = onMore;
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!hasMore || busy || !node || typeof IntersectionObserver !== 'function') return undefined;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) onMoreRef.current();
+    }, { rootMargin: '600px 0px' });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, busy]);
+
+  if (!hasMore) return null;
+  return (
+    <div className="post-more" ref={ref}>
+      <button type="button" className="btn btn-outline btn-sm" onClick={onMore} disabled={busy}>
+        {busy ? 'Loading…' : 'Load more'}
+      </button>
+    </div>
+  );
+}
+
+// Adds a page to a list without ever showing a post twice.
+function appendPosts(current, incoming) {
+  const seen = new Set(current.map((post) => post._id));
+  return current.concat((incoming || []).filter((post) => !seen.has(post._id)));
+}
+
 export function PostsPage() {
   const { isLoggedIn } = useSession();
-  const [data, setData] = useState({ loading: true, posts: [], permalinkBase: '' });
+  const [data, setData] = useState({ loading: true, posts: [], permalinkBase: '', hasMore: false, nextCursor: null, likedCount: 0 });
   const [composing, setComposing] = useState(false);
   const [filter, setFilter] = useState('all');
+  const [loadingMore, setLoadingMore] = useState(false);
+  // Guards against a slow first page landing after the filter has changed.
+  const requestRef = useRef(0);
 
+  // The first page of the feed, or of the viewer's liked posts.
   const load = useCallback(async () => {
+    const request = ++requestRef.current;
     setData((d) => ({ ...d, loading: true }));
     try {
-      const result = await api.list();
-      setData({ loading: false, posts: result.posts || [], permalinkBase: result.permalinkBase || '' });
+      const result = await api.list({ liked: filter === 'liked' });
+      if (request !== requestRef.current) return;
+      setData((d) => ({
+        loading: false,
+        posts: result.posts || [],
+        permalinkBase: result.permalinkBase || '',
+        hasMore: Boolean(result.hasMore),
+        nextCursor: result.nextCursor || null,
+        likedCount: typeof result.likedCount === 'number' ? result.likedCount : d.likedCount,
+      }));
     } catch (err) {
-      setData({ loading: false, posts: [], permalinkBase: '' });
+      if (request !== requestRef.current) return;
+      setData((d) => ({ ...d, loading: false, posts: [], hasMore: false, nextCursor: null }));
     }
-  }, []);
+  }, [filter]);
 
   useEffect(() => { load(); }, [load]);
+
+  // The next page: everything older than the last post on screen.
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !data.hasMore || !data.nextCursor) return;
+    const request = requestRef.current;
+    setLoadingMore(true);
+    try {
+      const result = await api.list({ before: data.nextCursor, liked: filter === 'liked' });
+      if (request !== requestRef.current) return;
+      setData((d) => ({
+        ...d,
+        posts: appendPosts(d.posts, result.posts),
+        hasMore: Boolean(result.hasMore),
+        nextCursor: result.nextCursor || null,
+      }));
+    } catch (err) {
+      // Leave the button in place so the reader can try again.
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, data.hasMore, data.nextCursor, filter]);
 
   useEffect(() => {
     if (!isLoggedIn) setFilter('all');
   }, [isLoggedIn]);
 
-  const likedCount = data.posts.filter((post) => post.likedByMe).length;
+  // The count comes from the server, since only one page of posts is loaded.
+  const likedCount = data.likedCount;
   const visiblePosts = filter === 'liked'
     ? data.posts.filter((post) => post.likedByMe)
     : data.posts;
@@ -514,23 +584,33 @@ export function PostsPage() {
         />
       )}
 
-      {data.loading ? <Loader variant="inline" label="Loading posts" /> : data.posts.length === 0 ? (
-        <p className="post-empty">No posts yet.</p>
-      ) : visiblePosts.length === 0 ? (
-        <p className="post-empty">You have not liked any posts yet.</p>
+      {data.loading ? <Loader variant="inline" label="Loading posts" /> : visiblePosts.length === 0 ? (
+        // Liked posts are their own list now, so an empty one is "none liked",
+        // not "no posts" - unless more liked posts are still waiting to load.
+        <p className="post-empty">
+          {filter === 'liked'
+            ? (data.hasMore ? 'Load more to see your other liked posts.' : 'You have not liked any posts yet.')
+            : 'No posts yet.'}
+        </p>
       ) : (
         visiblePosts.map((post) => (
           <PostCard
             key={post._id}
             post={post}
             permalinkBase={data.permalinkBase}
-            onChanged={(updated) => setData((d) => ({
-              ...d,
-              posts: d.posts.map((p) => (p._id === updated._id ? updated : p)),
-            }))}
+            onChanged={(updated) => setData((d) => {
+              const before = d.posts.find((p) => p._id === updated._id);
+              const change = before ? Number(Boolean(updated.likedByMe)) - Number(Boolean(before.likedByMe)) : 0;
+              return {
+                ...d,
+                posts: d.posts.map((p) => (p._id === updated._id ? updated : p)),
+                likedCount: Math.max(0, d.likedCount + change),
+              };
+            })}
             onDeleted={(deleted) => setData((d) => ({
               ...d,
               posts: d.posts.filter((p) => p._id !== deleted._id),
+              likedCount: Math.max(0, d.likedCount - (deleted.likedByMe ? 1 : 0)),
             }))}
             onBlocked={(authorId) => setData((d) => ({
               ...d,
@@ -539,6 +619,8 @@ export function PostsPage() {
           />
         ))
       )}
+
+      {!data.loading && <LoadMore hasMore={data.hasMore} busy={loadingMore} onMore={loadMore} />}
     </>
   );
 }
@@ -728,10 +810,24 @@ export function ProfilePage() {
   // "People you may know" strip at the top of the owner's friends tab.
   const [suggestions, setSuggestions] = useState([]);
 
+  const [loadingMore, setLoadingMore] = useState(false);
+
   const reload = useCallback(async () => {
     try {
       const data = await api.profile(username);
-      setState({ loading: false, data });
+      // A re-read after a friend action brings back only the newest page.
+      // Keep the older posts the reader had already loaded below it.
+      setState((prev) => {
+        const loaded = prev.data && Array.isArray(prev.data.posts) ? prev.data.posts : [];
+        const fresh = data.posts || [];
+        const oldest = fresh.length ? fresh[fresh.length - 1]._id : null;
+        const older = oldest ? loaded.filter((post) => post._id < oldest) : [];
+        if (!older.length) return { loading: false, data };
+        return {
+          loading: false,
+          data: { ...data, posts: fresh.concat(older), hasMore: prev.data.hasMore, nextCursor: prev.data.nextCursor },
+        };
+      });
       return data;
     } catch (err) {
       setState({ loading: false, data: null });
@@ -961,6 +1057,24 @@ export function ProfilePage() {
   if (!state.data) return <NotFound />;
 
   const { owner, posts, permalinkBase, isOwner, blocked = false, friendship, friendCount, friends = [] } = state.data;
+  // The profile's total, which is more than the posts loaded so far.
+  const postCount = typeof state.data.postCount === 'number' ? state.data.postCount : posts.length;
+
+  const loadMorePosts = async () => {
+    if (loadingMore || !state.data.hasMore || !state.data.nextCursor) return;
+    setLoadingMore(true);
+    try {
+      const page = await api.profile(username, { before: state.data.nextCursor });
+      setState((s) => (s.data ? {
+        ...s,
+        data: { ...s.data, posts: appendPosts(s.data.posts, page.posts), hasMore: Boolean(page.hasMore), nextCursor: page.nextCursor || null },
+      } : s));
+    } catch (err) {
+      // Leave the button in place so the reader can try again.
+    } finally {
+      setLoadingMore(false);
+    }
+  };
   const relationship = friendship ? friendship.state : 'none';
   const ownerName = owner.displayName || owner.name || owner.username;
   const shareUrl = (permalinkBase || '') + '/u/' + owner.username;
@@ -985,7 +1099,7 @@ export function ProfilePage() {
             <p className="profile-handle-sub">{personHandle(owner)}</p>
           )}
           <p className="profile-stats">
-            <strong>{posts.length}</strong> {posts.length === 1 ? 'post' : 'posts'}
+            <strong>{postCount}</strong> {postCount === 1 ? 'post' : 'posts'}
             <span className="profile-stat-sep">·</span>
             <strong>{friendCount || 0}</strong> {(friendCount || 0) === 1 ? 'friend' : 'friends'}
             {isOwner && <span className="profile-badge">This is you</span>}
@@ -1056,7 +1170,7 @@ export function ProfilePage() {
             >
               <span className="material-symbols-rounded" aria-hidden="true">post</span>
               Posts
-              <span className="profile-tab-count">{posts.length}</span>
+              <span className="profile-tab-count">{postCount}</span>
             </button>
             <button
               type="button"
@@ -1092,7 +1206,11 @@ export function ProfilePage() {
                     } : s))}
                     onDeleted={(deleted) => setState((s) => (s.data ? {
                       ...s,
-                      data: { ...s.data, posts: s.data.posts.filter((p) => p._id !== deleted._id) },
+                      data: {
+                        ...s.data,
+                        posts: s.data.posts.filter((p) => p._id !== deleted._id),
+                        postCount: typeof s.data.postCount === 'number' ? Math.max(0, s.data.postCount - 1) : s.data.postCount,
+                      },
                     } : s))}
                     onBlocked={() => setState((s) => (s.data ? {
                       ...s,
@@ -1112,6 +1230,7 @@ export function ProfilePage() {
                   />
                 ))
               )}
+              <LoadMore hasMore={Boolean(state.data.hasMore)} busy={loadingMore} onMore={loadMorePosts} />
             </div>
           ) : (
             <div className="profile-panel profile-friends" role="tabpanel" id="profile-panel-friends" aria-labelledby="profile-tab-friends">

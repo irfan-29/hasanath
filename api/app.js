@@ -1717,6 +1717,43 @@ app.get("/api/stats", requireLogin, async function(req, res){
 
 // ---- Posts ----
 
+// ---- Post paging -----------------------------------------------------------
+//
+// Lists of posts are read a page at a time: the newest POSTS_PAGE_SIZE first,
+// then "older than the last one shown". The cursor is the last post's _id
+// rather than a page number, so a post published while someone is reading
+// never pushes an already-seen post onto the next page.
+const POSTS_PAGE_SIZE = 12;
+const POSTS_PAGE_MAX = 30;
+
+function postPageOf(req) {
+    const asked = parseInt(req.query.limit, 10);
+    const limit = Math.min(POSTS_PAGE_MAX, Math.max(1, Number.isFinite(asked) ? asked : POSTS_PAGE_SIZE));
+    const before = String(req.query.before || "");
+    return { limit, before: mongoose.Types.ObjectId.isValid(before) ? new mongoose.Types.ObjectId(before) : null };
+}
+
+// Reads one page for `filter` (newest first) and says whether more remain.
+// One extra row is fetched to answer "is there more?" without a count query.
+async function readPostPage(filter, page, populate) {
+    const query = { ...filter };
+    if (page.before) query._id = { $lt: page.before };
+    const rows = await Posts.find(query)
+        .sort({ _id: -1 })
+        .limit(page.limit + 1)
+        .populate("author", populate);
+    const hasMore = rows.length > page.limit;
+    const items = hasMore ? rows.slice(0, page.limit) : rows;
+    return {
+        items,
+        hasMore,
+        nextCursor: hasMore && items.length ? String(items[items.length - 1]._id) : null
+    };
+}
+
+// GET /api/posts?limit=12&before=<post id>&liked=1
+// `liked=1` narrows the feed to posts the signed-in viewer has liked, so the
+// Liked filter pages on the server too instead of filtering one page of the feed.
 app.get("/api/posts", async function(req, res){
     try {
         // Release any review hold that has expired before reading. No scheduler
@@ -1724,10 +1761,24 @@ app.get("/api/posts", async function(req, res){
         await postModeration.publishDue();
 
         const viewer = req.isAuthenticated() ? req.user : null;
-        const post = await Posts.find(postModeration.visibleFilter(viewer))
-            .sort({ _id: -1 })
-            .populate("author", "name username avatarUrl");
-        res.json({ posts: post.map((entry) => presentPost(entry, req)), permalinkBase: originOf(req) });
+        const page = postPageOf(req);
+        const visible = postModeration.visibleFilter(viewer);
+        const likedOnly = Boolean(viewer && req.query.liked === "1");
+        const filter = likedOnly ? { ...visible, likedBy: viewer._id } : visible;
+
+        const result = await readPostPage(filter, page, "name username avatarUrl");
+        const payload = {
+            posts: result.items.map((entry) => presentPost(entry, req)),
+            permalinkBase: originOf(req),
+            hasMore: result.hasMore,
+            nextCursor: result.nextCursor
+        };
+        // The Liked toggle shows a count; it only needs working out on the
+        // first page, and only for someone who is signed in.
+        if (viewer && !page.before) {
+            payload.likedCount = await Posts.countDocuments({ ...visible, likedBy: viewer._id });
+        }
+        res.json(payload);
     } catch (err) {
         console.error("api/posts:", err.message);
         res.status(500).json({ error: "failed" });
@@ -2516,6 +2567,9 @@ app.get("/api/u/:username", async function(req, res){
         // Rejected posts are hidden from everyone. A viewer who blocked this
         // author sees no posts at all.
         let posts = [];
+        let postsHasMore = false;
+        let postsNextCursor = null;
+        let postCount = 0;
         if (!blocked) {
             const filter = { author: author._id };
             filter.status = isOwner
@@ -2524,7 +2578,23 @@ app.get("/api/u/:username", async function(req, res){
             // Populate the author so a post on this profile carries the same
             // name/@handle attribution (and avatar) the feed shows, instead of
             // falling back to the snapshot written at post time.
-            posts = await Posts.find(filter).sort({ _id: -1 }).populate("author", "username name avatarUrl");
+            const page = postPageOf(req);
+            const result = await readPostPage(filter, page, "username name avatarUrl");
+            posts = result.items;
+            postsHasMore = result.hasMore;
+            postsNextCursor = result.nextCursor;
+
+            // "Load more" on a profile asks only for the next posts. Answer with
+            // just those: the header, friendship and friend list are unchanged
+            // and already on the page.
+            if (page.before) {
+                return res.json({
+                    posts: posts.map((post) => presentPost(post, req)),
+                    hasMore: postsHasMore,
+                    nextCursor: postsNextCursor
+                });
+            }
+            postCount = await Posts.countDocuments(filter);
         }
 
         // The profile carries the viewer's relationship to this handle, which
@@ -2553,6 +2623,9 @@ app.get("/api/u/:username", async function(req, res){
                 createdAt: author.createdAt
             },
             posts: posts.map((post) => presentPost(post, req)),
+            hasMore: postsHasMore,
+            nextCursor: postsNextCursor,
+            postCount,
             permalinkBase: originOf(req),
             isOwner,
             blocked,
