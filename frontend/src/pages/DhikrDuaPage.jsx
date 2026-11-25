@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import FormSelect from '../components/FormSelect';
 import { useToast } from '../components/ToastProvider';
 import { settings as settingsApi } from '../services/api';
@@ -65,6 +66,38 @@ function loadCounts() {
   }
 }
 
+// Where the app's own bars end, so eyes-closed mode can fill exactly the space
+// between them: below the header (and any banner under it), above the tab bar,
+// and beside the sidebar on wide screens. Measured from the page rather than
+// from class names, so it follows the layout whatever shape it takes.
+function fixedBox(x, y) {
+  let el = document.elementFromPoint(x, y);
+  if (el && el.closest('.dhikr-focus')) return null;
+  for (; el && el !== document.body && el !== document.documentElement; el = el.parentElement) {
+    const position = getComputedStyle(el).position;
+    if (position === 'fixed' || position === 'sticky') return el.getBoundingClientRect();
+  }
+  return null;
+}
+
+function measureChrome() {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  let top = 0;
+  for (let i = 0; i < 4; i += 1) {
+    const box = fixedBox(w / 2, top + 2);
+    if (!box || box.bottom <= top + 2 || box.height > h * 0.45) break;
+    top = Math.round(box.bottom);
+  }
+  let bottom = 0;
+  const foot = fixedBox(w / 2, h - 3);
+  if (foot && foot.height < h * 0.4 && foot.top > h * 0.5) bottom = Math.round(h - foot.top);
+  let left = 0;
+  const side = fixedBox(3, h / 2);
+  if (side && side.width < w * 0.5 && side.height > h * 0.5) left = Math.round(side.right);
+  return { top, bottom, left };
+}
+
 // How the counter answers a tap. Kept on the device, like the counts.
 const PREFS_KEY = 'hasanath.dhikr.prefs';
 const TASBIH_ORDER = ['subhanallah', 'alhamdulillah', 'allahuakbar'];
@@ -85,6 +118,7 @@ export default function DhikrDuaPage() {
   const [state, setState] = useState(loadCounts);
   const [prefs, setPrefs] = useState(loadPrefs);
   const [focus, setFocus] = useState(false);
+  const [chrome, setChrome] = useState({ top: 0, bottom: 0, left: 0 });
   const [category, setCategory] = useState('All');
   const [query, setQuery] = useState('');
   const [duaLang, setDuaLang] = useState(preferredDuaLanguage);
@@ -202,6 +236,14 @@ export default function DhikrDuaPage() {
     const hasKeys = bridge && typeof bridge.dhikrKeys === 'function';
     keepAwake(true);
     window.__hasanathDhikr = () => incrementRef.current();
+
+    // The page behind must not move: no scrolling while the mode is open.
+    const html = document.documentElement;
+    const previous = { html: html.style.overflow, body: document.body.style.overflow };
+    html.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    const onResize = () => setChrome(measureChrome());
+    window.addEventListener('resize', onResize);
     if (hasKeys) bridge.dhikrKeys(true);
 
     // The phone's Back button leaves the mode instead of the page.
@@ -212,6 +254,9 @@ export default function DhikrDuaPage() {
     return () => {
       keepAwake(false);
       delete window.__hasanathDhikr;
+      html.style.overflow = previous.html;
+      document.body.style.overflow = previous.body;
+      window.removeEventListener('resize', onResize);
       if (hasKeys) bridge.dhikrKeys(false);
       window.removeEventListener('popstate', onPop);
     };
@@ -359,7 +404,7 @@ export default function DhikrDuaPage() {
             </div>
 
             <div className="dhikr-feel">
-              <button type="button" className="btn btn-primary dhikr-focus-open" onClick={() => setFocus(true)}>
+              <button type="button" className="btn btn-primary dhikr-focus-open" onClick={() => { setChrome(measureChrome()); setFocus(true); }}>
                 Eyes-closed mode
               </button>
               <p className="dhikr-feel-hint">
@@ -381,8 +426,14 @@ export default function DhikrDuaPage() {
             </div>
           </div>
 
-          {focus && (
-            <div className="dhikr-focus" role="dialog" aria-modal="true" aria-label={`Counting ${preset.label}`}>
+          {focus && createPortal(
+            <div
+              className="dhikr-focus"
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Counting ${preset.label}`}
+              style={{ top: chrome.top, bottom: chrome.bottom, left: chrome.left }}
+            >
               <button
                 type="button"
                 className="dhikr-focus-surface"
@@ -401,7 +452,8 @@ export default function DhikrDuaPage() {
               <button type="button" className="dhikr-focus-close" onClick={closeFocus}>
                 Done
               </button>
-            </div>
+            </div>,
+            document.body
           )}
         </div>
       ) : (

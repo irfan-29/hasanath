@@ -15083,10 +15083,19 @@ body:has(.sticky-banner-bottom) .global-audio-bar {
 .dhikr-focus-open { min-width: 12rem; }
 
 /* The whole screen is one button. Dark, so it is restful and easy on the battery. */
+/* Rendered straight into <body>, so nothing on the page can clip or scroll it.
+   Its top, bottom and left are set from the measured header, tab bar and
+   sidebar, so it fills exactly the space between the app's own bars. */
 .dhikr-focus {
   position: fixed;
-  inset: 0;
-  z-index: 3000;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 900;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  touch-action: none;
   background: #050b0a;
   color: #fff;
 }
@@ -15105,7 +15114,7 @@ body:has(.sticky-banner-bottom) .global-audio-bar {
   color: inherit;
   background: radial-gradient(circle at 50% 45%, rgb(var(--accent-rgb) / 0.28), transparent 62%);
   border: none;
-  touch-action: manipulation;
+  touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
@@ -15141,7 +15150,7 @@ body:has(.sticky-banner-bottom) .global-audio-bar {
 
 .dhikr-focus-close {
   position: absolute;
-  top: calc(env(safe-area-inset-top, 0px) + 1rem);
+  top: 1rem;
   right: 1rem;
   padding: 0.55rem 1.2rem;
   font: inherit;
