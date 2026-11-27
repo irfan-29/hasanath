@@ -20,6 +20,16 @@ const PRAYER_LABELS = {
   Isha: 'Isha',
 };
 
+// Friday's midday prayer is Jumu'ah. The stored name stays "Zuhur" so history
+// and counts are unaffected; only the label shown to the reader changes.
+function prayerLabel(prayer, dateKey) {
+  if (prayer === 'Zuhur') {
+    const [y, m, d] = String(dateKey).split('-').map(Number);
+    if (new Date(y, m - 1, d).getDay() === 5) return 'Jummah';
+  }
+  return PRAYER_LABELS[prayer] || prayer;
+}
+
 // Only drives the row's icon and color - the displayed text is always the
 // exact value the reader logged ("In Jamath" stays "In Jamath"), never a
 // paraphrase.
@@ -121,7 +131,7 @@ export default function SalahPage() {
         ? await api.record({ ...payload, value: nextValue })
         : await api.clear(payload);
       setHistory((h) => ({ ...h, entries: data.entries || h.entries }));
-      toast(nextValue ? `${PRAYER_LABELS[prayer]} logged` : `${PRAYER_LABELS[prayer]} cleared`);
+      toast(nextValue ? `${prayerLabel(prayer, findDate)} logged` : `${prayerLabel(prayer, findDate)} cleared`);
     } catch (err) {
       setError('Could not save that change.');
     } finally {
@@ -217,13 +227,13 @@ export default function SalahPage() {
                 return (
                   <div className={`salah-status is-${meta.key}`} key={prayer}>
                     <span className="salah-status-icon material-symbols-rounded" aria-hidden="true">{meta.icon}</span>
-                    <span className="salah-status-name">{PRAYER_LABELS[prayer]}</span>
+                    <span className="salah-status-name">{prayerLabel(prayer, findDate)}</span>
                     {/* The value is the control: picking a status writes it
                         immediately, and "Not logged" clears the entry. */}
                     <FormSelect
                       id={`salah-status-${prayer}`}
                       className="salah-status-select"
-                      ariaLabel={`${PRAYER_LABELS[prayer]} status`}
+                      ariaLabel={`${prayerLabel(prayer, findDate)} status`}
                       value={status || ''}
                       options={STATUS_OPTIONS}
                       onChange={(nextValue) => updateStatus(prayer, nextValue)}

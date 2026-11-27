@@ -92,7 +92,7 @@ export default function Navbar({ session }) {
   const [showBrand, setShowBrand] = useState(true);
   useEffect(() => {
     if (!isMobile) return undefined;
-    const timer = setTimeout(() => setShowBrand(false), 4000);
+    const timer = setTimeout(() => setShowBrand(false), 3000);
     return () => clearTimeout(timer);
   }, [isMobile]);
 
@@ -194,10 +194,6 @@ export default function Navbar({ session }) {
             )}
           </div>
         </Link>
-        <button type="button" className="sidebar-toggler" aria-label="Toggle sidebar">
-          <span className="material-symbols-rounded">chevron_left</span>
-        </button>
-
         {/* Phone chrome: qibla and prayer timings sit beside the account in the
             top-right corner the hamburger used to hold; settings lives inside
             the account menu. The drawer itself is gone - the fixed footer
@@ -341,6 +337,10 @@ export default function Navbar({ session }) {
           )}
         </ul>
       </nav>
+
+      <button type="button" className="sidebar-toggler" aria-label="Toggle sidebar">
+        <span className="material-symbols-rounded">chevron_left</span>
+      </button>
     </aside>
   );
 }

@@ -246,10 +246,11 @@ async function fetchTimings({
     if (!data || !data.timings) return null;
 
     const timings = data.timings;
+    const isFriday = new Date(day + 'T00:00:00Z').getUTCDay() === 5;
     const order = [
         ["Fajr", timings.Fajr],
         ["Sunrise", timings.Sunrise],
-        ["Dhuhr", timings.Dhuhr],
+        [isFriday ? "Jummah" : "Dhuhr", timings.Dhuhr],
         ["Asr", timings.Asr],
         ["Maghrib", timings.Maghrib],
         ["Isha", timings.Isha]

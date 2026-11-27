@@ -188,7 +188,7 @@ html {
   --radius-full: 9999px;
 
   --sidebar-width: 280px;
-  --sidebar-collapsed: 80px;
+  --sidebar-collapsed: 104px;
   --header-height: 4.3rem;
   --transition: 0.26s cubic-bezier(0.22, 1, 0.36, 1);
 
@@ -576,6 +576,11 @@ a {
   width: var(--sidebar-collapsed);
 }
 
+.sidebar.collapsed .sidebar-header {
+  padding: 0.9rem 0.5rem;
+  gap: 0.25rem;
+}
+
 .sidebar-header {
   display: flex;
   align-items: center;
@@ -591,6 +596,7 @@ a {
   align-items: center;
   gap: 0.75rem;
   overflow: hidden;
+  min-width: 0;
 }
 
 .logo-icon {
@@ -614,6 +620,7 @@ a {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-width: 0;
   transition: opacity var(--transition);
 }
 
@@ -661,6 +668,13 @@ a {
   justify-content: center;
   transition: all var(--transition);
   flex-shrink: 0;
+}
+
+/* The toggler now lives at the foot of the sidebar instead of crowding the
+   logo on the header row, so it pins to the bottom of the column. */
+.sidebar-toggler {
+  margin: auto auto 1rem;
+  align-self: center;
 }
 
 .sidebar-toggler:hover,
@@ -770,6 +784,28 @@ a {
   opacity: 0;
   width: 0;
   overflow: hidden;
+}
+
+/* In the collapsed rail the icon alone is not enough to tell modules apart,
+   so show a tiny label under each icon. */
+.sidebar.collapsed .nav-link {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.5rem 0.25rem;
+}
+
+.sidebar.collapsed .nav-label {
+  opacity: 1;
+  width: auto;
+  overflow: visible;
+  max-width: 100%;
+  font-size: 0.55rem;
+  line-height: 1.1;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
 .nav-item {
@@ -11490,6 +11526,8 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 .timings-location {
   display: grid;
   justify-items: center;
+  width: 100%;
+  max-width: 100%;
   margin-bottom: 0.35rem;
 }
 
@@ -11596,8 +11634,8 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
 }
 
 .timings-context .timings-location-picker {
-  width: auto;
-  max-width: none;
+  width: 100%;
+  max-width: 100%;
   margin: 0;
 }
 
@@ -11607,6 +11645,7 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   align-items: baseline;
   justify-content: center;
   width: auto;
+  max-width: 100%;
   min-height: 0;
   padding: 0;
   border: 0;
@@ -11614,12 +11653,13 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   background: none;
   color: var(--color-text);
   font-family: inherit;
-  font-size: 1.35rem;
+  font-size: 1.15rem;
   font-weight: 800;
-  letter-spacing: -0.04em;
-  line-height: 1.15;
-  text-align: left;
-  white-space: nowrap;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: break-word;
   cursor: pointer;
   transition: color var(--transition);
 }
@@ -11631,6 +11671,11 @@ body:has(.sidebar.collapsed) .surah-sticky-bar { left: var(--sidebar-collapsed);
   line-height: inherit;
   padding: 0;
   text-align: inherit;
+  white-space: inherit;
+  overflow: visible;
+  text-overflow: clip;
+  max-width: 100%;
+  overflow-wrap: break-word;
 }
 
 /* Out of flow for the same reason as the date arrow: the label text has to be
