@@ -1,4 +1,4 @@
-// Post visibility, review holds and the tiny admin check.
+// Post visibility, who may post, and the tiny admin check.
 //
 // The feed, the permalink, a profile and the admin queue all have to agree about
 // what a visitor may see. Keeping that rule in one place is what stops a pending
@@ -6,17 +6,17 @@
 
 const Posts = require("../models/Post.js");
 
-// A post is held until its author has this many published posts behind them.
-// Counting *published* posts, not attempts, is deliberate: otherwise a spammer
-// could write four posts quickly, have the first three held, and watch the
-// fourth publish with a broadcast.
-const TRUSTED_POST_COUNT = 3;
+// A brand-new account cannot post for its first day. This replaces the old
+// "hold the first posts for review" scheme: nothing is saved that cannot be
+// shown, there is no review timer to release, and no count of earlier posts to
+// run on every new one. Most spam accounts post within minutes of signing up
+// and never come back, so a plain waiting period stops them at the door.
+const POSTING_MIN_ACCOUNT_AGE_MS = 24 * 60 * 60 * 1000;
 
-// A held post becomes public by itself after a day. This is the fallback for a
-// deployment with no admin configured: a legitimate new account is delayed, not
-// silenced forever, and the hold still prevents an immediate blast to every
-// subscriber.
-const REVIEW_HOLD_MS = 24 * 60 * 60 * 1000;
+// A new post is announced to every Telegram subscriber. That reach is earned
+// more slowly than the right to post: an account must be a week old before its
+// posts are broadcast. Younger accounts' posts still appear in the feed.
+const BROADCAST_MIN_ACCOUNT_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Distinct reporters needed before a post is pulled from the feed pending
 // review. Counting distinct accounts (the model has a unique index on
@@ -65,8 +65,9 @@ function isBlocked(viewer, authorId) {
     return blockedIds(viewer).includes(target);
 }
 
-// Filter for the public feed: published posts, plus the viewer's own pending
-// posts (so the author can see what is waiting), never a blocked author's posts.
+// Filter for the public feed: published posts, plus the viewer's own posts that
+// reports have hidden (so the author can see why one is missing), never a
+// blocked author's posts.
 // A missing status is an old post and counts as published.
 function visibleFilter(viewer) {
     const or = [{ status: { $nin: ["pending", "rejected"] } }];
@@ -93,37 +94,59 @@ function canView(post, viewer) {
     return true;
 }
 
-async function needsReview(authorId) {
-    if (!authorId) return true;
-    // Count everything that is or was publicly visible, including posts that
-    // predate the status field (a missing status is an old, published post).
-    // Counting only an exact `status: "published"` would treat every existing
-    // account as brand new and hold its next post, even though it has years of
-    // history behind it. Pending and rejected posts do not count, so a spammer
-    // cannot earn trust with posts that were never shown.
-    const published = await Posts.countDocuments({
-        author: authorId,
-        status: { $nin: ["pending", "rejected"] }
-    });
-    return published < TRUSTED_POST_COUNT;
+// When the account was created, read from its id. Every MongoDB id carries
+// its creation time, so this works for every account, including old ones that
+// were saved before the createdAt field existed (for which Mongoose would
+// otherwise fill in "now" and make a years-old account look new).
+function accountCreatedAt(user) {
+    try {
+        const id = user && user._id;
+        if (id && typeof id.getTimestamp === "function") return id.getTimestamp();
+    } catch (err) { /* not an ObjectId */ }
+    return null;
 }
 
-// Release review holds whose day is up. Runs lazily on feed/profile/permalink
-// reads, so it needs no scheduler and costs one indexed update. Deliberately
-// does not broadcast: these posts were never announced, and a batched release
-// should not become a second blast.
-async function publishDue() {
-    const now = new Date();
-    const result = await Posts.updateMany(
-        { status: "pending", statusReason: "review", autoPublishAt: { $lte: now } },
-        { $set: { status: "published", autoPublishAt: null } }
-    );
-    return result.modifiedCount || 0;
+// null when the account may post right now; otherwise the moment it will be
+// allowed to. Admins are never made to wait: they post the announcements.
+function canPostAt(user) {
+    if (!user || isAdmin(user)) return null;
+    const created = accountCreatedAt(user);
+    if (!created) return null;
+    const allowedAt = new Date(created.getTime() + POSTING_MIN_ACCOUNT_AGE_MS);
+    return allowedAt.getTime() > Date.now() ? allowedAt : null;
+}
+
+function mayBroadcast(user) {
+    if (!user) return false;
+    if (isAdmin(user)) return true;
+    const created = accountCreatedAt(user);
+    if (!created) return true;
+    return Date.now() - created.getTime() >= BROADCAST_MIN_ACCOUNT_AGE_MS;
+}
+
+// One-off tidy-up for the change away from review holds: any post still
+// waiting under the old scheme is published, so nothing is left stuck with no
+// timer to release it. Runs once per server instance, on the first feed read,
+// and is a no-op once there are none left. Safe to delete after a few weeks.
+let legacyHoldsReleased = null;
+function releaseLegacyHolds() {
+    if (!legacyHoldsReleased) {
+        legacyHoldsReleased = Posts.updateMany(
+            { status: "pending", statusReason: "review" },
+            { $set: { status: "published", statusReason: "" } }
+        ).then(function(result){ return result.modifiedCount || 0; })
+         .catch(function(err){
+             console.error("releaseLegacyHolds:", err.message);
+             legacyHoldsReleased = null;   // try again on a later request
+             return 0;
+         });
+    }
+    return legacyHoldsReleased;
 }
 
 module.exports = {
-    TRUSTED_POST_COUNT,
-    REVIEW_HOLD_MS,
+    POSTING_MIN_ACCOUNT_AGE_MS,
+    BROADCAST_MIN_ACCOUNT_AGE_MS,
     REPORT_HIDE_THRESHOLD,
     REPORT_REASONS,
     adminEmails,
@@ -132,6 +155,8 @@ module.exports = {
     isBlocked,
     visibleFilter,
     canView,
-    needsReview,
-    publishDue
+    accountCreatedAt,
+    canPostAt,
+    mayBroadcast,
+    releaseLegacyHolds
 };

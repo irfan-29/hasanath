@@ -121,30 +121,19 @@ const otpEmailLimiter = rateLimit({
 // Every published post fans out to every Telegram subscriber, so the cost of one
 // post is not the size of the request - it is the size of the audience. Five an
 // hour is more than a person reflecting needs and far below what a spam loop
-// wants. The IP ceiling is looser because a household or office may share an
-// address.
+// wants. Posting needs a signed-in account, so the limits are per account;
+// there is no per-IP limit, which could only punish people sharing a network.
 //
 // Only successful posts count (skipFailedRequests): a rejected empty post never
 // reached anybody, so it should not spend the allowance.
 const POST_WINDOW_MS = 60 * 60 * 1000;
 const POST_ACCOUNT_MAX = 5;
-const POST_IP_MAX = 10;
 
 // A minimum gap between posts, so an account cannot spend its whole hourly
 // allowance as one burst. Without it, five posts in five seconds is five
 // broadcasts to every subscriber, which is still spam even if the hour then
 // goes quiet. One a minute is invisible to a person writing a reflection.
 const POST_GAP_MS = 60 * 1000;
-
-const postIpLimiter = rateLimit({
-    windowMs: POST_WINDOW_MS,
-    limit: POST_IP_MAX,
-    skipFailedRequests: true,
-    standardHeaders: "draft-7",
-    legacyHeaders: false,
-    store: new MongoRateLimitStore("post-ip:"),
-    handler: tooManyAttempts("post-ip", POST_WINDOW_MS)
-});
 
 const postAccountLimiter = rateLimit({
     windowMs: POST_WINDOW_MS,
@@ -189,7 +178,6 @@ module.exports = {
     loginAccountLimiter,
     otpIpLimiter,
     otpEmailLimiter,
-    postIpLimiter,
     postAccountLimiter,
     postGapLimiter,
     contactAccountLimiter,

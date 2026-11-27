@@ -70,7 +70,7 @@ export default function OverviewPanel({ onNavigate }) {
         {stat('New today', num(data.users.newToday), `${num(data.users.new7d)} this week · ${num(data.users.new30d)} this month`)}
         {stat('Active today', num(data.users.activeToday), 'Seen in the app today')}
         {stat('Posts', num(data.posts.total), `${num(data.posts.last7d)} in the last 7 days`)}
-        {stat('Waiting for review', num(data.posts.pending), 'Held or reported posts')}
+        {stat('Waiting for review', num(data.posts.pending), 'Posts hidden by reports')}
         {stat('Open reports', num(data.reports.open), 'Report rows awaiting a decision')}
         {stat('One-time banner views', num(data.banners.otbViews), `${num(data.banners.otbActive)} active popup${data.banners.otbActive === 1 ? '' : 's'}`)}
         {stat('Sticky bars', num(data.banners.stickyActive), 'Live on the web app')}

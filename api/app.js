@@ -14,7 +14,7 @@ const { MongoStore } = require("connect-mongo");
 const { islamicFinderFetch } = require("../api/utils/islamic-finder.js");
 const { sendTelegramMessage, claimChatByCode, makeVerifyCode, buildStreakSummary, normalizeChatId, normalizeToken, extractToken, isValidToken, botIsConfigured, ERROR_MESSAGES } = require("../api/utils/telegram.js");
 const { passport, requireLogin, resolveLoginIdentifier } = require("./middleware/auth.js");
-const { loginIpLimiter, loginAccountLimiter, otpIpLimiter, otpEmailLimiter, postIpLimiter, postAccountLimiter, postGapLimiter, contactAccountLimiter, resolveOtpTarget } = require("./middleware/rateLimits.js");
+const { loginIpLimiter, loginAccountLimiter, otpIpLimiter, otpEmailLimiter, postAccountLimiter, postGapLimiter, contactAccountLimiter, resolveOtpTarget } = require("./middleware/rateLimits.js");
 // Named `userData` rather than `data`: several routes bind a local `data` to a
 // fetched surah/prayer payload, which would shadow the service module.
 const userData = require("./services/userData.js");
@@ -1826,10 +1826,13 @@ function postPageOf(req) {
 async function readPostPage(filter, page, populate) {
     const query = { ...filter };
     if (page.before) query._id = { $lt: page.before };
+    // lean(): plain objects straight from the driver. presentPost only reads
+    // fields, so building full Mongoose documents for every row is wasted work.
     const rows = await Posts.find(query)
         .sort({ _id: -1 })
         .limit(page.limit + 1)
-        .populate("author", populate);
+        .populate("author", populate)
+        .lean();
     const hasMore = rows.length > page.limit;
     const items = hasMore ? rows.slice(0, page.limit) : rows;
     return {
@@ -1844,27 +1847,34 @@ async function readPostPage(filter, page, populate) {
 // Liked filter pages on the server too instead of filtering one page of the feed.
 app.get("/api/posts", async function(req, res){
     try {
-        // Release any review hold that has expired before reading. No scheduler
-        // is needed and the sweep is one indexed update.
-        await postModeration.publishDue();
-
         const viewer = req.isAuthenticated() ? req.user : null;
         const page = postPageOf(req);
         const visible = postModeration.visibleFilter(viewer);
         const likedOnly = Boolean(viewer && req.query.liked === "1");
         const filter = likedOnly ? { ...visible, likedBy: viewer._id } : visible;
 
-        const result = await readPostPage(filter, page, "name username avatarUrl");
+        // Everything this page needs is asked for at the same moment, so the
+        // request waits for the slowest answer rather than the sum of them:
+        // the page of posts, and (first page, signed-in only) the Liked count.
+        const wantsLikedCount = Boolean(viewer && !page.before);
+        const [result, likedCount] = await Promise.all([
+            readPostPage(filter, page, "name username avatarUrl"),
+            wantsLikedCount ? Posts.countDocuments({ ...visible, likedBy: viewer._id }) : null,
+            postModeration.releaseLegacyHolds()
+        ]);
+
         const payload = {
             posts: result.items.map((entry) => presentPost(entry, req)),
             permalinkBase: originOf(req),
             hasMore: result.hasMore,
             nextCursor: result.nextCursor
         };
-        // The Liked toggle shows a count; it only needs working out on the
-        // first page, and only for someone who is signed in.
+        if (wantsLikedCount) payload.likedCount = likedCount;
+        // Tells the page whether to offer "Add Post" yet: null when the viewer
+        // may post now, otherwise the moment a new account's first day ends.
         if (viewer && !page.before) {
-            payload.likedCount = await Posts.countDocuments({ ...visible, likedBy: viewer._id });
+            const allowedAt = postModeration.canPostAt(viewer);
+            payload.canPostAt = allowedAt ? allowedAt.toISOString() : null;
         }
         res.json(payload);
     } catch (err) {
@@ -1873,7 +1883,15 @@ app.get("/api/posts", async function(req, res){
     }
 });
 
-app.post("/api/posts", requireLogin, postIpLimiter, postAccountLimiter, postGapLimiter, async function(req, res){
+// A new account waits a day before its first post. Checked before the rate
+// limiters, so being told "not yet" does not also use up a posting allowance.
+function requireCanPost(req, res, next) {
+    const allowedAt = postModeration.canPostAt(req.user);
+    if (!allowedAt) return next();
+    res.status(403).json({ error: "account-too-new", allowedAt: allowedAt.toISOString() });
+}
+
+app.post("/api/posts", requireLogin, requireCanPost, postAccountLimiter, postGapLimiter, async function(req, res){
     let date = new Date(req.body.date);
     if (isNaN(date.getTime())) date = new Date();
     const formattedDate = date.toLocaleDateString("en-US", {
@@ -1887,12 +1905,6 @@ app.post("/api/posts", requireLogin, postIpLimiter, postAccountLimiter, postGapL
     if (!content) return res.status(400).json({ error: "empty-post" });
 
     try {
-        // An account without published posts behind it is held for a day. The
-        // post is still saved and visible to its author, but it does not enter
-        // the feed and is not broadcast until the hold is released or an admin
-        // approves it.
-        const held = await postModeration.needsReview(req.user._id);
-
         const post = await Posts.create({
             postedDate: formattedDate,
             author: req.user._id,
@@ -1902,19 +1914,18 @@ app.post("/api/posts", requireLogin, postIpLimiter, postAccountLimiter, postGapL
             content,
             reference: String(req.body.reference || ""),
             isVideo,
-            status: held ? "pending" : "published",
-            statusReason: held ? "review" : "",
-            autoPublishAt: held ? new Date(Date.now() + postModeration.REVIEW_HOLD_MS) : null
+            status: "published"
         });
 
         // Announce after the write resolves, and never let a broadcast failure
-        // undo a post the user already successfully created. A held post is not
-        // announced at all - that is the point of the hold.
-        if (!held) {
+        // undo a post the user already successfully created. Only accounts a
+        // week old reach every subscriber; a younger account's post is in the
+        // feed but is not pushed to people's phones.
+        if (postModeration.mayBroadcast(req.user)) {
             broadcastNewPost(post).catch((err) => console.error("notify: new post -", err.message));
         }
 
-        res.status(201).json({ post: presentPost(post, req), held });
+        res.status(201).json({ post: presentPost(post, req) });
     } catch (err) {
         console.error("api/posts POST:", err.message);
         res.status(500).json({ error: "failed" });
@@ -1924,8 +1935,6 @@ app.post("/api/posts", requireLogin, postIpLimiter, postAccountLimiter, postGapL
 app.get("/api/posts/:id", async function(req, res){
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "not-found" });
     try {
-        await postModeration.publishDue();
-
         const post = await Posts.findById(req.params.id).populate("author", "username name avatarUrl");
         const viewer = req.isAuthenticated() ? req.user : null;
         // A pending post is a 404 to everyone but its author (and admins), the
@@ -2071,7 +2080,6 @@ app.post("/api/posts/:id/report", requireLogin, async function(req, res){
             post.status = "pending";
             post.statusReason = "reported";
             // Reported posts do not auto-publish: a person has to look at them.
-            post.autoPublishAt = null;
             await post.save();
             hidden = true;
         }
@@ -2250,8 +2258,6 @@ app.post("/api/admin/login", loginIpLimiter, resolveLoginIdentifier, loginAccoun
 
 app.get("/api/admin/moderation", requireLogin, requireAdmin, async function(req, res){
     try {
-        await postModeration.publishDue();
-
         const [posts, reports] = await Promise.all([
             Posts.find({ status: "pending" })
                 .sort({ _id: -1 })
@@ -2296,10 +2302,10 @@ app.post("/api/admin/posts/:id/approve", requireLogin, requireAdmin, async funct
         const post = await Posts.findById(req.params.id);
         if (!post) return res.status(404).json({ error: "not-found" });
 
-        const wasPending = post.status === "pending";
+        // Restores a post that reports had hidden. It was announced when it
+        // was written, so restoring it does not announce it again.
         post.status = "published";
         post.statusReason = "";
-        post.autoPublishAt = null;
         post.reviewedAt = new Date();
         post.reviewedBy = req.user._id;
         await post.save();
@@ -2311,10 +2317,6 @@ app.post("/api/admin/posts/:id/approve", requireLogin, requireAdmin, async funct
 
         // An approved post is new to the feed, so announce it. The hold existed
         // to stop an unreviewed blast, and review has now happened.
-        if (wasPending) {
-            broadcastNewPost(post).catch((err) => console.error("notify: approved post -", err.message));
-        }
-
         const populated = await post.populate("author", "username name avatarUrl");
         res.json({ post: presentPost(populated, req) });
     } catch (err) {
@@ -2331,7 +2333,6 @@ app.post("/api/admin/posts/:id/reject", requireLogin, requireAdmin, async functi
 
         post.status = "rejected";
         post.statusReason = "";
-        post.autoPublishAt = null;
         post.reviewedAt = new Date();
         post.reviewedBy = req.user._id;
         await post.save();
@@ -2666,8 +2667,6 @@ app.put("/api/admin/signup-limits", requireLogin, requireAdmin, async function(r
 
 app.get("/api/u/:username", async function(req, res){
     try {
-        await postModeration.publishDue();
-
         const author = await User.findOne({ username: String(req.params.username || "").toLowerCase() })
             .select("username name createdAt avatarUrl");
         if (!author) return res.status(404).json({ error: "not-found" });
@@ -2698,7 +2697,11 @@ app.get("/api/u/:username", async function(req, res){
             // name/@handle attribution (and avatar) the feed shows, instead of
             // falling back to the snapshot written at post time.
             const page = postPageOf(req);
-            const result = await readPostPage(filter, page, "username name avatarUrl");
+            // The page and the profile's total are independent: ask for both at once.
+            const [result, total] = await Promise.all([
+                readPostPage(filter, page, "username name avatarUrl"),
+                page.before ? null : Posts.countDocuments(filter)
+            ]);
             posts = result.items;
             postsHasMore = result.hasMore;
             postsNextCursor = result.nextCursor;
@@ -2713,7 +2716,7 @@ app.get("/api/u/:username", async function(req, res){
                     nextCursor: postsNextCursor
                 });
             }
-            postCount = await Posts.countDocuments(filter);
+            postCount = total;
         }
 
         // The profile carries the viewer's relationship to this handle, which

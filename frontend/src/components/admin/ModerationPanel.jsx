@@ -76,8 +76,8 @@ export default function ModerationPanel() {
           <span className="moderation-count">{state.posts.length}</span>
         </h3>
         <p className="account-hint">
-          A new account&apos;s first posts are held for a day, and a post that
-          several people report is hidden until it is reviewed here.
+          A post that several people report is hidden until it is reviewed
+          here. Approve to restore it, or reject to remove it.
         </p>
 
         {state.posts.length === 0 ? (
@@ -100,7 +100,7 @@ export default function ModerationPanel() {
                   </span>
                   <span>{post.postedDate}</span>
                   <span className="moderation-reason">
-                    {post.statusReason === 'reported' ? 'Reported' : 'New account'}
+                    Reported
                   </span>
                 </div>
                 <p className="post-content">{post.content}</p>

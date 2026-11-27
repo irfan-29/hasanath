@@ -371,9 +371,7 @@ export function PostCard({ post, permalinkBase = '', canManage, onChanged, onDel
       {post.status === 'pending' && (
         <p className="post-pending-note" role="status">
           <span className="material-symbols-rounded" aria-hidden="true">hourglass_top</span>
-          {post.statusReason === 'reported'
-            ? 'Hidden while a moderator reviews it. Only you can see it.'
-            : 'Waiting for review. Only you can see it until it is approved.'}
+          Hidden while a moderator reviews it. Only you can see it.
         </p>
       )}
 
@@ -447,6 +445,19 @@ export function PostCard({ post, permalinkBase = '', canManage, onChanged, onDel
   );
 }
 
+// "today at 9:40 PM" / "tomorrow at 9:40 AM" / "Sat at 9:40 AM", in the
+// reader's own time zone, for the moment a new account may start posting.
+function whenLabel(iso) {
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return 'soon';
+  const startOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const days = Math.round((startOfDay(at) - startOfDay(new Date())) / 86400000);
+  const time = at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  if (days <= 0) return `today at ${time}`;
+  if (days === 1) return `tomorrow at ${time}`;
+  return `${at.toLocaleDateString([], { weekday: 'short' })} at ${time}`;
+}
+
 // The end of a paged list. It loads the next page by itself when it scrolls
 // near the screen, and stays a real button for keyboards, screen readers and
 // any browser where the observer does not fire.
@@ -483,7 +494,7 @@ function appendPosts(current, incoming) {
 
 export function PostsPage() {
   const { isLoggedIn } = useSession();
-  const [data, setData] = useState({ loading: true, posts: [], permalinkBase: '', hasMore: false, nextCursor: null, likedCount: 0 });
+  const [data, setData] = useState({ loading: true, posts: [], permalinkBase: '', hasMore: false, nextCursor: null, likedCount: 0, canPostAt: null });
   const [composing, setComposing] = useState(false);
   const [filter, setFilter] = useState('all');
   const [loadingMore, setLoadingMore] = useState(false);
@@ -504,6 +515,8 @@ export function PostsPage() {
         hasMore: Boolean(result.hasMore),
         nextCursor: result.nextCursor || null,
         likedCount: typeof result.likedCount === 'number' ? result.likedCount : d.likedCount,
+        // Set only while a new account is inside its first day.
+        canPostAt: result.canPostAt !== undefined ? result.canPostAt : d.canPostAt,
       }));
     } catch (err) {
       if (request !== requestRef.current) return;
@@ -540,6 +553,9 @@ export function PostsPage() {
 
   // The count comes from the server, since only one page of posts is loaded.
   const likedCount = data.likedCount;
+  // A new account's first day: the button is shown but not yet usable, with the
+  // time it opens, rather than an error after someone has written a post.
+  const mustWait = Boolean(isLoggedIn && data.canPostAt && new Date(data.canPostAt).getTime() > Date.now());
   const visiblePosts = filter === 'liked'
     ? data.posts.filter((post) => post.likedByMe)
     : data.posts;
@@ -554,7 +570,8 @@ export function PostsPage() {
       <div className="post-actions">
         {/* One entry point. Text or video is chosen inside the form, so the
             page does not carry two buttons that open the same thing. */}
-        <button type="button" className="btn btn-primary" onClick={() => setComposing(true)}>
+        <button type="button" className="btn btn-primary" onClick={() => setComposing(true)}
+                disabled={mustWait} aria-describedby={mustWait ? 'post-wait-note' : undefined}>
           <span className="material-symbols-rounded" style={{ fontSize: '1.1rem' }}>add</span>
           Add Post
         </button>
@@ -576,6 +593,14 @@ export function PostsPage() {
           </button>
         )}
       </div>
+
+      {mustWait && (
+        <p className="post-wait-note" id="post-wait-note" role="status">
+          <span className="material-symbols-rounded" aria-hidden="true">schedule</span>
+          Welcome! New accounts can share their first post after a day. You can post from {whenLabel(data.canPostAt)}.
+          Until then you can read, like and share.
+        </p>
+      )}
 
       {composing && (
         <PostForm
@@ -669,10 +694,12 @@ function PostForm({ post, onClose, onSaved }) {
       const result = editing ? await api.update(post._id, payload) : await api.create(payload);
       await onSaved(result && result.post);
       if (editing) toast('Post updated');
-      else if (result && result.held) toast('Post shared - it will appear after review');
       else toast('Post shared');
     } catch (err) {
       if (err.status === 401) setError('Sign in to save this post.');
+      else if (err.status === 403 && err.body?.error === 'account-too-new') {
+        setError(`New accounts can post after a day. You can share your first post ${whenLabel(err.body.allowedAt)}.`);
+      }
       else if (err.status === 403) setError('You can only edit your own posts.');
       else if (err.status === 429 && err.body?.error === 'rate-limited') {
         const minutes = Math.max(1, Math.ceil((Number(err.body.retryAfter) || 0) / 60));

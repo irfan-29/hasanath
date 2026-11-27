@@ -14052,6 +14052,28 @@ a.leaderboard-player:hover .leaderboard-name {
   line-height: 1.45;
 }
 
+/* Shown under a disabled Add Post while a new account is in its first day. */
+.post-wait-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  max-width: 860px;
+  margin: -0.75rem auto 1.5rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid rgb(var(--accent-rgb) / 0.35);
+  border-radius: 12px;
+  background: rgb(var(--accent-rgb) / 0.08);
+  color: var(--color-text);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.post-wait-note .material-symbols-rounded {
+  flex: 0 0 auto;
+  color: var(--color-primary);
+  font-size: 1.1rem;
+}
+
 .post-pending-note .material-symbols-rounded {
   flex: 0 0 auto;
   color: var(--color-accent);

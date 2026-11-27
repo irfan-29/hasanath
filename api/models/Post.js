@@ -34,20 +34,14 @@ const postSchema = new mongoose.Schema({
         default: "published",
         index: true
     },
-    // Why the post is pending: "review" (new account) or "reported" (the report
-    // threshold was reached). The two differ in what happens next: a review
-    // hold expires on its own, a reported post waits for a person.
+    // Why the post is pending. Today only "reported": enough people reported
+    // it, and it stays hidden until an admin restores or removes it. (Older
+    // rows may carry "review" from the retired new-account hold; those are
+    // published on the first feed read after this change.)
     statusReason: { type: String, default: "" },
-    // When a review-held post becomes public on its own. Null for a reported
-    // post, which stays hidden until an admin acts.
-    autoPublishAt: { type: Date, default: null },
     reviewedAt: Date,
     reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null }
 });
-
-// The feed reads published rows; the release sweep reads pending rows whose
-// hold has expired. This index serves both.
-postSchema.index({ status: 1, autoPublishAt: 1 });
 
 // Paging reads "this author's posts, newest first" (a profile) and "posts this
 // person liked, newest first" (the Liked filter). Without these, each page
