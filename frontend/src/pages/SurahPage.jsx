@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { setPageTitle } from '../hooks/usePageMeta';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { challenges as challengesApi, quran } from '../services/api';
 import { useFavourites } from '../hooks/useFavourites';
@@ -45,6 +46,12 @@ export default function SurahPage() {
   const { surahNo } = useParams();
   const [params] = useSearchParams();
   const [data, setData] = useState(null);
+
+  // "Surah Al-Fatiha (1) · Hasanath" in the tab, in history and in search
+  // results, once the surah's name is known.
+  useEffect(() => {
+    if (data && data.surahName) setPageTitle(`Surah ${data.surahName} (${data.surahNo})`);
+  }, [data]);
   const [error, setError] = useState('');
   const [view, setView] = useState(() => viewFromParams(params));
   const [selectedAyah, setSelectedAyah] = useState(() => ayahFromParams(params));

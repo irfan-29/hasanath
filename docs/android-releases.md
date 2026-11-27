@@ -1,6 +1,6 @@
 # Releasing an Android update
 
-The Hasanath APK checks `https://hasanath.vercel.app/android/version.json` when
+The Hasanath APK checks `https://hasanath.app/android/version.json` when
 it opens (at most every 6 hours) and offers any newer version in-app.
 
 To ship an update:

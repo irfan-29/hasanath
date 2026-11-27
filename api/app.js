@@ -4171,7 +4171,7 @@ app.post("/api/auth/logout", function(req, res){
 const FRONTEND_URL = (
     process.env.FRONTEND_URL ||
     (process.env.NODE_ENV === "production"
-        ? "https://hasanath.vercel.app"
+        ? "https://hasanath.app"
         : "http://localhost:5173")
 ).replace(/\/+$/, "");
 

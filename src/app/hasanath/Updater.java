@@ -44,10 +44,10 @@ import java.security.MessageDigest;
  * APK not signed with the same key as the installed app, so a tampered file
  * cannot replace Hasanath.
  *
- *   https://hasanath.vercel.app/android/version.json
+ *   https://hasanath.app/android/version.json
  *   {
  *     "versionCode": 5, "versionName": "1.4",
- *     "apkUrl": "https://hasanath.vercel.app/android/Hasanath-1.4.apk",
+ *     "apkUrl": "https://hasanath.app/android/Hasanath-1.4.apk",
  *     "sha256": "<hex>",
  *     "notes": "What changed, shown in the update dialog",
  *     "minSupportedVersionCode": 1
@@ -56,7 +56,7 @@ import java.security.MessageDigest;
  */
 public class Updater {
 
-    static final String VERSION_URL = "https://hasanath.vercel.app/android/version.json";
+    static final String VERSION_URL = "https://hasanath.app/android/version.json";
     static final long AUTO_CHECK_EVERY_MS = 6L * 60 * 60 * 1000;
 
     private static JSONObject pending;   // update waiting for "Install unknown apps"

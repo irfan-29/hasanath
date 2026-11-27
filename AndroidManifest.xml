@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="app.hasanath"
-    android:versionCode="11"
-    android:versionName="2.0">
+    android:versionCode="12"
+    android:versionName="2.1">
     <uses-sdk android:minSdkVersion="23" android:targetSdkVersion="34" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -35,17 +35,19 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- App Links: verified through /.well-known/assetlinks.json on each
-                 host, so these open straight in Hasanath. -->
+            <!-- App Links: hasanath.app is the site's address and serves
+                 /.well-known/assetlinks.json, so its links open straight in
+                 the app. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" />
-                <data android:host="hasanath.vercel.app" />
+                <data android:host="hasanath.app" />
             </intent-filter>
             <!-- Older share links on the API host. Paths only: its /api routes
-                 are not pages and must never be captured. -->
+                 are not pages and must never be captured. It serves its own
+                 assetlinks.json, so it is verified too. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -60,15 +62,17 @@
                 <data android:pathPrefix="/salah" />
                 <data android:pathPrefix="/challenges" />
             </intent-filter>
-            <!-- hasanath.app is not live yet. Kept out of verification until its
-                 assetlinks.json is served, so it cannot hold the others back. -->
+            <!-- The site's earlier addresses now redirect to hasanath.app, and
+                 Android does not follow a redirect when it checks a domain, so
+                 these are offered without verification. Kept apart so they
+                 cannot hold the verified ones back. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" />
-                <data android:host="hasanath.app" />
                 <data android:host="www.hasanath.app" />
+                <data android:host="hasanath.vercel.app" />
             </intent-filter>
         </activity>
         <receiver

@@ -5,7 +5,7 @@ quiet place to read Qur'an, follow hadith, keep daily dhikr and duas, build
 habits and challenges, give charity, and share reflections with friends.
 
 - **Motto:** Pray · Track · Grow
-- **Production web:** <https://hasanath.vercel.app>
+- **Production web:** <https://hasanath.app>
 - **Production API:** <https://hasanath-api.vercel.app>
 - **Repo/package name:** `track-my-salah` / `salah-tracker`
 - **Android package:** `app.hasanath`

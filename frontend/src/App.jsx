@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { usePageMeta } from './hooks/usePageMeta';
 import { AudioProvider } from './components/AudioProvider';
 import Loader from './components/Loader';
 import Navbar from './components/Navbar';
@@ -54,6 +55,9 @@ const AUTH_PATHS = ['/login', '/register', '/verify-email', '/forgot-password', 
 
 function Shell() {
   const { pathname } = useLocation();
+
+  // Each route gets its own title, description and official address.
+  usePageMeta();
 
   // The app bar is fixed on narrow screens. Without this, navigating from a
   // scrolled page can leave the next page's title underneath it. Reset before

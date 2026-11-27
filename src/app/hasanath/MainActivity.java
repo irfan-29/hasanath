@@ -46,10 +46,16 @@ import android.widget.Toast;
  */
 public class MainActivity extends Activity {
 
-    static final String START_URL = "https://hasanath.vercel.app/";
+    static final String START_URL = "https://hasanath.app/";
     static final String[] APP_HOSTS = {
-        "hasanath.vercel.app", "hasanath.app", "www.hasanath.app",
-        "salah-tracker-umi-apps.vercel.app", "hasanath-api.vercel.app"
+        "hasanath.app", "www.hasanath.app",
+        "hasanath.vercel.app", "salah-tracker-umi-apps.vercel.app", "hasanath-api.vercel.app"
+    };
+    // Earlier addresses of the site. They all redirect to hasanath.app now;
+    // links to them are opened on the new address directly, so the app never
+    // waits on a redirect and always uses the one set of cookies.
+    static final String[] OLD_HOSTS = {
+        "www.hasanath.app", "hasanath.vercel.app", "salah-tracker-umi-apps.vercel.app"
     };
     static final String API_HOST = "hasanath-api.vercel.app";
     static final String DEFAULT_BAR_COLOR = "#0f302c";
@@ -172,14 +178,19 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * Older share links point at the API host, which only redirects to the app.
-     * Rewrite them straight to the app's own address (skipping the redirect);
-     * genuine /api calls are left alone.
+     * Links on the site's earlier addresses, and older share links on the API
+     * host, only redirect to the app. Rewrite them straight to the app's own
+     * address (skipping the redirect); genuine /api calls are left alone.
      */
     static Uri toAppUri(Uri uri) {
-        if (uri == null || !API_HOST.equalsIgnoreCase(uri.getHost())) return uri;
-        String path = uri.getPath() == null ? "" : uri.getPath();
-        if (path.startsWith("/api")) return uri;
+        if (uri == null || uri.getHost() == null) return uri;
+        boolean old = false;
+        for (String h : OLD_HOSTS) if (h.equalsIgnoreCase(uri.getHost())) old = true;
+        if (!old) {
+            if (!API_HOST.equalsIgnoreCase(uri.getHost())) return uri;
+            String path = uri.getPath() == null ? "" : uri.getPath();
+            if (path.startsWith("/api")) return uri;
+        }
         Uri start = Uri.parse(START_URL);
         return uri.buildUpon().authority(start.getAuthority()).build();
     }
@@ -516,7 +527,7 @@ public class MainActivity extends Activity {
             DomainVerificationUserState state = dvm.getDomainVerificationUserState(getPackageName());
             if (state == null) return;
             Map<String, Integer> hosts = state.getHostToStateMap();
-            Integer main = hosts.get("hasanath.vercel.app");
+            Integer main = hosts.get("hasanath.app");
             boolean ok = state.isLinkHandlingAllowed() && main != null
                 && main != DomainVerificationUserState.DOMAIN_STATE_NONE;
             if (ok) return;
