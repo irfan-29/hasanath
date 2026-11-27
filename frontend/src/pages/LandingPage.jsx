@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { SUPPORT_EMAIL } from '../utils/contact';
 import { Link } from 'react-router-dom';
 import { useSession } from '../hooks/useSession';
 import { api, quran } from '../services/api';
@@ -1386,6 +1387,7 @@ export default function LandingPage() {
             <Link to="/login">Sign in</Link>
             <Link to="/register">Create an account</Link>
             <Link to={appHref}>Continue as guest</Link>
+            <a href={`mailto:${SUPPORT_EMAIL}`}>Contact support</a>
           </div>
 
           <div className="landing-footer-col">
@@ -1400,6 +1402,7 @@ export default function LandingPage() {
 
         <div className="landing-inner landing-footer-bottom">
           <span>© {new Date().getFullYear()} Hasanath</span>
+          <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
           <span>Pray · Track · Grow</span>
         </div>
       </footer>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { SUPPORT_EMAIL } from '../utils/contact';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { api, account, posts as postsApi, contact, ApiError } from '../services/api';
 import { useSession } from '../hooks/useSession.jsx';
@@ -141,7 +142,7 @@ export default function AccountPage() {
         `From: ${state.data && state.data.email ? state.data.email : ''}`,
         `Account: ${state.data && state.data.username ? '@' + state.data.username : ''}`,
       ].join('\n');
-      const mailto = `mailto:umiappsofficial@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      const mailto = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
       window.location.href = mailto;
       setContactSubject('');
       setContactMessage('');
@@ -620,7 +621,7 @@ export default function AccountPage() {
               value={contactMethod}
               options={[
                 { value: 'message', label: 'In-app message' },
-                { value: 'email', label: 'Email (umiappsofficial@gmail.com)' },
+                { value: 'email', label: `Email (${SUPPORT_EMAIL})` },
               ]}
               onChange={(value) => { setContactMethod(value); setContactError(''); }}
             />
