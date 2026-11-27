@@ -2630,6 +2630,37 @@ app.get("/api/admin/stats", requireLogin, requireAdmin, async function(req, res)
     }
 });
 
+// ---- Signup limits (launch protection) ----
+
+app.get("/api/admin/signup-limits", requireLogin, requireAdmin, async function(req, res){
+    try {
+        const signupLimits = require("./services/signupLimits.js");
+        const limits = await signupLimits.getLimits();
+        const counts = await signupLimits.counts();
+        res.json({ limits, counts });
+    } catch (err) {
+        console.error("api/admin/signup-limits GET:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.put("/api/admin/signup-limits", requireLogin, requireAdmin, async function(req, res){
+    try {
+        const signupLimits = require("./services/signupLimits.js");
+        const limits = await signupLimits.updateLimits({
+            dailyLimit: req.body && req.body.dailyLimit,
+            weeklyLimit: req.body && req.body.weeklyLimit,
+            thresholdPercent: req.body && req.body.thresholdPercent,
+            enabled: req.body && req.body.enabled
+        }, req.user && (req.user.username || req.user.email));
+        const counts = await signupLimits.counts();
+        res.json({ limits, counts });
+    } catch (err) {
+        console.error("api/admin/signup-limits PUT:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
 
 // ---- Profile ----
 
@@ -3832,7 +3863,8 @@ const AUTH_MESSAGES = {
     'expired': 'That code has expired. Please register again.',
     'no-pending': 'Start by registering again.',
     'too-many-attempts': 'Too many incorrect attempts. Please register again.',
-    'email-not-sent': 'We could not send a verification email. Please try again.'
+    'email-not-sent': 'We could not send a verification email. Please try again.',
+    'signup-limit-reached': 'Signups are temporarily paused. Please try again later.'
 };
 
 app.post("/api/auth/register", otpIpLimiter, resolveOtpTarget, otpEmailLimiter, async function(req, res){
@@ -3843,6 +3875,18 @@ app.post("/api/auth/register", otpIpLimiter, resolveOtpTarget, otpEmailLimiter, 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: "invalid-email" });
     if (password.length < 8) return res.status(400).json({ error: "weak-password" });
     if (password !== confirm) return res.status(400).json({ error: "mismatch" });
+
+    // Launch protection: cap how many accounts can be created per day/week.
+    // Checked here so we do not send an OTP that can never be used.
+    try {
+        const signupLimits = require("./services/signupLimits.js");
+        const check = await signupLimits.checkSignupAllowed();
+        if (!check.allowed) {
+            return res.status(429).json({ error: "signup-limit-reached", reason: check.reason });
+        }
+    } catch (err) {
+        console.error("signup limit check:", err.message);
+    }
 
     try {
         if (await User.exists({ email })) return res.status(409).json({ error: "duplicate" });
@@ -3914,6 +3958,17 @@ app.post("/api/auth/verify", async function(req, res){
             attemptsLeft: OTP_MAX_ATTEMPTS - pending.attempts,
             message: AUTH_MESSAGES
         });
+    }
+
+    try {
+        const signupLimits = require("./services/signupLimits.js");
+        const check = await signupLimits.checkSignupAllowed();
+        if (!check.allowed) {
+            delete req.session.pendingSignup;
+            return res.status(429).json({ error: "signup-limit-reached", reason: check.reason });
+        }
+    } catch (err) {
+        console.error("signup limit check:", err.message);
     }
 
     try {

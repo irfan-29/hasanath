@@ -2933,6 +2933,14 @@ hr {
 
 @media (max-width: 768px) {
   .page-header:not(.reader-header) {
+    margin-bottom: 0.5rem;
+  }
+  .page-header:not(.reader-header) > div > h1,
+  .page-header:not(.reader-header) > h1 {
+    display: none;
+  }
+  .page-header:not(.reader-header) > div > p,
+  .page-header:not(.reader-header) > p {
     display: none;
   }
 
@@ -8390,7 +8398,11 @@ body {
 @media (max-width: 768px) {
   .main-content { padding-bottom: 6rem; }
 
-  .page-header:not(.reader-header) { display: none; }
+  .page-header:not(.reader-header) { margin-bottom: 0.5rem; }
+  .page-header:not(.reader-header) > div > h1,
+  .page-header:not(.reader-header) > h1 { display: none; }
+  .page-header:not(.reader-header) > div > p,
+  .page-header:not(.reader-header) > p { display: none; }
 
   .container1,
   .card { padding: 1.35rem; border-radius: 22px; }
@@ -8771,6 +8783,28 @@ input[type="datetime-local"] { color-scheme: light; }
   margin-bottom: 1.5rem;
 }
 
+.salah-overview-day-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+/* The compact "Stats" button only earns its place on a phone, where the
+   header action is hidden; on desktop the full "View detailed stats" link
+   stays in the page header. */
+.salah-overview-day-row .btn-stats-mobile {
+  display: none;
+  margin-left: auto;
+}
+
+@media (max-width: 768px) {
+  .page-header .btn-stats-desktop { display: none; }
+  .salah-overview-day-row .btn-stats-mobile { display: inline-flex; }
+}
+
 .salah-overview-kicker {
   display: block;
   margin-bottom: 0.35rem;
@@ -8793,7 +8827,7 @@ input[type="datetime-local"] { color-scheme: light; }
 /* The date itself is the selector: the day label closes into a button that
    opens the app's own calendar, and the trailing arrow only marks the label
    as changeable. */
-.salah-overview-day { min-width: 0; }
+.salah-overview-day { min-width: 0; flex: 1 1 auto; }
 
 .salah-overview-head .salah-day-picker {
   width: auto;
@@ -9113,6 +9147,7 @@ input[type="datetime-local"] { color-scheme: light; }
 
 @media (max-width: 768px) {
   .salah-overview-head { flex-direction: column; }
+  .salah-overview-day { width: 100%; }
   .salah-overview-body { grid-template-columns: 1fr; gap: 1.25rem; }
   .salah-ring { width: 156px; height: 156px; }
   .salah-form-grid { grid-template-columns: 1fr; }
@@ -13894,6 +13929,17 @@ a.leaderboard-player:hover .leaderboard-name {
     flex-wrap: wrap;
   }
 
+  /* Charity keeps its two header actions side by side on a phone instead of
+     stacking full-width. */
+  .charity-header-actions {
+    flex-wrap: nowrap;
+  }
+  .charity-header-actions .btn {
+    width: auto;
+    min-width: 0;
+    flex: 1 1 0;
+  }
+
   /* Both challenge card types reflow at the same width. */
   .challenge-card {
     align-items: flex-start;
@@ -15688,3 +15734,13 @@ body:has(.sticky-banner-bottom) .global-audio-bar {
   color: var(--color-text-muted);
   font-size: 0.78rem;
 }
+
+/* ---------- Admin: signup limits ----------------------------------------- */
+.admin-limits { }
+.admin-limits-counts { display: flex; gap: 1.5rem; margin-bottom: 1rem; }
+.admin-limits-counts > div { display: flex; align-items: baseline; gap: 0.25rem; }
+.admin-limits-count-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--color-text-muted); }
+.admin-limits-count-of { color: var(--color-text-muted); font-size: 0.85rem; }
+.admin-limits-form { display: grid; gap: 0.75rem; max-width: 24rem; }
+.admin-limits-toggle { display: flex; align-items: center; gap: 0.5rem; }
+.admin-limits-hint { font-size: 0.8rem; color: var(--color-text-muted); margin-top: 0.75rem; }

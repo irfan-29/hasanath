@@ -21,6 +21,7 @@ const MESSAGES = {
   'no-pending': 'That request has expired. Please start again.',
   'too-many-attempts': 'Too many incorrect attempts. Please request a new code.',
   'email-not-sent': 'We could not send the email. Please try again shortly.',
+  'signup-limit-reached': 'Signups are temporarily paused. Please try again later.',
   'same-password': 'Choose a password different from the current one.'
 };
 

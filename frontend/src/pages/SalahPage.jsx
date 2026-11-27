@@ -185,7 +185,7 @@ export default function SalahPage() {
           <h1>Salah Tracker</h1>
           <p>Log and review your daily prayers</p>
         </div>
-        {isLoggedIn && <Link className="btn btn-outline" to="/stats">View detailed stats</Link>}
+        {isLoggedIn && <Link className="btn btn-outline btn-stats-desktop" to="/stats">View detailed stats</Link>}
       </div>
 
       {isLoggedIn && (
@@ -199,14 +199,17 @@ export default function SalahPage() {
             */}
             <div className="salah-overview-day">
               <span className="salah-overview-kicker">Selected day</span>
-              <DateField
-                id="selected-day"
-                className="salah-day-picker"
-                triggerIcon="expand_more"
-                valueLabel={history.loading ? 'Loading…' : (history.label || 'Choose a date')}
-                value={findDate}
-                onChange={setFindDate}
-              />
+              <div className="salah-overview-day-row">
+                <DateField
+                  id="selected-day"
+                  className="salah-day-picker"
+                  triggerIcon="expand_more"
+                  valueLabel={history.loading ? 'Loading…' : (history.label || 'Choose a date')}
+                  value={findDate}
+                  onChange={setFindDate}
+                />
+                {isLoggedIn && <Link className="btn btn-outline btn-sm btn-stats-mobile" to="/stats">View stats</Link>}
+              </div>
             </div>
             <span className="salah-overview-badge">{loggedCount} of 5 logged</span>
           </div>

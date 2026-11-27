@@ -269,6 +269,46 @@ function close() {
     }
 }
 
+async function sendEmail({ to, subject, text, html }) {
+    const provider = resolvedProvider();
+    if (!isConfigured()) {
+        if (devEchoEnabled()) {
+            console.warn(`email: no transport configured - DEV ONLY, email to ${to}: ${subject}`);
+            return { ok: true, reason: "dev-echo" };
+        }
+        const problem = warning() || "no transport configured";
+        console.error(`email: NOT CONFIGURED - email not sent. ${problem}`);
+        return { ok: false, reason: "not-configured" };
+    }
+
+    const fromGmail = `"${GMAIL_FROM_NAME}" <${GMAIL_USER}>`;
+    try {
+        if (provider === "gmail") {
+            const info = await gmail().sendMail({
+                from: fromGmail,
+                to,
+                subject,
+                text,
+                html: html || text
+            });
+            if (!info || !info.messageId) throw new Error("Gmail accepted the message but returned no id");
+        } else {
+            const { error } = await resend().emails.send({
+                from: RESEND_FROM,
+                to: [to],
+                subject,
+                text,
+                html: html || text
+            });
+            if (error) throw new Error(error.message || "Resend rejected the send");
+        }
+        return { ok: true, reason: null };
+    } catch (err) {
+        console.error("email: SEND FAILED -", err.message);
+        return { ok: false, reason: "send-failed" };
+    }
+}
+
 module.exports = {
     isConfigured,
     resolvedProvider,
@@ -279,4 +319,5 @@ module.exports = {
     hashOtp,
     otpMatches,
     sendOtpEmail,
+    sendEmail,
 };
