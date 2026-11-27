@@ -208,8 +208,10 @@ export const admin = {
   // `not-admin` instead of establishing a session.
   login: (identifier, password) => api.post('/admin/login', { identifier, password }),
   stats: () => api.get('/admin/stats'),
-  signupLimits: () => api.get('/admin/signup-limits'),
-  updateSignupLimits: (payload) => api.request('/admin/signup-limits', { method: 'PUT', body: payload }),
+  // Every adjustable limit (signups and posting), with what has been used so far.
+  limits: () => api.get('/admin/limits'),
+  // payload: { values: { <key>: number | null }, thresholdPercent }. null = off.
+  updateLimits: (payload) => api.request('/admin/limits', { method: 'PUT', body: payload }),
   users: ({ q = '', page = 1, limit = 25 } = {}) => {
     const params = new URLSearchParams();
     if (q) params.set('q', q);

@@ -16,6 +16,8 @@
 // cold start.
 
 const { rateLimit, ipKeyGenerator } = require("express-rate-limit");
+const limits = require("../services/limits.js");
+const postModeration = require("../services/postModeration.js");
 const { MongoRateLimitStore } = require("../utils/rateLimitStore.js");
 
 const WINDOW_MS = 15 * 60 * 1000;
@@ -127,17 +129,20 @@ const otpEmailLimiter = rateLimit({
 // Only successful posts count (skipFailedRequests): a rejected empty post never
 // reached anybody, so it should not spend the allowance.
 const POST_WINDOW_MS = 60 * 60 * 1000;
-const POST_ACCOUNT_MAX = 5;
 
-// A minimum gap between posts, so an account cannot spend its whole hourly
-// allowance as one burst. Without it, five posts in five seconds is five
-// broadcasts to every subscriber, which is still spam even if the hour then
-// goes quiet. One a minute is invisible to a person writing a reflection.
-const POST_GAP_MS = 60 * 1000;
-
+// How many posts an account may make in an hour is set on the admin Limits
+// page (postsPerUserPerHour), so it is read per request rather than fixed
+// here. The limiter is skipped when that limit is switched off, and for
+// admins, who post the announcements. The gap between posts, the app-wide
+// daily cap and "posting closed" are checked in services/limits.js, because a
+// rate limiter's window cannot change from one request to the next.
 const postAccountLimiter = rateLimit({
     windowMs: POST_WINDOW_MS,
-    limit: POST_ACCOUNT_MAX,
+    limit: async () => {
+        const perHour = await limits.get("postsPerUserPerHour");
+        return perHour === null ? Number.MAX_SAFE_INTEGER : Math.max(1, perHour);
+    },
+    skip: async (req) => postModeration.isAdmin(req.user) || (await limits.get("postsPerUserPerHour")) === null,
     skipFailedRequests: true,
     standardHeaders: "draft-7",
     legacyHeaders: false,
@@ -147,17 +152,6 @@ const postAccountLimiter = rateLimit({
     // sharing one "undefined" bucket between every visitor.
     keyGenerator: (req) => (req.user && req.user._id ? String(req.user._id) : ipKeyGenerator(req.ip || "")),
     handler: tooManyAttempts("post-account", POST_WINDOW_MS)
-});
-
-const postGapLimiter = rateLimit({
-    windowMs: POST_GAP_MS,
-    limit: 1,
-    skipFailedRequests: true,
-    standardHeaders: "draft-7",
-    legacyHeaders: false,
-    store: new MongoRateLimitStore("post-gap:"),
-    keyGenerator: (req) => (req.user && req.user._id ? String(req.user._id) : ipKeyGenerator(req.ip || "")),
-    handler: tooManyAttempts("post-gap", POST_GAP_MS)
 });
 
 const CONTACT_WINDOW_MS = 60 * 60 * 1000;
@@ -179,7 +173,6 @@ module.exports = {
     otpIpLimiter,
     otpEmailLimiter,
     postAccountLimiter,
-    postGapLimiter,
     contactAccountLimiter,
     resolveOtpTarget
 };

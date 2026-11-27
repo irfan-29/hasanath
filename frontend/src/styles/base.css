@@ -14052,6 +14052,25 @@ a.leaderboard-player:hover .leaderboard-name {
   line-height: 1.45;
 }
 
+/* The refresh button sits at the far end of the Add Post / Liked row. It
+   borrows the Liked toggle's shape and turns its icon while it fetches. */
+.post-refresh {
+  margin-left: auto;
+  padding-inline: 0.6rem;
+}
+
+.post-refresh .material-symbols-rounded { font-size: 1.2rem; }
+
+.post-refresh-spin { animation: post-refresh-turn 0.8s linear infinite; }
+
+@keyframes post-refresh-turn {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .post-refresh-spin { animation: none; opacity: 0.5; }
+}
+
 /* Shown under a disabled Add Post while a new account is in its first day. */
 .post-wait-note {
   display: flex;
@@ -15762,11 +15781,64 @@ body:has(.sticky-banner-bottom) .global-audio-bar {
 }
 
 /* ---------- Admin: signup limits ----------------------------------------- */
-.admin-limits { }
-.admin-limits-counts { display: flex; gap: 1.5rem; margin-bottom: 1rem; }
-.admin-limits-counts > div { display: flex; align-items: baseline; gap: 0.25rem; }
-.admin-limits-count-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--color-text-muted); }
-.admin-limits-count-of { color: var(--color-text-muted); font-size: 0.85rem; }
-.admin-limits-form { display: grid; gap: 0.75rem; max-width: 24rem; }
-.admin-limits-toggle { display: flex; align-items: center; gap: 0.5rem; }
-.admin-limits-hint { font-size: 0.8rem; color: var(--color-text-muted); margin-top: 0.75rem; }
+/* ---- Admin: Limits ---------------------------------------------------------
+   One row per limit: what it is and what the current choice means on the left,
+   the number (only while the limit is on) and its switch on the right. */
+.admin-limit-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 0;
+  border-top: 1px solid var(--color-border-light);
+}
+
+.admin-limit-text { flex: 1 1 14rem; min-width: 0; }
+.admin-limit-text .tg-title { display: block; cursor: pointer; }
+
+.admin-limit-control {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 42px;
+}
+
+.admin-limit-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.admin-limit-input .form-control {
+  width: 6.5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-limit-unit {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+.admin-limit-error {
+  margin-top: 0.25rem;
+  color: var(--color-danger, #b91c1c);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.admin-limit-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.admin-limit-foot .account-hint { flex: 1 1 100%; margin: 0; }
+
+@media (max-width: 560px) {
+  .admin-limit-row { flex-wrap: wrap; }
+  .admin-limit-control { width: 100%; justify-content: space-between; }
+}

@@ -14,7 +14,7 @@ const { MongoStore } = require("connect-mongo");
 const { islamicFinderFetch } = require("../api/utils/islamic-finder.js");
 const { sendTelegramMessage, claimChatByCode, makeVerifyCode, buildStreakSummary, normalizeChatId, normalizeToken, extractToken, isValidToken, botIsConfigured, ERROR_MESSAGES } = require("../api/utils/telegram.js");
 const { passport, requireLogin, resolveLoginIdentifier } = require("./middleware/auth.js");
-const { loginIpLimiter, loginAccountLimiter, otpIpLimiter, otpEmailLimiter, postAccountLimiter, postGapLimiter, contactAccountLimiter, resolveOtpTarget } = require("./middleware/rateLimits.js");
+const { loginIpLimiter, loginAccountLimiter, otpIpLimiter, otpEmailLimiter, postAccountLimiter, contactAccountLimiter, resolveOtpTarget } = require("./middleware/rateLimits.js");
 // Named `userData` rather than `data`: several routes bind a local `data` to a
 // fetched surah/prayer payload, which would shadow the service module.
 const userData = require("./services/userData.js");
@@ -282,6 +282,7 @@ async function getOrCreateAyahOfTheDay(surahs) {
 const Posts = require("./models/Post.js");
 const PostReport = require("./models/PostReport.js");
 const postModeration = require("./services/postModeration.js");
+const limits = require("./services/limits.js");
 
 // Keep like data useful without publishing the list of user ids. Every route
 // that returns a post goes through this, otherwise one endpoint would leak
@@ -1873,8 +1874,13 @@ app.get("/api/posts", async function(req, res){
         // Tells the page whether to offer "Add Post" yet: null when the viewer
         // may post now, otherwise the moment a new account's first day ends.
         if (viewer && !page.before) {
-            const allowedAt = postModeration.canPostAt(viewer);
+            const [waits, perHour, perDay] = await Promise.all([
+                limits.postingWaits(), limits.get("postsPerUserPerHour"), limits.get("postsPerDayApp")
+            ]);
+            const allowedAt = postModeration.canPostAt(viewer, waits.newAccountMs);
             payload.canPostAt = allowedAt ? allowedAt.toISOString() : null;
+            // Posting switched off on the Limits page (a cap of 0). Admins still post.
+            payload.postingClosed = !postModeration.isAdmin(viewer) && (perHour === 0 || perDay === 0);
         }
         res.json(payload);
     } catch (err) {
@@ -1883,15 +1889,31 @@ app.get("/api/posts", async function(req, res){
     }
 });
 
-// A new account waits a day before its first post. Checked before the rate
-// limiters, so being told "not yet" does not also use up a posting allowance.
-function requireCanPost(req, res, next) {
-    const allowedAt = postModeration.canPostAt(req.user);
-    if (!allowedAt) return next();
-    res.status(403).json({ error: "account-too-new", allowedAt: allowedAt.toISOString() });
+// Whether this account may post right now, in the order that wastes least:
+// admins are never limited; a new account waits out its first hours; then the
+// checks from the Limits page (posting closed, the app-wide daily cap, the gap
+// since this person's last post). Runs before the hourly rate limiter, so being
+// told "not yet" does not also use up a posting allowance.
+async function requireCanPost(req, res, next) {
+    try {
+        if (postModeration.isAdmin(req.user)) return next();
+
+        const waits = await limits.postingWaits();
+        const allowedAt = postModeration.canPostAt(req.user, waits.newAccountMs);
+        if (allowedAt) {
+            return res.status(403).json({ error: "account-too-new", allowedAt: allowedAt.toISOString() });
+        }
+
+        const refusal = await limits.checkPostAllowed(req.user._id);
+        if (refusal) return res.status(refusal.status).json(refusal.body);
+        next();
+    } catch (err) {
+        console.error("post limits:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
 }
 
-app.post("/api/posts", requireLogin, requireCanPost, postAccountLimiter, postGapLimiter, async function(req, res){
+app.post("/api/posts", requireLogin, requireCanPost, postAccountLimiter, async function(req, res){
     let date = new Date(req.body.date);
     if (isNaN(date.getTime())) date = new Date();
     const formattedDate = date.toLocaleDateString("en-US", {
@@ -1918,10 +1940,12 @@ app.post("/api/posts", requireLogin, requireCanPost, postAccountLimiter, postGap
         });
 
         // Announce after the write resolves, and never let a broadcast failure
-        // undo a post the user already successfully created. Only accounts a
-        // week old reach every subscriber; a younger account's post is in the
-        // feed but is not pushed to people's phones.
-        if (postModeration.mayBroadcast(req.user)) {
+        // undo a post the user already successfully created. Only accounts old
+        // enough (a week by default, set on the Limits page) reach every
+        // subscriber; a younger account's post is in the feed but is not pushed
+        // to people's phones.
+        const waits = await limits.postingWaits();
+        if (postModeration.mayBroadcast(req.user, waits.broadcastMs)) {
             broadcastNewPost(post).catch((err) => console.error("notify: new post -", err.message));
         }
 
@@ -2631,33 +2655,31 @@ app.get("/api/admin/stats", requireLogin, requireAdmin, async function(req, res)
     }
 });
 
-// ---- Signup limits (launch protection) ----
+// ---- Limits: signups and posting ----
+//
+// One page for every adjustable limit. The list of limits, their ranges and
+// their defaults live in services/limits.js; these routes only pass them on.
 
-app.get("/api/admin/signup-limits", requireLogin, requireAdmin, async function(req, res){
+app.get("/api/admin/limits", requireLogin, requireAdmin, async function(req, res){
     try {
-        const signupLimits = require("./services/signupLimits.js");
-        const limits = await signupLimits.getLimits();
-        const counts = await signupLimits.counts();
-        res.json({ limits, counts });
+        res.json(await limits.describe());
     } catch (err) {
-        console.error("api/admin/signup-limits GET:", err.message);
+        console.error("api/admin/limits GET:", err.message);
         res.status(500).json({ error: "failed" });
     }
 });
 
-app.put("/api/admin/signup-limits", requireLogin, requireAdmin, async function(req, res){
+// Body: { values: { <key>: number | null, ... }, thresholdPercent }. null turns
+// a limit off; a number turns it on, and 0 means zero.
+app.put("/api/admin/limits", requireLogin, requireAdmin, async function(req, res){
     try {
-        const signupLimits = require("./services/signupLimits.js");
-        const limits = await signupLimits.updateLimits({
-            dailyLimit: req.body && req.body.dailyLimit,
-            weeklyLimit: req.body && req.body.weeklyLimit,
-            thresholdPercent: req.body && req.body.thresholdPercent,
-            enabled: req.body && req.body.enabled
-        }, req.user && (req.user.username || req.user.email));
-        const counts = await signupLimits.counts();
-        res.json({ limits, counts });
+        await limits.update(req.body || {}, req.user && (req.user.username || req.user.email));
+        res.json(await limits.describe());
     } catch (err) {
-        console.error("api/admin/signup-limits PUT:", err.message);
+        if (err instanceof limits.LimitError) {
+            return res.status(400).json({ error: "invalid-limit", key: err.key });
+        }
+        console.error("api/admin/limits PUT:", err.message);
         res.status(500).json({ error: "failed" });
     }
 });
@@ -3867,7 +3889,9 @@ const AUTH_MESSAGES = {
     'no-pending': 'Start by registering again.',
     'too-many-attempts': 'Too many incorrect attempts. Please register again.',
     'email-not-sent': 'We could not send a verification email. Please try again.',
-    'signup-limit-reached': 'Signups are temporarily paused. Please try again later.'
+    'signups-closed': 'Signups are closed right now. Please check back later.',
+    'signup-daily-limit': 'Today\'s signups are full. Please try again tomorrow.',
+    'signup-weekly-limit': 'This week\'s signups are full. Please try again next week.'
 };
 
 app.post("/api/auth/register", otpIpLimiter, resolveOtpTarget, otpEmailLimiter, async function(req, res){
@@ -3879,13 +3903,12 @@ app.post("/api/auth/register", otpIpLimiter, resolveOtpTarget, otpEmailLimiter, 
     if (password.length < 8) return res.status(400).json({ error: "weak-password" });
     if (password !== confirm) return res.status(400).json({ error: "mismatch" });
 
-    // Launch protection: cap how many accounts can be created per day/week.
+    // Signup limits from the admin Limits page: closed, or a daily/weekly cap.
     // Checked here so we do not send an OTP that can never be used.
     try {
-        const signupLimits = require("./services/signupLimits.js");
-        const check = await signupLimits.checkSignupAllowed();
+        const check = await limits.checkSignupAllowed();
         if (!check.allowed) {
-            return res.status(429).json({ error: "signup-limit-reached", reason: check.reason });
+            return res.status(check.error === "signups-closed" ? 403 : 429).json({ error: check.error });
         }
     } catch (err) {
         console.error("signup limit check:", err.message);
@@ -3964,11 +3987,10 @@ app.post("/api/auth/verify", async function(req, res){
     }
 
     try {
-        const signupLimits = require("./services/signupLimits.js");
-        const check = await signupLimits.checkSignupAllowed();
+        const check = await limits.checkSignupAllowed();
         if (!check.allowed) {
             delete req.session.pendingSignup;
-            return res.status(429).json({ error: "signup-limit-reached", reason: check.reason });
+            return res.status(check.error === "signups-closed" ? 403 : 429).json({ error: check.error });
         }
     } catch (err) {
         console.error("signup limit check:", err.message);

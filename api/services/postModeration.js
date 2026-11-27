@@ -108,20 +108,22 @@ function accountCreatedAt(user) {
 
 // null when the account may post right now; otherwise the moment it will be
 // allowed to. Admins are never made to wait: they post the announcements.
-function canPostAt(user) {
-    if (!user || isAdmin(user)) return null;
+// `minAgeMs` comes from the Limits page (services/limits.js); 0 means the wait
+// is switched off. The constant is only the fallback for a caller without it.
+function canPostAt(user, minAgeMs = POSTING_MIN_ACCOUNT_AGE_MS) {
+    if (!user || isAdmin(user) || !minAgeMs) return null;
     const created = accountCreatedAt(user);
     if (!created) return null;
-    const allowedAt = new Date(created.getTime() + POSTING_MIN_ACCOUNT_AGE_MS);
+    const allowedAt = new Date(created.getTime() + minAgeMs);
     return allowedAt.getTime() > Date.now() ? allowedAt : null;
 }
 
-function mayBroadcast(user) {
+function mayBroadcast(user, minAgeMs = BROADCAST_MIN_ACCOUNT_AGE_MS) {
     if (!user) return false;
-    if (isAdmin(user)) return true;
+    if (isAdmin(user) || !minAgeMs) return true;
     const created = accountCreatedAt(user);
     if (!created) return true;
-    return Date.now() - created.getTime() >= BROADCAST_MIN_ACCOUNT_AGE_MS;
+    return Date.now() - created.getTime() >= minAgeMs;
 }
 
 // One-off tidy-up for the change away from review holds: any post still

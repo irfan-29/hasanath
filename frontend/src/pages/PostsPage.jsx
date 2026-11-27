@@ -494,17 +494,24 @@ function appendPosts(current, incoming) {
 
 export function PostsPage() {
   const { isLoggedIn } = useSession();
-  const [data, setData] = useState({ loading: true, posts: [], permalinkBase: '', hasMore: false, nextCursor: null, likedCount: 0, canPostAt: null });
+  const [data, setData] = useState({ loading: true, posts: [], permalinkBase: '', hasMore: false, nextCursor: null, likedCount: 0, canPostAt: null, postingClosed: false });
   const [composing, setComposing] = useState(false);
   const [filter, setFilter] = useState('all');
   const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   // Guards against a slow first page landing after the filter has changed.
   const requestRef = useRef(0);
+  // When the list was last fetched, for the refresh on returning to the page.
+  const loadedAtRef = useRef(0);
 
   // The first page of the feed, or of the viewer's liked posts.
-  const load = useCallback(async () => {
+  // `soft` keeps the current posts on screen while the fresh page is fetched
+  // (the refresh button, and coming back to the tab), instead of swapping the
+  // whole list for a loader as a first load or a filter change does.
+  const load = useCallback(async (soft = false) => {
     const request = ++requestRef.current;
-    setData((d) => ({ ...d, loading: true }));
+    if (soft) setRefreshing(true);
+    else setData((d) => ({ ...d, loading: true }));
     try {
       const result = await api.list({ liked: filter === 'liked' });
       if (request !== requestRef.current) return;
@@ -517,14 +524,35 @@ export function PostsPage() {
         likedCount: typeof result.likedCount === 'number' ? result.likedCount : d.likedCount,
         // Set only while a new account is inside its first day.
         canPostAt: result.canPostAt !== undefined ? result.canPostAt : d.canPostAt,
+        // Posting switched off for everyone on the admin Limits page.
+        postingClosed: result.postingClosed !== undefined ? Boolean(result.postingClosed) : d.postingClosed,
       }));
+      loadedAtRef.current = Date.now();
     } catch (err) {
       if (request !== requestRef.current) return;
-      setData((d) => ({ ...d, loading: false, posts: [], hasMore: false, nextCursor: null }));
+      // A failed refresh leaves what was on screen; a failed first load shows the empty state.
+      if (!soft) setData((d) => ({ ...d, loading: false, posts: [], hasMore: false, nextCursor: null }));
+    } finally {
+      if (soft && request === requestRef.current) setRefreshing(false);
     }
   }, [filter]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Posts written by other people do not arrive by themselves. Coming back to
+  // the page after a minute away fetches the newest ones, but only while the
+  // reader is still near the top: someone who has scrolled down through older
+  // posts keeps their place and can use the refresh button instead.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - loadedAtRef.current < 60 * 1000) return;
+      if (window.scrollY > 400) return;
+      load(true);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [load]);
 
   // The next page: everything older than the last post on screen.
   const loadMore = useCallback(async () => {
@@ -556,6 +584,9 @@ export function PostsPage() {
   // A new account's first day: the button is shown but not yet usable, with the
   // time it opens, rather than an error after someone has written a post.
   const mustWait = Boolean(isLoggedIn && data.canPostAt && new Date(data.canPostAt).getTime() > Date.now());
+  // Posting paused for everyone (a limit of 0 on the admin Limits page).
+  const postingClosed = Boolean(isLoggedIn && data.postingClosed);
+  const cannotPost = mustWait || postingClosed;
   const visiblePosts = filter === 'liked'
     ? data.posts.filter((post) => post.likedByMe)
     : data.posts;
@@ -571,7 +602,7 @@ export function PostsPage() {
         {/* One entry point. Text or video is chosen inside the form, so the
             page does not carry two buttons that open the same thing. */}
         <button type="button" className="btn btn-primary" onClick={() => setComposing(true)}
-                disabled={mustWait} aria-describedby={mustWait ? 'post-wait-note' : undefined}>
+                disabled={cannotPost} aria-describedby={cannotPost ? 'post-wait-note' : undefined}>
           <span className="material-symbols-rounded" style={{ fontSize: '1.1rem' }}>add</span>
           Add Post
         </button>
@@ -592,13 +623,26 @@ export function PostsPage() {
             <span className="post-filter-count">{likedCount}</span>
           </button>
         )}
+
+        {/* Other people's new posts do not appear by themselves; this fetches them. */}
+        <button
+          type="button"
+          className="post-filter-toggle post-refresh"
+          aria-label="Refresh posts"
+          title="Refresh posts"
+          onClick={() => load(true)}
+          disabled={refreshing || data.loading}
+        >
+          <span className={`material-symbols-rounded${refreshing ? ' post-refresh-spin' : ''}`} aria-hidden="true">refresh</span>
+        </button>
       </div>
 
-      {mustWait && (
+      {cannotPost && (
         <p className="post-wait-note" id="post-wait-note" role="status">
           <span className="material-symbols-rounded" aria-hidden="true">schedule</span>
-          Welcome! New accounts can share their first post after a day. You can post from {whenLabel(data.canPostAt)}.
-          Until then you can read, like and share.
+          {postingClosed
+            ? 'Posting is paused for now. You can still read, like and share.'
+            : `Welcome! New accounts can share their first post after a short wait. You can post from ${whenLabel(data.canPostAt)}. Until then you can read, like and share.`}
         </p>
       )}
 
@@ -698,12 +742,17 @@ function PostForm({ post, onClose, onSaved }) {
     } catch (err) {
       if (err.status === 401) setError('Sign in to save this post.');
       else if (err.status === 403 && err.body?.error === 'account-too-new') {
-        setError(`New accounts can post after a day. You can share your first post ${whenLabel(err.body.allowedAt)}.`);
+        setError(`New accounts wait a little before posting. You can share your first post ${whenLabel(err.body.allowedAt)}.`);
       }
+      else if (err.body?.error === 'posting-closed') setError('Posting is paused for now. Please try again later.');
+      else if (err.body?.error === 'posts-daily-limit') setError('Today’s posts are full. Please try again tomorrow.');
       else if (err.status === 403) setError('You can only edit your own posts.');
       else if (err.status === 429 && err.body?.error === 'rate-limited') {
-        const minutes = Math.max(1, Math.ceil((Number(err.body.retryAfter) || 0) / 60));
-        setError(`You are posting too often. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`);
+        // Under a minute is said in seconds: "in 1 minute" for a 20-second gap reads as a long wait.
+        const seconds = Math.max(1, Math.ceil(Number(err.body.retryAfter) || 0));
+        const minutes = Math.ceil(seconds / 60);
+        const wait = seconds < 60 ? `${seconds} second${seconds === 1 ? '' : 's'}` : `${minutes} minute${minutes === 1 ? '' : 's'}`;
+        setError(`You are posting too often. Try again in ${wait}.`);
       }
       else setError(editing ? 'Could not save those changes.' : 'Could not save that post.');
     } finally {
