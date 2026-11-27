@@ -149,9 +149,11 @@ Files: `pages/`.
   reload to `/` so the session cookie and meta boot are re-read.
 - **QuranPage** — Audio/Read/Bookmarks tabs, hash-seeded tab, index + active
   reciter load, favourites hook, play-surah resolution.
-- **SurahPage** — reader with `?ayah=` deep link, range slider, sticky compact
-  bar via `IntersectionObserver`, share/copy, bookmark toggle, all translations
-  with a primary marker, previous/next surah.
+- **SurahPage** — reader with `?ayah=` deep link and `?view=list|single`
+  (list is the original long page; single shows one ayah with previous/next and
+  saves that verse per surah), range slider, sticky compact bar via
+  `IntersectionObserver`, share/copy, bookmark toggle, all translations with a
+  primary marker, previous/next surah.
 - **HadithPage** — collection grid + bookmark tab with sign-in gate.
 - **DhikrDuaPage** — `/dhikr`; offline-first. Dhikr tab counts a preset (or free
   count) into `localStorage` under `hasanath-dhikr`, reset by `localDateKey()`;
@@ -245,9 +247,10 @@ Files: `pages/QuranPage.jsx`, `pages/SurahPage.jsx`,
 `components/quran/*`, `hooks/useFavourites.js`, `hooks/useHadithBookmarks.js`.
 
 - **Read tab:** Ayah of the Day card with share, open-in-reader, random-ayah
-  refresh, back-to-daily; “Continue Reading” pills; searchable 114-surah grid.
-  `randomAyah` is local/transient, so revisiting restores the stored daily
-  ayah.
+  refresh, back-to-daily; “Continue Reading” is a compact scrolling pill strip
+  over the five-surah history, each pill reopening its own saved verse (a surah
+  opened only in list view shows its name alone); searchable 114-surah grid.
+  `randomAyah` is local/transient, so revisiting restores the stored daily ayah.
 - **Audio tab:** reciter select saves the server preference; searchable surah
   list; per-surah loading state.
 - **Bookmarks tab:** signed-out gate; entries rendered like reader ayahs with

@@ -30,11 +30,54 @@ function sanitize(raw) {
   const out = emptyGuest();
   if (!raw || typeof raw !== "object") return out;
 
+  // Cookies written before the history became one string per surah kept the
+  // exact positions in `lastReadAyahs` / `lastReadAyah`. Fold them into the
+  // "surah" / "surah:ayah" entries so old cookies migrate on their next write.
+  const legacyPositions = new Map();
+  if (Array.isArray(raw.lastReadAyahs)) {
+    for (const entry of raw.lastReadAyahs) {
+      if (!entry || typeof entry !== "object") continue;
+      const surahNo = Number(entry.surahNo);
+      const ayahNo = Number(entry.ayahNo);
+      if (
+        Number.isInteger(surahNo) && surahNo >= 1 && surahNo <= 114
+        && Number.isInteger(ayahNo) && ayahNo >= 1 && ayahNo <= 286
+      ) {
+        legacyPositions.set(surahNo, ayahNo);
+      }
+    }
+  }
+  if (raw.lastReadAyah && typeof raw.lastReadAyah === "object" && !Array.isArray(raw.lastReadAyah)) {
+    const surahNo = Number(raw.lastReadAyah.surahNo);
+    const ayahNo = Number(raw.lastReadAyah.ayahNo);
+    if (
+      Number.isInteger(surahNo) && surahNo >= 1 && surahNo <= 114
+      && Number.isInteger(ayahNo) && ayahNo >= 1 && ayahNo <= 286
+      && !legacyPositions.has(surahNo)
+    ) {
+      legacyPositions.set(surahNo, ayahNo);
+    }
+  }
+
   if (Array.isArray(raw.lastReadSurahs)) {
-    out.lastReadSurahs = raw.lastReadSurahs
-      .map((n) => String(n).replace(/[^\d]/g, ""))
-      .filter(Boolean)
-      .slice(0, MAX_LAST_READ);
+    const seen = new Set();
+    for (const entry of raw.lastReadSurahs) {
+      const [surahPart, ayahPart] = String(entry).split(":");
+      const surahNo = Number(String(surahPart).replace(/[^\d]/g, ""));
+      if (!Number.isInteger(surahNo) || surahNo < 1 || surahNo > 114 || seen.has(surahNo)) continue;
+      const candidate = ayahPart !== undefined ? Number(ayahPart) : legacyPositions.get(surahNo);
+      const ayahNo = Number.isInteger(candidate) && candidate >= 1 && candidate <= 286 ? candidate : 1;
+      seen.add(surahNo);
+      out.lastReadSurahs.push(`${surahNo}:${ayahNo}`);
+      if (out.lastReadSurahs.length >= MAX_LAST_READ) break;
+    }
+  }
+  if (!out.lastReadSurahs.length) {
+    // A cookie with only the old single position still gets one entry.
+    for (const [surahNo, ayahNo] of legacyPositions) {
+      out.lastReadSurahs.push(`${surahNo}:${ayahNo}`);
+      break;
+    }
   }
 
   if (Array.isArray(raw.challenges)) {
@@ -52,7 +95,18 @@ function sanitize(raw) {
         // value cannot store an arbitrarily long string.
         startDate: c.startDate ? String(c.startDate).slice(0, 10) : undefined,
         endDate: c.endDate ? String(c.endDate).slice(0, 10) : undefined,
-        history: Array.isArray(c.history) ? c.history.slice(0, 40).map((d) => String(d).slice(0, 40)) : undefined
+        history: Array.isArray(c.history) ? c.history.slice(0, 40).map((d) => String(d).slice(0, 40)) : undefined,
+        // Reading challenges. The guest store never creates one (creating
+        // needs an account) but a merged cookie can carry one, and the shape
+        // must survive a read/write cycle or the progress bar resets to zero.
+        kind: c.kind === "quran" ? "quran" : "manual",
+        dailyTarget: Number.isFinite(Number(c.dailyTarget))
+          ? Math.min(50, Math.max(1, Math.round(Number(c.dailyTarget))))
+          : undefined,
+        progressDate: c.progressDate ? String(c.progressDate).slice(0, 10) : undefined,
+        progressAyahs: Array.isArray(c.progressAyahs)
+          ? c.progressAyahs.slice(0, 50).map((key) => String(key).slice(0, 12))
+          : undefined
       }));
   }
 
@@ -269,15 +323,21 @@ async function mergeGuestIntoUser(req, user) {
   } };
 }
 
-// Newest-first union by surah number, capped like the account-side helper.
+// Guest entries win over the account's, then the merged history decides the
+// order and which surahs survive. A newer "surah:ayah" keeps its verse; a bare
+// surah number stays bare.
 function mergeLastRead(account, guest) {
   const seen = new Set();
   const out = [];
-  for (const n of [...guest, ...account]) {
-    const v = String(n);
-    if (!v || seen.has(v)) continue;
-    seen.add(v);
-    out.push(v);
+  for (const entry of [...guest, ...account]) {
+    const [surahPart, ayahPart] = String(entry).split(':');
+    const surahNo = Number(surahPart);
+    if (!Number.isInteger(surahNo) || surahNo < 1 || surahNo > 114 || seen.has(surahNo)) continue;
+    const ayahNo = Number(ayahPart);
+    const hasAyah = ayahPart !== undefined
+      && Number.isInteger(ayahNo) && ayahNo >= 1 && ayahNo <= 286;
+    seen.add(surahNo);
+    out.push(`${surahNo}:${hasAyah ? ayahNo : 1}`);
     if (out.length >= MAX_LAST_READ) break;
   }
   return out;

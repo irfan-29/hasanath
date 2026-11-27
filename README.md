@@ -86,9 +86,12 @@ living spec; update this file when a requirement changes.
 
 ### 2.3 Qur'an
 
-- [x] 114-surah index with search and "Continue reading".
+- [x] 114-surah index with search and "Continue reading" that reopens each of
+  the five recent surahs at its last verse; a surah read only in list view
+  shows its name alone.
 - [x] Reader with Arabic, multiple translations, ayah deep links (`?ayah=`),
-  previous/next surah, share/copy, bookmark.
+  list and single-ayah views (previous/next ayah), previous/next surah,
+  share/copy, bookmark.
 - [x] Audio playback with reciter choice, loop, speed, sleep timer, resume
   position, media-session/lock-screen controls, and an Android bridge.
 - [x] Favourites/bookmarks (up to 300).
@@ -113,6 +116,8 @@ living spec; update this file when a requirement changes.
 
 - [x] Personal challenges with presets (10/30/90 days), streaks, check-ins,
   rename/delete.
+- [x] Daily Qur'an reading challenge counted from distinct ayahs opened in the
+  single-ayah reader; progress resets each day and never inflates on re-reads.
 - [x] Friend challenges: invite up to 20 friends, shared start/end dates,
   per-participant streaks, leaderboard without exposing private history.
 - [x] Charity targets with daily/weekly/monthly/yearly periods, progress, and
@@ -249,7 +254,7 @@ living spec; update this file when a requirement changes.
 | `/` | Landing page for guests; signed-in users redirect to their home | No |
 | `/login`, `/register`, `/verify-email`, `/forgot-password`, `/reset-password` | Auth cards | No |
 | `/salah` | Salah tracker | Yes |
-| `/quran`, `/surah/:surahNo` | Qur'an index, reader, audio, bookmarks | No |
+| `/quran`, `/surah/:surahNo` | Qur'an index, list/single-ayah reader, audio, bookmarks | No |
 | `/hadith`, `/hadith/:collection` | Hadith collections and reader | No |
 | `/dhikr` | Dhikr counter and dua collection (offline after first open) | No |
 | `/challenges` | Personal and friend challenges | Yes |

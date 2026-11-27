@@ -29,6 +29,35 @@ const ACCOUNT = [
   { to: '/settings', path: '/settings', icon: 'settings', label: 'Settings' },
 ];
 
+// Maps the current route to the short module name shown in the chrome in place
+// of the old "Pray · Track · Grow" tagline. The sidebar brand keeps its mosque
+// icon on the left; only the text swaps to the active module.
+const MODULE_NAMES = {
+  '/quran': 'Quran',
+  '/surah': 'Quran',
+  '/hadith': 'Hadith',
+  '/salah': 'Salah',
+  '/salah-timings': 'Salah Timings',
+  '/qibla': 'Qibla',
+  '/calendar': 'Calendar',
+  '/challenges': 'Challenges',
+  '/dhikr': 'Dhikr & Dua',
+  '/charity': 'Charity',
+  '/stats': 'Stats',
+  '/posts': 'Posts',
+  '/notifications': 'Notifications',
+  '/account': 'Account',
+  '/settings': 'Settings',
+  '/admin': 'Admin',
+};
+
+function moduleName(pathname) {
+  const key = Object.keys(MODULE_NAMES).find(
+    (k) => pathname === k || pathname.startsWith(k + '/')
+  );
+  return MODULE_NAMES[key] || 'Hasanath';
+}
+
 // Same rule as the EJS script: exact match, plus the reader counting as part of
 // Quran so the section stays highlighted while reading an ayah.
 function isActive(pathname, linkPath) {
@@ -44,6 +73,32 @@ export default function Navbar({ session }) {
   const accountBtnRef = useRef(null);
   const accountMenuRef = useRef(null);
   const { unread } = useUnreadNotifications();
+
+  // On a fresh load the brand ("Hasanath / Pray · Track · Grow") shows for a
+  // few seconds before the chrome swaps to the active module's name, so the
+  // app's identity still lands on first paint. This swap only happens on the
+  // phone top bar: on desktop the brand stays put because the page header
+  // already carries the module name.
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)');
+    const handler = (e) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  const [showBrand, setShowBrand] = useState(true);
+  useEffect(() => {
+    if (!isMobile) return undefined;
+    const timer = setTimeout(() => setShowBrand(false), 4000);
+    return () => clearTimeout(timer);
+  }, [isMobile]);
+
+  const currentModule = moduleName(pathname);
+  const displayTitle = isMobile && !showBrand ? currentModule : 'Hasanath';
+  const displaySubtitle = isMobile && !showBrand ? '' : 'Pray · Track · Grow';
 
   const handle = session.username || '';
   // The friendly name is what the chrome greets people with; the handle stays
@@ -133,8 +188,10 @@ export default function Navbar({ session }) {
             <span className="material-symbols-rounded">mosque</span>
           </div>
           <div className="logo-text">
-            <h5>Hasanath</h5>
-            <span>Pray · Track · Grow</span>
+            <h5 key={displayTitle}>{displayTitle}</h5>
+            {displaySubtitle && (
+              <span key={displaySubtitle}>{displaySubtitle}</span>
+            )}
           </div>
         </Link>
         <button type="button" className="sidebar-toggler" aria-label="Toggle sidebar">

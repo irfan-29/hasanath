@@ -98,6 +98,9 @@ export const quran = {
   audio: (surahNo, reciter) =>
     api.get(`/quran/audio?surahNo=${encodeURIComponent(surahNo)}` + (reciter ? `&reciter=${encodeURIComponent(reciter)}` : '')),
   saveReciter: (reciter) => api.post('/quran/reciter', { reciter }),
+  // The exact verse the reader is on, written as the single-ayah view moves.
+  // Guests are allowed: the server stores it in the signed cookie.
+  saveLastRead: (surahNo, ayahNo) => api.post('/quran/last-read', { surahNo, ayahNo }),
   favourites: () => api.get('/quran/favourites'),
   progress: () => api.get('/quran/progress'),
   saveProgress: (payload) => api.post('/quran/progress', payload),
@@ -132,6 +135,10 @@ export const challenges = {
     return api.post('/challenges', {
       challenge: data.name,
       oneTime: Boolean(data.oneTime),
+      // A "quran" challenge is counted from the reader, one ayah at a time.
+      // Omitted for manual challenges so old callers keep the default.
+      kind: data.kind,
+      dailyTarget: data.dailyTarget,
       startDate: data.startDate,
       period: data.period,
       endDate: data.endDate,
@@ -142,6 +149,9 @@ export const challenges = {
   // One challenge, one day: the server decides whether the day is still inside
   // the rolling 7-day window.
   checkin: (id, date) => api.post(`/challenges/${id}/checkin`, date ? { date } : {}),
+  // Reading progress: one call per verse opened. The server dedupes and
+  // completes the day's check-in when the daily target is reached.
+  recordAyah: (id, surahNo, ayahNo) => api.post(`/challenges/${id}/ayah`, { surahNo, ayahNo }),
   saveStreaks: (payload) => api.post('/challenges/streaks', payload),
 };
 

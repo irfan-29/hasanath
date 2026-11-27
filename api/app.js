@@ -989,7 +989,7 @@ app.get("/api/quran/index", async function(req, res){
     const parsed = edition ? parseEdition(edition) : null;
 
     let ayah = null;
-    const [entry, lastReadSurahs] = await Promise.all([
+    const [entry, lastReadSurahs, lastReadHistory] = await Promise.all([
         getOrCreateAyahOfTheDay(surahs).catch((err) => {
             // The daily ayah is a nicety; failing it must not fail the page.
             console.error("api/quran/index: ayah of the day -", err.message);
@@ -997,6 +997,13 @@ app.get("/api/quran/index", async function(req, res){
         }),
         userData.getLastReadSurahs(req).catch((err) => {
             console.error("api/quran/index: last read -", err.message);
+            return [];
+        }),
+        // The five-entry history with each surah's saved verse. A row without
+        // one is a surah opened in the list view, so the client shows just the
+        // name for it.
+        userData.getLastReadHistory(req).catch((err) => {
+            console.error("api/quran/index: last read history -", err.message);
             return [];
         })
     ]);
@@ -1028,6 +1035,7 @@ app.get("/api/quran/index", async function(req, res){
         surahs,
         ayahOfTheDay: ayah,
         lastReadSurahs,
+        lastReadHistory,
         favoriteFont: settings.favoriteFont || 'QPC-Hafs',
         activeReciter: settings.favoriteReciter ? String(settings.favoriteReciter) : "1",
         reciters: reciterSource && reciterSource.audio
@@ -1138,6 +1146,14 @@ app.get("/api/quran/surah/:surahNo", async function(req, res){
         console.error("api/quran/surah: last read -", err.message);
     }
 
+    // The verse this surah was left on, so the client can reopen the surah
+    // there instead of at ayah 1. Null until they use the single-ayah view;
+    // the surah itself is already recorded above either way.
+    const lastRead = await userData.getLastReadForSurah(req, surahNo).catch((err) => {
+        console.error("api/quran/surah: last read ayah -", err.message);
+        return null;
+    });
+
     res.json({
         surahNo,
         surahName: surah.surahName,
@@ -1155,9 +1171,27 @@ app.get("/api/quran/surah/:surahNo", async function(req, res){
         favoriteFont: settings.favoriteFont || 'QPC-Hafs',
         favouriteKeys: Array.from(favourites.keysFor(req)),
         isLoggedIn: Boolean(req.isAuthenticated && req.isAuthenticated()),
+        lastRead,
         previousSurah: surahNo > 1 ? neighbour(surahNo - 1) : null,
         nextSurah: surahNo < 114 ? neighbour(surahNo + 1) : null
     });
+});
+
+// The reader's exact position, written as the ayah changes in the single-ayah
+// view. Guests are allowed on purpose: the signed cookie stores the same
+// position, so a signed-out reader still resumes where they left off.
+app.post("/api/quran/last-read", async function(req, res){
+    try {
+        const result = await userData.recordAyahRead(req, {
+            surahNo: req.body.surahNo,
+            ayahNo: req.body.ayahNo
+        });
+        if (result.error) return res.status(400).json({ error: result.error });
+        res.json(result);
+    } catch (err) {
+        console.error("api/quran/last-read:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
 });
 
 app.get("/api/quran/reciters", async function(req, res){
@@ -1384,6 +1418,10 @@ app.post("/api/challenges", requireLogin, async function(req, res){
     try {
         const result = await userData.addChallenge(req, challenge, {
             oneTime: Boolean(req.body.oneTime),
+            // A reading challenge is counted by the Qur'an reader; anything
+            // else is the manual habit checkbox that already existed.
+            kind: req.body.kind === "quran" ? "quran" : "manual",
+            dailyTarget: req.body.dailyTarget,
             startDate: req.body.startDate,
             period: req.body.period,
             endDate: req.body.endDate
@@ -1445,6 +1483,9 @@ app.post("/api/challenges/:id/checkin", requireLogin, async function(req, res){
             date: req.body.date
         });
         if (result.error === "invalid-date") return res.status(400).json({ error: "invalid-date" });
+        // A reading challenge cannot be ticked off by hand: the reader is the
+        // only thing that counts verses, so this answers 400 rather than 404.
+        if (result.error === "read-required") return res.status(400).json({ error: "read-required" });
         if (result.error) return res.status(404).json({ error: result.error });
 
         const today = challengeDays.isoDay();
@@ -1480,6 +1521,50 @@ app.post("/api/challenges/:id/checkin", requireLogin, async function(req, res){
     }
 });
 
+// One verse of reading progress. The reader posts this as the ayah changes; the
+// server dedupes by "surah:ayah", resets the count on a new day, and writes the
+// day's check-in the moment the challenge's daily target is reached.
+app.post("/api/challenges/:id/ayah", requireLogin, async function(req, res){
+    try {
+        const result = await userData.recordChallengeAyah(req, req.params.id, {
+            surahNo: req.body.surahNo,
+            ayahNo: req.body.ayahNo
+        });
+        if (result.error === "not-found") return res.status(404).json({ error: "not-found" });
+        if (result.error) return res.status(400).json({ error: result.error });
+
+        // Same message the manual check-in sends, so a reading streak shows up
+        // in Telegram like any other. Only the day it completed is announced.
+        if (result.justCompleted) {
+            const today = challengeDays.isoDay();
+            const tracked = result.challenges.filter((challenge) => !challenge.oneTime);
+            await notifyStreakUpdate(req, {
+                formattedDate: challengeDays.displayLabel(today),
+                completed: tracked
+                    .filter((challenge) => challenge.checkedInToday)
+                    .map((challenge) => String(challenge._id)),
+                updatedChallenges: tracked.map((challenge) => ({
+                    id: String(challenge._id),
+                    name: challenge.challenge,
+                    currentStreak: challenge.currentStreak,
+                    maxStreak: challenge.maxStreak
+                }))
+            });
+        }
+
+        res.json({
+            challenge: result.challenge,
+            challenges: result.challenges,
+            todayAyahs: result.todayAyahs,
+            checkedIn: result.checkedIn,
+            justCompleted: result.justCompleted
+        });
+    } catch (err) {
+        console.error("api/challenges ayah:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
 app.post("/api/challenges/:id", requireLogin, async function(req, res){
     const challenge = String(req.body.challenge || "").trim();
     if (!req.params.id || !challenge) return res.status(400).json({ error: "invalid" });
@@ -1490,7 +1575,10 @@ app.post("/api/challenges/:id", requireLogin, async function(req, res){
             challenge,
             startDate: req.body.startDate,
             endDate: req.body.endDate,
-            noEnd: Boolean(req.body.noEnd)
+            noEnd: Boolean(req.body.noEnd),
+            // Reading challenges can change their daily target; manual rows
+            // ignore it.
+            dailyTarget: req.body.dailyTarget
         });
         if (result.error === "not-found") return res.status(404).json({ error: "not-found" });
         if (result.error) return res.status(400).json({ error: result.error });

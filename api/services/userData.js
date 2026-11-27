@@ -193,26 +193,116 @@ function attachResponse(req, res, next) {
   next();
 }
 
-// --- Last read surahs -------------------------------------------------------
+// --- Last read history ------------------------------------------------------
 
-async function getLastReadSurahs(req) {
-  if (req.isAuthenticated && req.isAuthenticated()) {
-    return req.user.lastReadSurahs || [];
+// The longest surah (Al-Baqarah) has 286 ayahs. Bounding the reader's stored
+// position here keeps a hand-crafted cookie or a stale client from asking for
+// an ayah that cannot exist.
+const MAX_AYAHS_PER_SURAH = 286;
+const MAX_LAST_READ = 5;
+
+// One entry per surah: "2:255" for the verse the reader left, or "2:1" when
+// they only opened the surah in the list view. The single string carries both
+// the history order and the position, so no parallel array or global "last
+// ayah" field is needed.
+function parseLastReadEntry(entry) {
+  const [surahPart, ayahPart] = String(entry).split(':');
+  const surahNo = Number(surahPart);
+  if (!Number.isInteger(surahNo) || surahNo < 1 || surahNo > 114) return null;
+  const parsedAyah = Number(ayahPart);
+  const ayahNo = Number.isInteger(parsedAyah) && parsedAyah >= 1 && parsedAyah <= MAX_AYAHS_PER_SURAH
+    ? parsedAyah
+    : 1;
+  return { surahNo, ayahNo };
+}
+
+// Normalise, dedupe by surah and cap. Old entries were bare surah numbers, so
+// they become "surah:1" - the same default the list view uses today.
+function normaliseLastReadHistory(entries) {
+  const out = [];
+  const seen = new Set();
+  for (const raw of Array.from(entries || [])) {
+    const parsed = parseLastReadEntry(raw);
+    if (!parsed || seen.has(parsed.surahNo)) continue;
+    seen.add(parsed.surahNo);
+    out.push(`${parsed.surahNo}:${parsed.ayahNo}`);
+    if (out.length >= MAX_LAST_READ) break;
   }
+  return out;
+}
+
+// Move a surah to the front. With `ayahNo` the verse is saved; without it (the
+// list view opening the surah) an existing verse is kept, otherwise the reader
+// continues from ayah 1.
+function pushLastReadEntry(entries, surahNo, ayahNo) {
+  const surah = Number(surahNo);
+  if (!Number.isInteger(surah) || surah < 1 || surah > 114) {
+    return normaliseLastReadHistory(entries);
+  }
+  const list = normaliseLastReadHistory(entries);
+  const existing = list.find((entry) => Number(String(entry).split(':')[0]) === surah);
+  const saved = existing ? parseLastReadEntry(existing).ayahNo : 1;
+  const ayah = Number(ayahNo);
+  const hasAyah = Number.isInteger(ayah) && ayah >= 1 && ayah <= MAX_AYAHS_PER_SURAH;
+  const value = `${surah}:${hasAyah ? ayah : saved}`;
+  return normaliseLastReadHistory([value, ...list]);
+}
+
+function rawLastReadEntries(req) {
+  if (req.isAuthenticated && req.isAuthenticated()) return req.user.lastReadSurahs || [];
   return readGuest(req).lastReadSurahs || [];
 }
 
+async function getLastReadSurahs(req) {
+  return normaliseLastReadHistory(rawLastReadEntries(req));
+}
+
+// The five-surah history with the verse each surah was last left on. A surah
+// opened only in the list view defaults to ayah 1, so every entry has a
+// position the reader can reopen.
+async function getLastReadHistory(req) {
+  return normaliseLastReadHistory(rawLastReadEntries(req)).map((entry) => parseLastReadEntry(entry));
+}
+
+// The verse this surah was left on, for the reader's initial position.
+async function getLastReadForSurah(req, surahNo) {
+  const target = Number(surahNo);
+  const entry = (await getLastReadHistory(req)).find((row) => row.surahNo === target);
+  return entry ? { surahNo: entry.surahNo, ayahNo: entry.ayahNo } : null;
+}
+
 async function recordSurahRead(req, surahNo) {
-  const value = String(surahNo);
   if (req.isAuthenticated && req.isAuthenticated()) {
-    req.user.pushLastReadSurah(value);
+    req.user.lastReadSurahs = pushLastReadEntry(req.user.lastReadSurahs, surahNo);
     await req.user.save();
     return req.user.lastReadSurahs;
   }
   const guest = readGuest(req);
-  guest.lastReadSurahs = [value, ...guest.lastReadSurahs.filter((n) => n !== value)].slice(0, 5);
+  guest.lastReadSurahs = pushLastReadEntry(guest.lastReadSurahs, surahNo);
   writeGuest(req, res_of(req), guest);
   return guest.lastReadSurahs;
+}
+
+// Opening a verse in the single-ayah view. Saves the exact position *and*
+// pushes the surah into the capped history, because the reader is genuinely
+// reading it - unlike the audio progress write below, which must not touch
+// either list.
+async function recordAyahRead(req, { surahNo, ayahNo } = {}) {
+  const s = Number(surahNo);
+  const a = Number(ayahNo);
+  if (!Number.isInteger(s) || s < 1 || s > 114) return { error: "invalid-surah" };
+  if (!Number.isInteger(a) || a < 1 || a > MAX_AYAHS_PER_SURAH) return { error: "invalid-ayah" };
+
+  if (req.isAuthenticated && req.isAuthenticated()) {
+    req.user.lastReadSurahs = pushLastReadEntry(req.user.lastReadSurahs, s, a);
+    await req.user.save();
+    return { lastRead: { surahNo: s, ayahNo: a } };
+  }
+
+  const guest = readGuest(req);
+  guest.lastReadSurahs = pushLastReadEntry(guest.lastReadSurahs, s, a);
+  writeGuest(req, res_of(req), guest);
+  return { lastRead: { surahNo: s, ayahNo: a } };
 }
 
 // Playback progress only. This deliberately does NOT touch lastReadSurahs:
@@ -280,6 +370,18 @@ async function clearAudioProgress(req) {
 // cannot be allowed to grow without limit.
 const MAX_CHALLENGE_HISTORY = 730;
 
+// A reading challenge counts distinct ayahs per day. The ceiling is a guard
+// against a typo creating a ten-thousand-ayah day; 50 is already a generous
+// daily sitting.
+const MIN_DAILY_AYAHS = 1;
+const MAX_DAILY_AYAHS = 50;
+
+function clampDailyTarget(value) {
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(MAX_DAILY_AYAHS, Math.max(MIN_DAILY_AYAHS, n));
+}
+
 // Serialise a personal challenge the same way a shared one is serialised: the
 // raw record plus the window state and the two fields the check-in card
 // derives from its history.
@@ -298,10 +400,25 @@ function presentChallenge(challenge, today) {
   // date; giving it an end date later must not replace its saved counter with
   // zero from an empty history. Undated rows keep the counter they stored.
   const dated = Boolean(startDate);
+  // Reading progress belongs to one day. Yesterday's keys are kept in Mongo
+  // only so a mid-day timezone oddity cannot lose them; every read presents
+  // today's list, which is what the progress bar and target mean.
+  const kind = raw.kind === "quran" ? "quran" : "manual";
+  const dailyTarget = kind === "quran" ? clampDailyTarget(raw.dailyTarget) : 0;
+  const progressAyahs = (raw.progressDate === today ? raw.progressAyahs || [] : []).filter(Boolean);
   return {
     ...raw,
     startDate,
     endDate,
+    kind,
+    dailyTarget,
+    progressDate: raw.progressDate || "",
+    progressAyahs,
+    // Distinct ayahs read today and the most recent one, so the card can show
+    // "3 of 5 ayahs" and link back to the exact verse.
+    todayAyahs: progressAyahs.length,
+    targetReached: kind === "quran" && dailyTarget > 0 && progressAyahs.length >= dailyTarget,
+    lastAyah: progressAyahs[progressAyahs.length - 1] || "",
     status,
     daysRemaining: daysRemaining(today, endDate),
     checkedInToday: history.includes(today),
@@ -345,7 +462,17 @@ async function listChallenges(req) {
 }
 
 async function addChallenge(req, challenge, opts = {}) {
-  const oneTime = Boolean(opts.oneTime);
+  // A reading challenge is counted by the reader, never by a checkbox, so it
+  // cannot be a one-time task and needs a valid daily target.
+  const kind = opts.kind === "quran" ? "quran" : "manual";
+  let dailyTarget;
+  if (kind === "quran") {
+    dailyTarget = Number(opts.dailyTarget);
+    if (!Number.isInteger(dailyTarget) || dailyTarget < MIN_DAILY_AYAHS || dailyTarget > MAX_DAILY_AYAHS) {
+      return { error: "invalid-target" };
+    }
+  }
+  const oneTime = kind === "quran" ? false : Boolean(opts.oneTime);
   // One-time tasks are a checkbox, not a streak, so they never get a window.
   let window = { startDate: "", endDate: "" };
   if (!oneTime) {
@@ -355,6 +482,8 @@ async function addChallenge(req, challenge, opts = {}) {
   }
   const record = {
     challenge,
+    kind,
+    ...(dailyTarget ? { dailyTarget } : {}),
     currentStreak: 0,
     maxStreak: 0,
     oneTime,
@@ -397,6 +526,16 @@ async function updateChallenge(req, id, changes = {}) {
   const name = changes.challenge === undefined ? undefined : String(changes.challenge || "").trim();
   if (name !== undefined && !name) return { error: "invalid" };
 
+  // A reading challenge's target is editable: the window and the streak stay,
+  // only how many ayahs a day counts towards the next check-in changes.
+  let dailyTarget;
+  if (changes.dailyTarget !== undefined && item.kind === "quran") {
+    dailyTarget = Number(changes.dailyTarget);
+    if (!Number.isInteger(dailyTarget) || dailyTarget < MIN_DAILY_AYAHS || dailyTarget > MAX_DAILY_AYAHS) {
+      return { error: "invalid-target" };
+    }
+  }
+
   let startDate;
   if (changes.startDate !== undefined) {
     // A one-time task is a checkbox, not a window.
@@ -425,6 +564,7 @@ async function updateChallenge(req, id, changes = {}) {
   }
 
   if (name !== undefined) item.challenge = name;
+  if (dailyTarget !== undefined) item.dailyTarget = dailyTarget;
 
   if (startDate !== undefined && startDate !== item.startDate) {
     const previousStart = item.startDate || "";
@@ -486,6 +626,9 @@ async function applyStreakUpdate(req, { completedIds, historyDate, reopenId }) {
 
   if (req.isAuthenticated && req.isAuthenticated()) {
     for (const challenge of req.user.challenges) {
+      // Reading challenges complete themselves from the reader. The batch
+      // route must not reset their streak just because no checkbox named them.
+      if (challenge.kind === "quran") continue;
       const cid = String(challenge._id);
       if (challenge.oneTime) {
         if (reopen && reopen === cid) {
@@ -518,6 +661,9 @@ async function applyStreakUpdate(req, { completedIds, historyDate, reopenId }) {
 
   const guest = readGuest(req);
   for (const challenge of guest.challenges) {
+    // Same guard as the account loop: a reading challenge is never reset by a
+    // batch that does not know about it.
+    if (challenge.kind === "quran") continue;
     const cid = String(challenge._id);
     if (challenge.oneTime) {
       if (reopen && reopen === cid) {
@@ -587,6 +733,9 @@ async function toggleChallengeCheckin(req, id, { date } = {}) {
   if (req.isAuthenticated && req.isAuthenticated()) {
     const challenge = req.user.challenges.id(id);
     if (!challenge) return { error: "not-found" };
+    // A reading challenge can only be completed by reading. A checkbox would
+    // let someone claim the streak without opening the Qur'an.
+    if (challenge.kind === "quran") return { error: "read-required" };
     if (!challenge.oneTime) {
       const range = challengeWindow(today, challenge.startDate, challenge.endDate);
       if (key < range.start || key > range.end) return { error: "invalid-date" };
@@ -604,6 +753,7 @@ async function toggleChallengeCheckin(req, id, { date } = {}) {
   const challenge = (guest.challenges || [])
     .find((entry) => String(entry._id) === String(id));
   if (!challenge) return { error: "not-found" };
+  if (challenge.kind === "quran") return { error: "read-required" };
   if (!challenge.oneTime) {
     const range = challengeWindow(today, challenge.startDate, challenge.endDate);
     if (key < range.start || key > range.end) return { error: "invalid-date" };
@@ -614,6 +764,68 @@ async function toggleChallengeCheckin(req, id, { date } = {}) {
     ...result,
     challenge: presentChallenge(challenge, today),
     challenges: presentChallenges(guest.challenges, today)
+  };
+}
+
+// --- Reading challenges -----------------------------------------------------
+//
+// A reading challenge is a personal challenge whose check-in is earned by
+// actually opening verses. The reader posts one call per ayah; the server owns
+// the day boundary, dedupes by "surah:ayah" and completes the day's check-in
+// the moment the target is met. Doing it here (instead of trusting a client
+// counter) keeps the streak consistent with the history the stats page reads.
+async function recordChallengeAyah(req, id, { surahNo, ayahNo } = {}) {
+  const s = Number(surahNo);
+  const a = Number(ayahNo);
+  if (!Number.isInteger(s) || s < 1 || s > 114) return { error: "invalid-surah" };
+  if (!Number.isInteger(a) || a < 1 || a > MAX_AYAHS_PER_SURAH) return { error: "invalid-ayah" };
+
+  const today = isoDay();
+  const authenticated = Boolean(req.isAuthenticated && req.isAuthenticated());
+  const guest = authenticated ? null : readGuest(req);
+  const source = authenticated ? req.user.challenges : (guest.challenges || []);
+  const challenge = authenticated
+    ? source.id(id)
+    : source.find((entry) => String(entry._id) === String(id));
+  if (!challenge) return { error: "not-found" };
+  if (challenge.kind !== "quran") return { error: "not-reading" };
+
+  const status = challengeStatus(today, challenge.startDate, challenge.endDate);
+  if (status !== "active") return { error: "not-active" };
+
+  const target = clampDailyTarget(challenge.dailyTarget);
+  if (!target) return { error: "invalid-target" };
+
+  // A new day starts a new count. Yesterday's keys are only a progress bar, so
+  // dropping them loses nothing that the history does not already record.
+  const key = `${s}:${a}`;
+  const existing = (challenge.progressDate === today ? Array.from(challenge.progressAyahs || []) : [])
+    .filter(Boolean);
+  const ayahs = existing.includes(key)
+    ? existing
+    : [...existing, key].slice(-MAX_DAILY_AYAHS);
+  challenge.progressDate = today;
+  challenge.progressAyahs = ayahs;
+
+  // Re-reading a verse must not add a second unit, and the check-in is written
+  // once per day even if the target is crossed on a later visit.
+  const alreadyChecked = (challenge.history || []).includes(today);
+  const reached = ayahs.length >= target;
+  if (reached && !alreadyChecked) {
+    mergeChallengeHistory(challenge, true, today);
+    challenge.currentStreak = computeStreak(challenge.history, today);
+    challenge.maxStreak = bestRunFrom(challenge.history).best;
+  }
+
+  if (authenticated) await req.user.save();
+  else writeGuest(req, res_of(req), guest);
+
+  return {
+    challenge: presentChallenge(challenge, today),
+    challenges: presentChallenges(source, today),
+    todayAyahs: ayahs.length,
+    checkedIn: reached,
+    justCompleted: reached && !alreadyChecked
   };
 }
 
@@ -1019,7 +1231,10 @@ module.exports = {
   getSettings,
   updateSettings,
   getLastReadSurahs,
+  getLastReadHistory,
   recordSurahRead,
+  getLastReadForSurah,
+  recordAyahRead,
   recordAudioProgress,
   clearAudioProgress,
   listChallenges,
@@ -1028,6 +1243,7 @@ module.exports = {
   deleteChallenge,
   applyStreakUpdate,
   toggleChallengeCheckin,
+  recordChallengeAyah,
   listSalah,
   recordSalah,
   clearSalah,

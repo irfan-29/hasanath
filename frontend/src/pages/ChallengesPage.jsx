@@ -66,6 +66,8 @@ const DATE_ERROR_MESSAGES = {
   'end-in-past': 'The end date cannot be in the past.',
   'period-too-long': 'That challenge is too long.',
   'not-supported': 'This challenge has no window to edit.',
+  'invalid-target': 'Choose between 1 and 50 ayahs a day.',
+  'read-required': 'A reading challenge completes when you read, not from a checkbox.',
 };
 
 // The later of two ISO keys, used as a date picker's lower bound.
@@ -166,6 +168,12 @@ export default function ChallengesPage() {
   // "Completed" tab once they are done, so a single task can be reused
   // without cluttering the active list.
   const [oneTimeChallenge, setOneTimeChallenge] = useState(false);
+  // A challenge is either a manual habit (the original checkbox) or a Qur'an
+  // reading challenge, which the reader counts one ayah at a time.
+  const [kind, setKind] = useState('manual');
+  const [dailyTarget, setDailyTarget] = useState('5');
+  // The daily target shown while editing an existing reading challenge.
+  const [editTarget, setEditTarget] = useState('5');
   // The window for a new challenge. Preset periods produce an end date on the
   // server; "custom" sends the chosen end date instead.
   const [startDate, setStartDate] = useState(isoDay());
@@ -331,6 +339,8 @@ export default function ChallengesPage() {
     setNoEnd(false);
     setDateError('');
     setOneTimeChallenge(false);
+    setKind('manual');
+    setDailyTarget('5');
   }
 
   function chooseStartDate(next) {
@@ -369,8 +379,19 @@ export default function ChallengesPage() {
     const withFriends = tab === 'friends';
     if (withFriends && selectedFriends.length === 0) return;
 
+    // Reading challenges are personal and counted from the reader, so they
+    // cannot be one-time tasks or shared with friends.
+    const reading = !withFriends && kind === 'quran';
+    if (reading) {
+      const parsed = Number(dailyTarget);
+      if (!Number.isInteger(parsed) || parsed < 1 || parsed > 50) {
+        setDateError('Choose between 1 and 50 ayahs a day.');
+        return;
+      }
+    }
+
     // One-time tasks are a checkbox, not a streak, so they have no window.
-    const noWindow = !withFriends && oneTimeChallenge;
+    const noWindow = !withFriends && !reading && oneTimeChallenge;
     if (!noWindow) {
       const invalid = validateWindow();
       if (invalid) {
@@ -395,9 +416,14 @@ export default function ChallengesPage() {
         await sharedApi.create({ name, friends: selectedFriends, ...windowPayload });
         toast(`Challenge sent to ${selectedFriends.length} ${selectedFriends.length === 1 ? 'friend' : 'friends'}`);
       } else {
-        await api.create({ name, oneTime: oneTimeChallenge, ...windowPayload });
+        await api.create({
+          name,
+          oneTime: reading ? false : oneTimeChallenge,
+          ...(reading ? { kind: 'quran', dailyTarget: Number(dailyTarget) } : {}),
+          ...windowPayload,
+        });
         setOneTimeChallenge(false);
-        toast('Challenge added');
+        toast(reading ? 'Reading challenge added' : 'Challenge added');
       }
       setDraft('');
       setEditing(null);
@@ -426,6 +452,7 @@ export default function ChallengesPage() {
     setEditStartDate(challenge.startDate || '');
     setEditEndDate(challenge.endDate || '');
     setEditNoEnd(Boolean(challenge.startDate) && !challenge.endDate);
+    setEditTarget(String(challenge.dailyTarget || 5));
     setDateError('');
   }
 
@@ -469,14 +496,27 @@ export default function ChallengesPage() {
       window.noEnd = editNoEnd;
     }
 
+    // A reading challenge can move its daily target without touching the
+    // window or the streak already earned.
+    const targetEditable = Boolean(target && target.kind === 'quran');
+    const targetChanged = targetEditable && String(editTarget) !== String(target.dailyTarget || '');
+    if (targetChanged) {
+      const parsed = Number(editTarget);
+      if (!Number.isInteger(parsed) || parsed < 1 || parsed > 50) {
+        setDateError('Choose between 1 and 50 ayahs a day.');
+        return;
+      }
+      window.dailyTarget = parsed;
+    }
+
     setSaving(true);
     setDateError('');
     try {
-      await api.rename(editing, name, startChanged || endChanged ? window : undefined);
+      await api.rename(editing, name, (startChanged || endChanged || targetChanged) ? window : undefined);
       setEditing(null);
       setDraft('');
       await load();
-      toast(startChanged || endChanged ? 'Challenge updated' : 'Challenge renamed');
+      toast(startChanged || endChanged || targetChanged ? 'Challenge updated' : 'Challenge renamed');
     } catch (err) {
       const message = err.status === 400 && err.body && DATE_ERROR_MESSAGES[err.body.error];
       if (message) setDateError(message);
@@ -785,6 +825,57 @@ export default function ChallengesPage() {
             <label>Challenge</label>
           </div>
 
+          {/* Habit or Qur'an reading. Reading challenges are counted from the
+              reader, so they are personal only - the Friends tab keeps the
+              original shared-streak form. */}
+          {creating && tab === 'self' && (
+            <div className="challenge-kind-row">
+              <span className="challenge-kind-label">Type</span>
+              <div className="challenge-kind-toggle" role="group" aria-label="Challenge type">
+                <button
+                  type="button"
+                  className={`challenge-kind-btn${kind === 'manual' ? ' is-active' : ''}`}
+                  aria-pressed={kind === 'manual'}
+                  onClick={() => { setKind('manual'); setDateError(''); }}
+                >
+                  <span className="material-symbols-rounded" aria-hidden="true">task_alt</span>
+                  Habit
+                </button>
+                <button
+                  type="button"
+                  className={`challenge-kind-btn${kind === 'quran' ? ' is-active' : ''}`}
+                  aria-pressed={kind === 'quran'}
+                  onClick={() => { setKind('quran'); setOneTimeChallenge(false); setDateError(''); }}
+                >
+                  <span className="material-symbols-rounded" aria-hidden="true">auto_stories</span>
+                  Qur’an reading
+                </button>
+              </div>
+            </div>
+          )}
+
+          {creating && tab === 'self' && kind === 'quran' && (
+            <div className="challenge-target-row">
+              <div className="form-floating">
+                <input
+                  id="challenge-target"
+                  className="form-control form-control-sm"
+                  type="number"
+                  min="1"
+                  max="50"
+                  placeholder="5"
+                  value={dailyTarget}
+                  onChange={(e) => { setDailyTarget(e.target.value); setDateError(''); }}
+                />
+                <label htmlFor="challenge-target">Ayahs per day</label>
+              </div>
+              <p className="help-text">
+                Each ayah you open in the reader counts once. Reaching the target
+                checks the day in automatically.
+              </p>
+            </div>
+          )}
+
           {/* The start date is fixed once the challenge exists - check-ins
               already belong to it. Only the end date can move: extending a
               challenge that is about to finish, or clearing it entirely. */}
@@ -840,6 +931,28 @@ export default function ChallengesPage() {
             </div>
           )}
 
+          {!creating && editingTarget && editingTarget.kind === 'quran' && (
+            <div className="challenge-target-row">
+              <div className="form-floating">
+                <input
+                  id="challenge-edit-target"
+                  className="form-control form-control-sm"
+                  type="number"
+                  min="1"
+                  max="50"
+                  placeholder="5"
+                  value={editTarget}
+                  onChange={(e) => { setEditTarget(e.target.value); setDateError(''); }}
+                />
+                <label htmlFor="challenge-edit-target">Ayahs per day</label>
+              </div>
+              <p className="help-text">
+                Changing the target affects today&apos;s progress, not the streak
+                already earned.
+              </p>
+            </div>
+          )}
+
           {!creating && editingTarget && !editingTarget.oneTime && editingTarget.startDate && (
             <div className="challenge-window-form challenge-window-form--edit">
               <div className="salah-form-grid">
@@ -892,7 +1005,7 @@ export default function ChallengesPage() {
             </div>
           )}
 
-          {creating && tab === 'self' && (
+          {creating && tab === 'self' && kind === 'manual' && (
             <div>
               <label className="challenge-type-toggle" htmlFor="one-time-checkbox">
                 <input
@@ -980,14 +1093,29 @@ export default function ChallengesPage() {
 
             {activeTasks.map((challenge, i) => {
               const isOneTime = Boolean(challenge.oneTime);
+              const isReading = challenge.kind === 'quran';
               const streak = Number(challenge.currentStreak) || 0;
               const best = Number(challenge.maxStreak) || 0;
               const busy = checkinBusy === String(challenge._id);
               // Legacy cards have no status field; they behave as active.
               const status = challenge.status || 'active';
+              // Reading progress is always today's: the server resets the
+              // counter at the day boundary and only returns today's verses.
+              const target = Number(challenge.dailyTarget) || 0;
+              const todayAyahs = Number(challenge.todayAyahs) || 0;
+              const percent = target ? Math.min(100, Math.round((todayAyahs / target) * 100)) : 0;
+              // Reopen at the verse the challenge last counted, else at the
+              // reader's own position.
+              const readingTo = (() => {
+                const [surahNo, ayahNo] = String(challenge.lastAyah || '').split(':').map(Number);
+                if (Number.isInteger(surahNo) && surahNo >= 1 && Number.isInteger(ayahNo) && ayahNo >= 1) {
+                  return `/surah/${surahNo}?ayah=${ayahNo}&view=single`;
+                }
+                return '/quran';
+              })();
               return (
                 <article
-                  className={`challenge-card${challenge.checkedInToday ? ' is-done' : ''}${isOneTime ? ' is-one-time' : ''}`}
+                  className={`challenge-card${challenge.checkedInToday ? ' is-done' : ''}${isOneTime ? ' is-one-time' : ''}${isReading ? ' is-reading' : ''}`}
                   data-challenge-id={challenge._id}
                   key={challenge._id}
                 >
@@ -1009,7 +1137,7 @@ export default function ChallengesPage() {
                   <div className="challenge-info">
                     <div className="challenge-header-row">
                       <div className="challenge-title-block">
-                        <span className="challenge-card-eyebrow">{isOneTime ? 'One-time task' : 'Challenge'}</span>
+                        <span className="challenge-card-eyebrow">{isOneTime ? 'One-time task' : isReading ? 'Qur’an reading' : 'Challenge'}</span>
                         <strong className="challenge-card-title">{challenge.challenge}</strong>
                       </div>
                       {canManage && (
@@ -1049,6 +1177,48 @@ export default function ChallengesPage() {
                       <div className="challenge-card-stats">
                         <span className="challenge-meta">No streak · check to complete</span>
                       </div>
+                    ) : isReading ? (
+                      <>
+                        {/* A reading challenge is never ticked by hand: the
+                            reader counts the verses and the server checks the
+                            day in when the target is reached. The card shows
+                            today's progress and the way back into the reader. */}
+                        <div className="challenge-reading-progress">
+                          <div className="challenge-reading-head">
+                            <span className="challenge-reading-label">Today’s reading</span>
+                            <span className="challenge-reading-count">
+                              {todayAyahs} of {target} ayahs
+                            </span>
+                          </div>
+                          <span
+                            className="challenge-reading-bar"
+                            role="progressbar"
+                            aria-valuemin={0}
+                            aria-valuemax={target}
+                            aria-valuenow={todayAyahs}
+                            aria-label={`${challenge.challenge}: ${todayAyahs} of ${target} ayahs today`}
+                          >
+                            <span style={{ width: `${percent}%` }} />
+                          </span>
+                          <p className="challenge-reading-hint">
+                            {challenge.checkedInToday
+                              ? 'Target reached — today is checked in.'
+                              : `${Math.max(target - todayAyahs, 0)} more ${Math.max(target - todayAyahs, 0) === 1 ? 'ayah' : 'ayahs'} to check in today.`}
+                          </p>
+                        </div>
+                        <div className="challenge-checkin-meta">
+                          <span className="streak-badge">
+                            <span className="material-symbols-rounded" aria-hidden="true">local_fire_department</span>
+                            {streak} day streak
+                          </span>
+                          <span className="challenge-best-badge">Best {best}</span>
+                          {canManage && status === 'active' && (
+                            <Link className="btn btn-primary btn-sm" to={readingTo}>
+                              {challenge.checkedInToday ? 'Read more' : 'Continue reading'}
+                            </Link>
+                          )}
+                        </div>
+                      </>
                     ) : (
                       <>
                         <div className="challenge-checkin-meta">

@@ -52,7 +52,20 @@ const challengeSchema = new mongoose.Schema({
     // A one-time task is a single checkbox, not a streak. When completed it
     // leaves the active list and sits under Completed on the challenges page.
     oneTime: { type: Boolean, default: false },
-    completed: { type: Boolean, default: false }
+    completed: { type: Boolean, default: false },
+    // How the challenge is checked in. "manual" is the checkbox every row used
+    // before this field existed, so a missing value must keep behaving that
+    // way. "quran" is counted from the reader: each ayah opened in the
+    // single-ayah view is one unit of progress towards `dailyTarget`.
+    kind: { type: String, enum: ["manual", "quran"], default: "manual" },
+    // Ayahs per day for a reading challenge (1-50). Ignored by manual rows.
+    dailyTarget: Number,
+    // The day the running progress belongs to, plus the exact ayahs read on it
+    // ("2:255"). The list is dropped lazily when the day changes; it exists so
+    // re-reading the same verse cannot inflate the count, and so a check-in can
+    // be attributed to actual verses instead of a bare number.
+    progressDate: String,
+    progressAyahs: [String]
 }, { _id: true });
 
 const settingsSchema = new mongoose.Schema({
@@ -132,6 +145,11 @@ const userSchema = new mongoose.Schema({
     // all until then, so this is a backstop rather than the primary gate.
     emailVerifiedAt: Date,
     phone: String,
+    // The five most recent surahs, newest first. Each entry is one string:
+    // "2:255" when the reader left an exact verse, or "2" when they only
+    // opened the surah in the list view. One array is enough for both the
+    // history order and each surah's position, so no parallel position list
+    // or global "last ayah" field is stored.
     lastReadSurahs: [String],
     // Ayahs the user has starred. Stored as { surahNo, ayahNo } rather than the
     // text itself: the text is served from the same cached upstream the reader
@@ -206,15 +224,6 @@ userSchema.pre("save", function (next) {
     if (!this.settings) this.settings = {};
     next();
 });
-
-// Surah progress is capped so a long-lived account cannot grow unbounded.
-// Build a plain array: `this.lastReadSurahs` is a Mongoose DocumentArray, whose
-// .filter() returns a plain array that has no .unshift().
-userSchema.methods.pushLastReadSurah = function (surahNo) {
-    const value = String(surahNo);
-    const existing = Array.from(this.lastReadSurahs || []);
-    this.lastReadSurahs = [value, ...existing.filter((n) => String(n) !== value)].slice(0, 5);
-};
 
 // Favourites are capped for the same reason as last-read: unbounded growth on a
 // single user document eventually hits the 16MB document limit.

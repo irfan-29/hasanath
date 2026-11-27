@@ -114,8 +114,9 @@ export default function QuranPage() {
         <ReadTab
           surahs={data.surahs}
           ayahOfTheDay={data.ayahOfTheDay}
-          lastReadSurahs={data.lastReadSurahs}
+          lastReadHistory={data.lastReadHistory}
           favoriteFont={data.favoriteFont}
+          isLoggedIn={data.isLoggedIn}
         />
       )}
 
