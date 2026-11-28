@@ -16652,13 +16652,460 @@ body:has(.sticky-banner-bottom) .global-audio-bar {
   20% { transform: rotate(-5deg); }
 }
 
+/* ---- Feature previews: a looping scene, and they answer to a tap ----------
+   The five previews on the feature stage are small working models of their
+   screens. Each plays a short scene on a loop, in the same visual language as
+   the module pictures further down (pulsing rings, bars that rise, things
+   that arrive and settle), and the parts that would respond to a finger in
+   the app respond to one here. The scenes themselves are timed in
+   LandingPage.jsx (useScene); these rules draw the motion. */
+
+/* The tabs turn their own pages until the visitor takes over. The active tab
+   shows how long is left, as a line filling along its lower edge. */
+.landing-stage-wrap { display: block; }
+
+.landing-tab { position: relative; overflow: hidden; }
+
+.landing-tab.is-timed::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: var(--landing-teal);
+  transform-origin: 0 50%;
+  animation: landing-tab-timer 7s linear both;
+}
+
+@keyframes landing-tab-timer {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* A preview element that is a button keeps the look it had as plain text. */
+button.landing-preview-row,
+button.landing-challenge,
+.landing-like,
+.landing-preview-play {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Rows and challenge tiles keep the sizes their own rules give them and take
+   only the page's typeface. The play button is left alone entirely: its
+   glyph comes from the icon font. */
+button.landing-preview-row,
+button.landing-challenge { font-family: inherit; }
+.landing-like { font: inherit; }
+
+button.landing-preview-row:focus-visible,
+button.landing-challenge:focus-visible,
+.landing-like:focus-visible,
+.landing-preview-play:focus-visible {
+  outline: 2px solid var(--landing-teal);
+  outline-offset: 2px;
+}
+
+/* Shared: something that has just happened pops; a count that is complete
+   turns to the accent; a flame flickers. */
+@keyframes landing-pop {
+  0% { transform: scale(0.4); }
+  60% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+.landing-preview .landing-badge { transition: background var(--transition), color var(--transition); }
+
+.landing-preview .landing-badge.is-full {
+  background: var(--landing-teal);
+  color: #fff;
+  animation: landing-pop 0.45s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+
+.landing-ember {
+  transform-origin: 50% 90%;
+  animation: landing-flicker 1.6s ease-in-out infinite;
+}
+
+@keyframes landing-flicker {
+  0%, 100% { transform: scale(1) rotate(-3deg); }
+  35% { transform: scale(1.14) rotate(3deg); }
+  65% { transform: scale(0.96) rotate(-1deg); }
+}
+
+/* ---- Salah: the day fills in, the ring closes, and at five of five it glows. */
+.landing-ring-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.landing-ring-pulse {
+  position: absolute;
+  inset: 8px;
+  border: 2px solid var(--landing-teal);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.landing-ring-wrap.is-complete .landing-ring-pulse { animation: landing-ring-glow 2.2s ease-out infinite; }
+.landing-ring-wrap.is-complete .landing-ring-pulse + .landing-ring-pulse { animation-delay: 1.1s; }
+
+@keyframes landing-ring-glow {
+  0% { opacity: 0.6; transform: scale(0.94); }
+  100% { opacity: 0; transform: scale(1.34); }
+}
+
+.landing-ring-wrap.is-complete .landing-ring-label strong { animation: landing-pop 0.5s cubic-bezier(0.3, 1.4, 0.5, 1); }
+
+button.landing-preview-row {
+  position: relative;
+  width: 100%;
+  border-width: 0 0 1px;
+  border-style: solid;
+  border-color: var(--landing-line);
+  background: none;
+  text-align: left;
+  transition: color var(--transition);
+}
+
+button.landing-preview-row .material-symbols-rounded {
+  color: var(--landing-muted);
+  transition: color var(--transition);
+}
+
+button.landing-preview-row:hover { color: var(--landing-ink); }
+button.landing-preview-row.is-done { color: var(--landing-ink); }
+
+button.landing-preview-row.is-done .material-symbols-rounded {
+  color: var(--landing-teal);
+  animation: landing-pop 0.4s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+
+/* A wash of the accent runs along a row as it is logged. */
+button.landing-preview-row::before {
+  content: '';
+  position: absolute;
+  inset: 2px 0;
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgb(var(--accent-rgb) / 0.2), rgb(var(--accent-rgb) / 0));
+  opacity: 0;
+  transform-origin: 0 50%;
+  pointer-events: none;
+}
+
+button.landing-preview-row.is-done::before { animation: landing-row-wash 0.8s ease-out; }
+
+@keyframes landing-row-wash {
+  0% { opacity: 1; transform: scaleX(0); }
+  60% { opacity: 1; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(1); }
+}
+
+button.landing-preview-row.is-done .landing-preview-time { color: var(--landing-teal-deep); }
+
+/* ---- Qur'an: the recitation plays. Sound bars move, a line runs along the
+   player, and each word of the ayah lights as it is reached. Pausing stops
+   all three where they are. */
+.landing-preview--quran .landing-preview-translation { animation: landing-fade-up 0.6s ease 0.3s backwards; }
+.landing-preview--quran .landing-preview-audio { position: relative; overflow: hidden; animation: landing-fade-up 0.6s ease 0.5s backwards; }
+
+.landing-ayah-word {
+  color: var(--landing-ink);
+  animation: landing-word-read 6.4s ease-in-out infinite;
+  animation-delay: calc(var(--word, 0) * 1.05s);
+  animation-play-state: paused;
+}
+
+.landing-preview--quran.is-playing .landing-ayah-word { animation-play-state: running; }
+
+@keyframes landing-word-read {
+  0%, 22%, 100% { color: var(--landing-ink); text-shadow: none; }
+  6%, 14% { color: var(--landing-teal); text-shadow: 0 0 18px rgb(var(--accent-rgb) / 0.45); }
+}
+
+.landing-preview-play {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  transition: transform var(--transition);
+}
+
+.landing-preview-play:hover { transform: scale(1.14); }
+
+.landing-preview--quran .landing-preview-wave {
+  gap: 3px;
+  height: 30px;
+  justify-content: space-between;
+}
+
+.landing-preview--quran .landing-preview-wave span {
+  flex: 0 1 5px;
+  min-width: 2px;
+  border-radius: 2px;
+  opacity: 0.5;
+  transform-origin: 50% 50%;
+  animation: landing-wave 0.9s ease-in-out infinite;
+  animation-delay: calc(var(--wave, 0) * -0.11s);
+  animation-play-state: paused;
+}
+
+.landing-preview--quran.is-playing .landing-preview-wave span {
+  opacity: 0.9;
+  animation-play-state: running;
+}
+
+@keyframes landing-wave {
+  0%, 100% { transform: scaleY(0.35); }
+  50% { transform: scaleY(1); }
+}
+
+.landing-preview-progress {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: var(--landing-teal);
+  transform-origin: 0 50%;
+  animation: landing-tab-timer 12s linear infinite;
+  animation-play-state: paused;
+}
+
+.landing-preview--quran.is-playing .landing-preview-progress { animation-play-state: running; }
+
+/* ---- Challenges: each is checked in for the day; its streak ticks up, its
+   flame flickers and its bar grows, with a light running along it. */
+button.landing-challenge {
+  text-align: left;
+  color: inherit;
+  transition: border-color var(--transition), transform var(--transition), background var(--transition);
+  animation: landing-fade-up 0.5s ease backwards;
+}
+
+button.landing-challenge:nth-child(2) { animation-delay: 0.08s; }
+button.landing-challenge:nth-child(3) { animation-delay: 0.16s; }
+button.landing-challenge:nth-child(4) { animation-delay: 0.24s; }
+
+button.landing-challenge:hover { transform: translateY(-2px); border-color: var(--landing-line-strong); }
+
+button.landing-challenge.is-checked {
+  border-color: var(--landing-teal);
+  background: rgb(var(--accent-rgb) / 0.08);
+}
+
+button.landing-challenge.is-checked .landing-challenge-top > .material-symbols-rounded { animation: landing-pop 0.45s cubic-bezier(0.3, 1.4, 0.5, 1); }
+
+.landing-challenge-streak {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.landing-challenge-streak .landing-ember { font-size: 0.85rem; }
+button.landing-challenge.is-checked .landing-challenge-streak { animation: landing-pop 0.45s cubic-bezier(0.3, 1.4, 0.5, 1); }
+
+.landing-challenge-bar { overflow: hidden; }
+
+.landing-challenge-bar span {
+  position: relative;
+  overflow: hidden;
+  transform-origin: 0 50%;
+  transition: width 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+  animation: landing-bar-grow 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) 0.3s backwards;
+}
+
+@keyframes landing-bar-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.landing-challenge-bar span::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+  transform: translateX(-100%);
+  animation: landing-bar-light 2.6s ease-in-out infinite;
+}
+
+@keyframes landing-bar-light {
+  0%, 35% { transform: translateX(-100%); }
+  75%, 100% { transform: translateX(100%); }
+}
+
+/* ---- Friends: the members arrive; those who have checked in carry a soft
+   ring and a flame; then the last one checks in, with a "+1", and the group's
+   bar for the day fills. */
+.landing-preview--friends .landing-friend { animation: landing-slide-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
+.landing-preview--friends .landing-friend:nth-child(2) { animation-delay: 0.14s; }
+.landing-preview--friends .landing-friend:nth-child(3) { animation-delay: 0.28s; }
+
+@keyframes landing-slide-in {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.landing-friend .landing-avatar { position: relative; }
+
+.landing-friend.is-in .landing-avatar::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border: 2px solid var(--landing-teal);
+  border-radius: 50%;
+  animation: landing-ring-glow 2.4s ease-out infinite;
+}
+
+.landing-friend:nth-child(2).is-in .landing-avatar::after { animation-delay: 0.8s; }
+.landing-friend:nth-child(3).is-in .landing-avatar::after { animation-delay: 1.6s; }
+
+.landing-friend-streak { position: relative; transition: color var(--transition); }
+.landing-friend.is-arrived .landing-friend-streak { animation: landing-pop 0.5s cubic-bezier(0.3, 1.4, 0.5, 1); }
+.landing-friend.is-arrived .landing-friend-meta span { color: var(--landing-teal-deep); }
+.landing-friend.is-arrived { animation: landing-friend-lit 1.1s ease-out; }
+
+@keyframes landing-friend-lit {
+  0% { background: rgb(var(--accent-rgb) / 0.2); }
+  100% { background: rgb(var(--accent-rgb) / 0); }
+}
+
+.landing-plus-one {
+  position: absolute;
+  top: -0.2rem;
+  right: 0;
+  color: var(--landing-teal-deep);
+  font-size: 0.72rem;
+  font-weight: 800;
+  pointer-events: none;
+  animation: landing-rise-away 1.3s ease-out both;
+}
+
+@keyframes landing-rise-away {
+  0% { opacity: 0; transform: translateY(4px) scale(0.7); }
+  25% { opacity: 1; transform: translateY(-8px) scale(1.1); }
+  100% { opacity: 0; transform: translateY(-26px) scale(1); }
+}
+
+.landing-friends-today {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+  color: var(--landing-muted);
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.landing-friends-today strong { color: var(--landing-ink); white-space: nowrap; }
+
+.landing-friends-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--landing-line);
+}
+
+.landing-friends-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent-fill-1), var(--accent-fill-bright));
+  transition: width 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* ---- Community: the reflections arrive; likes come in on the first, each
+   sending a heart floating up; and someone else is writing. */
+.landing-preview--community .landing-mini-post { animation: landing-fade-up 0.55s ease 0.1s backwards; }
+.landing-preview--community .landing-mini-post + .landing-mini-post { animation-delay: 0.3s; }
+
+.landing-like {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-weight: inherit;
+  transition: color var(--transition);
+}
+
+.landing-like:hover,
+.landing-like.is-liked { color: #e11d48; }
+.landing-like.is-liked > .material-symbols-rounded:first-child { animation: landing-pop 0.45s cubic-bezier(0.3, 1.4, 0.5, 1); }
+
+.landing-mini-post-actions .landing-heart-float {
+  position: absolute;
+  bottom: 0.1rem;
+  left: 0;
+  color: #e11d48;
+  font-size: 0.95rem;
+  pointer-events: none;
+  animation: landing-heart-rise 1.4s ease-out both;
+}
+
+@keyframes landing-heart-rise {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.6); }
+  20% { opacity: 1; transform: translate(2px, -10px) scale(1.25); }
+  100% { opacity: 0; transform: translate(-4px, -38px) scale(0.9); }
+}
+
+.landing-typing {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+  color: var(--landing-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  animation: landing-fade-up 0.55s ease 0.6s backwards;
+}
+
+.landing-typing .landing-avatar {
+  width: 22px;
+  height: 22px;
+  font-size: 0.6rem;
+}
+
+.landing-typing-dots {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.landing-typing-dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--landing-teal);
+  animation: landing-typing 1.2s ease-in-out infinite;
+}
+
+.landing-typing-dots i:nth-child(2) { animation-delay: 0.15s; }
+.landing-typing-dots i:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes landing-typing {
+  0%, 60%, 100% { opacity: 0.35; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-4px); }
+}
+
 /* Less motion: everything above stands still, fully visible. */
 @media (prefers-reduced-motion: reduce) {
   .landing-hero-copy > *,
   .landing-hero-art .landing-float,
   .landing-grad,
   .landing-cta-row .btn-primary .material-symbols-rounded,
-  .landing-tool .landing-tool-art * {
+  .landing-tool .landing-tool-art *,
+  .landing-tab.is-timed::after,
+  .landing-preview *,
+  .landing-preview *::before,
+  .landing-preview *::after {
     animation: none !important;
   }
 }

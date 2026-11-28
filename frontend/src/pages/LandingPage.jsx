@@ -304,6 +304,14 @@ const FRIEND_DEMO = [
   { initial: 'S', name: 'Sara', note: 'Not yet today', streak: 4, done: false },
 ];
 
+// True when the reader has asked their device for less motion. The previews
+// then open in their finished state instead of playing themselves in.
+function wantsLessMotion() {
+  return typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 function PrayerRing({ value, size = 144 }) {
   const radius = 46;
   const circumference = 2 * Math.PI * radius;
@@ -346,7 +354,11 @@ function PreviewFrame({ children, className = '' }) {
   );
 }
 
-function MiniPost({ initial, name, time, text }) {
+function MiniPost({ initial, name, time, text, likes = 24, cheers = 0 }) {
+  // Tapping the heart likes the post, as it does in the app. `cheers` are likes
+  // arriving from other people while the preview plays: each one sends a small
+  // heart floating up from the button.
+  const [liked, setLiked] = useState(false);
   return (
     <article className="landing-mini-post">
       <div className="landing-mini-post-head">
@@ -358,16 +370,73 @@ function MiniPost({ initial, name, time, text }) {
         <span className="material-symbols-rounded landing-post-more" aria-hidden="true">more_horiz</span>
       </div>
       <p className="landing-mini-post-text">{text}</p>
-      <div className="landing-mini-post-actions" aria-hidden="true">
-        <span><span className="material-symbols-rounded">favorite</span>24</span>
-        <span><span className="material-symbols-rounded">chat_bubble</span>3</span>
-        <span className="material-symbols-rounded">share</span>
+      <div className="landing-mini-post-actions">
+        <button
+          type="button"
+          className={`landing-like${liked ? ' is-liked' : ''}`}
+          onClick={() => setLiked((value) => !value)}
+          aria-pressed={liked}
+          aria-label={liked ? 'Unlike this post' : 'Like this post'}
+        >
+          <span className="material-symbols-rounded" aria-hidden="true">favorite</span>
+          {likes + cheers + (liked ? 1 : 0)}
+          {cheers > 0 && (
+            <span key={cheers} className="landing-heart-float material-symbols-rounded" aria-hidden="true">favorite</span>
+          )}
+        </button>
+        <span aria-hidden="true"><span className="material-symbols-rounded">chat_bubble</span>3</span>
+        <span className="material-symbols-rounded" aria-hidden="true">share</span>
       </div>
     </article>
   );
 }
 
+// Each of the five previews below is a small working model of its screen. It
+// plays a short scene on a loop, the way the module pictures further down the
+// page do, and the parts that answer to a finger in the app answer to one
+// here: prayers can be logged, the recitation paused, a challenge checked in,
+// a post liked. Once the visitor taps, the scene stops and the preview is
+// theirs. For readers who ask for less motion nothing loops: each preview
+// simply shows its finished state.
+
+// Runs `scene` now and again every `every` milliseconds until `stopped`.
+// `scene` receives a function for scheduling its own steps; everything it
+// schedules is cancelled when the loop ends or the preview is closed.
+function useScene(scene, every, stopped) {
+  const sceneRef = useRef(scene);
+  sceneRef.current = scene;
+  useEffect(() => {
+    if (stopped || wantsLessMotion()) return undefined;
+    let timers = [];
+    const at = (ms, step) => { timers.push(window.setTimeout(step, ms)); };
+    const run = () => {
+      timers = [];
+      sceneRef.current(at);
+      at(every, run);
+    };
+    run();
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [every, stopped]);
+}
+
 function SalahPreview() {
+  // The scene: an empty day fills in one prayer at a time, the ring closing
+  // with it; at five of five the ring glows, then the day begins again.
+  const [done, setDone] = useState(() => PRAYERS.map(() => wantsLessMotion()));
+  const [touched, setTouched] = useState(false);
+  useScene((at) => {
+    setDone(PRAYERS.map(() => false));
+    PRAYERS.forEach((_, index) => {
+      at(600 + index * 520, () => setDone((current) => current.map((value, i) => (i <= index ? true : value))));
+    });
+  }, 7600, touched);
+
+  const count = done.filter(Boolean).length;
+  const toggle = (index) => {
+    setTouched(true);
+    setDone((current) => current.map((value, i) => (i === index ? !value : value)));
+  };
+
   return (
     <PreviewFrame className="landing-preview--salah">
       <div className="landing-preview-head">
@@ -375,28 +444,50 @@ function SalahPreview() {
           <span className="landing-preview-kicker">Salah Tracker</span>
           <h3>Today</h3>
         </div>
-        <span className="landing-badge">5 / 5</span>
+        <span className={`landing-badge${count === PRAYERS.length ? ' is-full' : ''}`}>{count} / {PRAYERS.length}</span>
       </div>
       <div className="landing-preview-salah">
-        <PrayerRing value={5} size={124} />
+        <div className={`landing-ring-wrap${count === PRAYERS.length ? ' is-complete' : ''}`}>
+          <span className="landing-ring-pulse" aria-hidden="true" />
+          <span className="landing-ring-pulse" aria-hidden="true" />
+          <PrayerRing value={count} size={124} />
+        </div>
         <div className="landing-preview-rows">
-          {PRAYERS.map((prayer) => (
-            <div className="landing-preview-row" key={prayer}>
-              <span className="material-symbols-rounded">check_circle</span>
+          {PRAYERS.map((prayer, index) => (
+            <button
+              type="button"
+              className={`landing-preview-row${done[index] ? ' is-done' : ''}`}
+              key={prayer}
+              onClick={() => toggle(index)}
+              aria-pressed={done[index]}
+            >
+              <span className="material-symbols-rounded" aria-hidden="true">
+                {done[index] ? 'check_circle' : 'radio_button_unchecked'}
+              </span>
               <span>{prayer}</span>
-              <span className="landing-preview-time">Logged</span>
-            </div>
+              <span className="landing-preview-time">{done[index] ? 'Logged' : 'Tap to log'}</span>
+            </button>
           ))}
         </div>
       </div>
-      <p className="landing-preview-note">A clear picture of the day, without a scoreboard.</p>
+      <p className="landing-preview-note">Tap a prayer to log it. A clear picture of the day, without a scoreboard.</p>
     </PreviewFrame>
   );
 }
 
+// The ayah on the Qur'an preview, word by word, so each can light up as the
+// recitation reaches it.
+const PREVIEW_AYAH = ['أَلَا', 'بِذِكْرِ', 'اللَّهِ', 'تَطْمَئِنُّ', 'الْقُلُوبُ'];
+// Heights of the sound bars, as a share of the row: uneven, like a voice.
+const WAVE_BARS = [34, 62, 48, 86, 58, 40, 74, 96, 66, 44, 80, 54, 36, 70, 92, 60, 46, 78, 56, 38, 68, 88, 52, 42, 76, 64, 48, 58];
+
 function QuranPreview() {
+  // The scene: the recitation plays. The sound bars move, a line runs along
+  // the bottom of the player, and each word of the ayah lights as it is read.
+  // The button pauses all three together.
+  const [playing, setPlaying] = useState(() => !wantsLessMotion());
   return (
-    <PreviewFrame className="landing-preview--quran">
+    <PreviewFrame className={`landing-preview--quran${playing ? ' is-playing' : ''}`}>
       <div className="landing-preview-head">
         <div>
           <span className="landing-preview-kicker">Qur’an</span>
@@ -404,20 +495,52 @@ function QuranPreview() {
         </div>
         <span className="landing-badge">Sahih International</span>
       </div>
-      <p className="landing-preview-arabic">أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ</p>
+      <p className="landing-preview-arabic">
+        {PREVIEW_AYAH.map((word, index) => (
+          <span key={word} className="landing-ayah-word" style={{ '--word': index }}>{word}{' '}</span>
+        ))}
+      </p>
       <p className="landing-preview-translation">Verily, in the remembrance of Allah do hearts find rest.</p>
       <div className="landing-preview-audio">
-        <span className="material-symbols-rounded">play_arrow</span>
+        <button
+          type="button"
+          className="landing-preview-play material-symbols-rounded"
+          onClick={() => setPlaying((value) => !value)}
+          aria-label={playing ? 'Pause the recitation' : 'Play the recitation'}
+          aria-pressed={playing}
+        >
+          {playing ? 'pause' : 'play_arrow'}
+        </button>
         <div className="landing-preview-wave" aria-hidden="true">
-          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((bar) => <span key={bar} />)}
+          {WAVE_BARS.map((height, bar) => (
+            <span key={bar} style={{ '--wave': bar, height: `${height}%` }} />
+          ))}
         </div>
         <span className="landing-preview-duration">0:32</span>
+        <i className="landing-preview-progress" aria-hidden="true" />
       </div>
     </PreviewFrame>
   );
 }
 
 function ChallengesPreview() {
+  // The scene: the four challenges are checked in for the day, one after
+  // another; each streak goes up and its bar grows. Then the day resets.
+  const [checked, setChecked] = useState(() => CHALLENGE_DEMO.map(() => false));
+  const [touched, setTouched] = useState(false);
+  useScene((at) => {
+    setChecked(CHALLENGE_DEMO.map(() => false));
+    CHALLENGE_DEMO.forEach((_, index) => {
+      at(1300 + index * 950, () => setChecked((current) => current.map((value, i) => (i === index ? true : value))));
+    });
+  }, 8200, touched);
+
+  const toggle = (index) => {
+    setTouched(true);
+    setChecked((current) => current.map((value, i) => (i === index ? !value : value)));
+  };
+  const today = checked.filter(Boolean).length;
+
   return (
     <PreviewFrame className="landing-preview--challenges">
       <div className="landing-preview-head">
@@ -425,27 +548,49 @@ function ChallengesPreview() {
           <span className="landing-preview-kicker">Challenges</span>
           <h3>This week</h3>
         </div>
-        <span className="landing-badge">4 active</span>
+        <span className={`landing-badge${today === CHALLENGE_DEMO.length ? ' is-full' : ''}`}>{today} of {CHALLENGE_DEMO.length} today</span>
       </div>
       <div className="landing-challenge-grid">
-        {CHALLENGE_DEMO.map((item) => (
-          <div className="landing-challenge" key={item.name}>
-            <div className="landing-challenge-top">
-              <span className="material-symbols-rounded">{item.icon}</span>
-              <span className="landing-challenge-streak">{item.streak}d</span>
-            </div>
-            <strong>{item.name}</strong>
-            <div className="landing-challenge-bar">
-              <span style={{ width: `${Math.min(item.streak * 8, 100)}%` }} />
-            </div>
-          </div>
-        ))}
+        {CHALLENGE_DEMO.map((item, index) => {
+          const streak = item.streak + (checked[index] ? 1 : 0);
+          return (
+            <button
+              type="button"
+              className={`landing-challenge${checked[index] ? ' is-checked' : ''}`}
+              key={item.name}
+              onClick={() => toggle(index)}
+              aria-pressed={checked[index]}
+              aria-label={`${item.name}: ${streak} day streak. ${checked[index] ? 'Checked in today' : 'Tap to check in'}`}
+            >
+              <div className="landing-challenge-top">
+                <span className="material-symbols-rounded" aria-hidden="true">{checked[index] ? 'check_circle' : item.icon}</span>
+                <span className="landing-challenge-streak">
+                  <span className="landing-ember material-symbols-rounded" aria-hidden="true">local_fire_department</span>
+                  {streak}d
+                </span>
+              </div>
+              <strong>{item.name}</strong>
+              <div className="landing-challenge-bar">
+                <span style={{ width: `${Math.min(streak * 8, 100)}%` }} />
+              </div>
+            </button>
+          );
+        })}
       </div>
+      <p className="landing-preview-note">Tap a challenge to check in for today.</p>
     </PreviewFrame>
   );
 }
 
 function CommunityPreview() {
+  // The scene: likes arrive on the first reflection, each sending a heart
+  // floating up, while someone else is writing one of their own.
+  const [cheers, setCheers] = useState(0);
+  useScene((at) => {
+    setCheers(0);
+    [1, 2, 3].forEach((count) => at(1200 + count * 1500, () => setCheers(count)));
+  }, 8400, false);
+
   return (
     <PreviewFrame className="landing-preview--community">
       <div className="landing-preview-head">
@@ -459,19 +604,37 @@ function CommunityPreview() {
         initial="A"
         name="Amina"
         time="2m"
+        cheers={cheers}
         text="A small reminder: consistency matters more than intensity."
       />
       <MiniPost
         initial="Y"
         name="Yusuf"
         time="18m"
+        likes={11}
         text="Finished my first full week of reading after Maghrib, alhamdulillah."
       />
+      <div className="landing-typing" aria-hidden="true">
+        <span className="landing-avatar">S</span>
+        <span>Sara is writing a reflection</span>
+        <span className="landing-typing-dots"><i /><i /><i /></span>
+      </div>
     </PreviewFrame>
   );
 }
 
 function FriendsPreview() {
+  // The scene: two friends have checked in; a moment later the third does.
+  // Her streak ticks up with a "+1", her avatar lights, and the group's bar
+  // for the day fills. Then the day begins again.
+  const [arrived, setArrived] = useState(() => wantsLessMotion());
+  useScene((at) => {
+    setArrived(false);
+    at(2400, () => setArrived(true));
+  }, 7400, false);
+
+  const inToday = FRIEND_DEMO.filter((friend) => friend.done || arrived).length;
+
   return (
     <PreviewFrame className="landing-preview--friends">
       <div className="landing-preview-head">
@@ -482,26 +645,40 @@ function FriendsPreview() {
         <span className="landing-badge">4 members</span>
       </div>
       <div className="landing-friends">
-        {FRIEND_DEMO.map((friend) => (
-          <div className="landing-friend" key={friend.name}>
-            <span className="landing-avatar" aria-hidden="true">{friend.initial}</span>
-            <div className="landing-friend-meta">
-              <strong>{friend.name}</strong>
-              <span>{friend.note}</span>
-            </div>
-            <span className={`landing-friend-streak${friend.done ? ' is-done' : ''}`}>
-              <span className="material-symbols-rounded" aria-hidden="true">
-                {friend.done ? 'local_fire_department' : 'schedule'}
+        {FRIEND_DEMO.map((friend) => {
+          const done = friend.done || arrived;
+          const justIn = !friend.done && arrived;
+          return (
+            <div className={`landing-friend${done ? ' is-in' : ''}${justIn ? ' is-arrived' : ''}`} key={friend.name}>
+              <span className="landing-avatar" aria-hidden="true">{friend.initial}</span>
+              <div className="landing-friend-meta">
+                <strong>{friend.name}</strong>
+                <span>{done ? 'Checked in today' : friend.note}</span>
+              </div>
+              <span className={`landing-friend-streak${done ? ' is-done' : ''}`}>
+                <span className={`material-symbols-rounded${done ? ' landing-ember' : ''}`} aria-hidden="true">
+                  {done ? 'local_fire_department' : 'schedule'}
+                </span>
+                {friend.streak + (justIn ? 1 : 0)}d
+                {justIn && <span className="landing-plus-one" aria-hidden="true">+1</span>}
               </span>
-              {friend.streak}d
-            </span>
-          </div>
-        ))}
+            </div>
+          );
+        })}
+      </div>
+      <div className="landing-friends-today">
+        <span>Checked in today</span>
+        <div className="landing-friends-bar"><i style={{ width: `${(inToday / FRIEND_DEMO.length) * 100}%` }} /></div>
+        <strong>{inToday} of {FRIEND_DEMO.length}</strong>
       </div>
       <p className="landing-preview-note">Everyone sees the streak. Nobody sees your log.</p>
     </PreviewFrame>
   );
 }
+
+// How long each feature tab stays up while the tabs are turning by themselves.
+// Long enough for a preview to finish playing in and be read.
+const FEATURE_TURN_MS = 7000;
 
 const PREVIEWS = {
   salah: SalahPreview,
@@ -519,6 +696,14 @@ export default function LandingPage() {
   // updates the ring. It is the smallest possible taste of the product.
   const [done, setDone] = useState([true, true, true, false, false]);
   const [activeFeature, setActiveFeature] = useState('salah');
+  // The feature tabs turn their own pages until the visitor takes over: they
+  // advance every few seconds while the section is on screen, wait while the
+  // pointer or focus is on them, and stop for good once a tab or a preview is
+  // used by hand. Nothing advances for readers who ask for less motion.
+  const [autoTabs, setAutoTabs] = useState(() => !wantsLessMotion());
+  const [tabsHeld, setTabsHeld] = useState(false);
+  const [stageInView, setStageInView] = useState(false);
+  const stageWrapRef = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [accentOpen, setAccentOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -674,6 +859,27 @@ export default function LandingPage() {
     api.post('/settings', { accent: value }).catch(() => {});
   }
 
+  useEffect(() => {
+    const node = stageWrapRef.current;
+    if (!node || typeof IntersectionObserver !== 'function') return undefined;
+    const observer = new IntersectionObserver((entries) => {
+      setStageInView(entries.some((entry) => entry.isIntersecting));
+    }, { threshold: 0.35 });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  const tabsTurning = autoTabs && !tabsHeld && stageInView;
+
+  useEffect(() => {
+    if (!tabsTurning) return undefined;
+    const timer = window.setTimeout(() => {
+      const index = FEATURES.findIndex((feature) => feature.id === activeFeature);
+      setActiveFeature(FEATURES[(index + 1) % FEATURES.length].id);
+    }, FEATURE_TURN_MS);
+    return () => window.clearTimeout(timer);
+  }, [tabsTurning, activeFeature]);
+
   function handleTabKey(event) {
     if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
     event.preventDefault();
@@ -681,6 +887,7 @@ export default function LandingPage() {
     const index = FEATURES.findIndex((feature) => feature.id === activeFeature);
     const step = event.key === 'ArrowRight' ? 1 : -1;
     const next = FEATURES[(index + step + FEATURES.length) % FEATURES.length];
+    setAutoTabs(false);
     setActiveFeature(next.id);
     if (tabs && tabs.children[FEATURES.indexOf(next)]) {
       tabs.children[FEATURES.indexOf(next)].focus();
@@ -1009,6 +1216,14 @@ export default function LandingPage() {
               </p>
             </div>
 
+            <div
+              className="landing-stage-wrap"
+              ref={stageWrapRef}
+              onMouseEnter={() => setTabsHeld(true)}
+              onMouseLeave={() => setTabsHeld(false)}
+              onFocus={() => setTabsHeld(true)}
+              onBlur={() => setTabsHeld(false)}
+            >
             <div className="landing-tabs" role="tablist" aria-label="Hasanath features">
               {FEATURES.map((feature) => (
                 <button
@@ -1019,8 +1234,8 @@ export default function LandingPage() {
                   aria-selected={active.id === feature.id}
                   aria-controls="landing-feature-panel"
                   tabIndex={active.id === feature.id ? 0 : -1}
-                  className={`landing-tab${active.id === feature.id ? ' is-active' : ''}`}
-                  onClick={() => setActiveFeature(feature.id)}
+                  className={`landing-tab${active.id === feature.id ? ' is-active' : ''}${active.id === feature.id && tabsTurning ? ' is-timed' : ''}`}
+                  onClick={() => { setAutoTabs(false); setActiveFeature(feature.id); }}
                   onKeyDown={handleTabKey}
                 >
                   <span className="material-symbols-rounded" aria-hidden="true">{feature.icon}</span>
@@ -1036,7 +1251,9 @@ export default function LandingPage() {
               id="landing-feature-panel"
               aria-labelledby={`landing-tab-${active.id}`}
             >
-              <div className="landing-stage-preview">
+              {/* A tap inside the preview means the visitor is using it: the
+                  tabs stop turning so it is not taken away mid-tap. */}
+              <div className="landing-stage-preview" onClickCapture={() => setAutoTabs(false)}>
                 <ActivePreview />
               </div>
               <div className="landing-stage-copy">
@@ -1061,6 +1278,7 @@ export default function LandingPage() {
                   <span className="material-symbols-rounded" aria-hidden="true">arrow_forward</span>
                 </Link>
               </div>
+            </div>
             </div>
           </div>
         </section>
