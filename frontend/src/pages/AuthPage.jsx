@@ -22,9 +22,11 @@ const MESSAGES = {
   'too-many-attempts': 'Too many incorrect attempts. Please request a new code.',
   'email-not-sent': 'We could not send the email. Please try again shortly.',
   'account-suspended': 'This account has been suspended. If you think this is a mistake, write to support@hasanath.app.',
-  'signups-closed': 'Signups are closed right now. Please check back later.',
-  'signup-daily-limit': 'Today’s signups are full. Please try again tomorrow.',
-  'signup-weekly-limit': 'This week’s signups are full. Please try again next week.',
+  // Early access wording (temporary, until the public launch): a refused
+  // signup is told why, and how to ask to be let in.
+  'signups-closed': 'Hasanath is in early access and is not open for new signups yet. To ask for early access, write to support@hasanath.app.',
+  'signup-daily-limit': 'Hasanath is in early access and has reached its signup limit for today. To ask for early access, write to support@hasanath.app.',
+  'signup-weekly-limit': 'Hasanath is in early access and has reached its signup limit for this week. To ask for early access, write to support@hasanath.app.',
   'same-password': 'Choose a password different from the current one.'
 };
 
@@ -35,6 +37,22 @@ function rateLimitedMessage(err) {
   const seconds = Number(err.body.retryAfter) || 0;
   const minutes = Math.max(1, Math.ceil(seconds / 60));
   return `Too many emails requested. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`;
+}
+
+// A message that names the support address shows it as a link that opens a
+// new email, so asking for early access is one tap.
+const SUPPORT_ADDRESS = 'support@hasanath.app';
+function withSupportLink(message) {
+  const text = String(message || '');
+  const at = text.indexOf(SUPPORT_ADDRESS);
+  if (at === -1) return text;
+  return (
+    <>
+      {text.slice(0, at)}
+      <a href={`mailto:${SUPPORT_ADDRESS}?subject=${encodeURIComponent('Early access to Hasanath')}`}>{SUPPORT_ADDRESS}</a>
+      {text.slice(at + SUPPORT_ADDRESS.length)}
+    </>
+  );
 }
 
 export default function AuthPage({ mode: initialMode = 'login' }) {
@@ -201,7 +219,7 @@ export default function AuthPage({ mode: initialMode = 'login' }) {
         {error && (
           <div className="auth-alert" role="alert">
             <span className="material-symbols-rounded">error</span>
-            {error}
+            <span>{withSupportLink(error)}</span>
           </div>
         )}
 

@@ -316,6 +316,7 @@ const Posts = require("./models/Post.js");
 const PostReport = require("./models/PostReport.js");
 const postModeration = require("./services/postModeration.js");
 const limits = require("./services/limits.js");
+const earlyAccess = require("./services/earlyAccess.js");
 const masjids = require("./services/masjids.js");
 
 // Keep like data useful without publishing the list of user ids. Every route
@@ -2750,6 +2751,45 @@ app.get("/api/admin/stats", requireLogin, requireAdmin, async function(req, res)
 // One page for every adjustable limit. The list of limits, their ranges and
 // their defaults live in services/limits.js; these routes only pass them on.
 
+// ---- Early access (temporary, until the public launch) ----
+//
+// The addresses allowed to sign up while signups are capped or closed. Adding
+// one emails that person an invitation; adding it again sends the email again.
+app.get("/api/admin/early-access", requireLogin, requireAdmin, async function(req, res){
+    try {
+        res.json({ entries: await earlyAccess.list() });
+    } catch (err) {
+        console.error("api/admin/early-access GET:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.post("/api/admin/early-access", requireLogin, requireAdmin, async function(req, res){
+    try {
+        const result = await earlyAccess.invite(req.body && req.body.email, req.user);
+        if (result.error) {
+            const status = result.error === "already-registered" ? 409 : 400;
+            return res.status(status).json({ error: result.error });
+        }
+        console.log("admin: " + (req.user.username || req.user.email) + " gave early access to " + result.entry.email + (result.emailed ? " (emailed)" : " (EMAIL NOT SENT)"));
+        res.status(201).json({ entry: result.entry, emailed: result.emailed, entries: await earlyAccess.list() });
+    } catch (err) {
+        console.error("api/admin/early-access POST:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
+app.delete("/api/admin/early-access/:id", requireLogin, requireAdmin, async function(req, res){
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "not-found" });
+    try {
+        await earlyAccess.remove(req.params.id);
+        res.json({ ok: true, entries: await earlyAccess.list() });
+    } catch (err) {
+        console.error("api/admin/early-access DELETE:", err.message);
+        res.status(500).json({ error: "failed" });
+    }
+});
+
 // What this server sees of the caller's network address. The limits for
 // visitors who are not signed in are counted by address, so this is how to
 // check, once, that the address seen is the visitor's own and not the hosting
@@ -4039,9 +4079,11 @@ const AUTH_MESSAGES = {
     'too-many-attempts': 'Too many incorrect attempts. Please register again.',
     'email-not-sent': 'We could not send a verification email. Please try again.',
     'account-suspended': 'This account has been suspended. If you think this is a mistake, write to support@hasanath.app.',
-    'signups-closed': 'Signups are closed right now. Please check back later.',
-    'signup-daily-limit': 'Today\'s signups are full. Please try again tomorrow.',
-    'signup-weekly-limit': 'This week\'s signups are full. Please try again next week.'
+    // Early access wording (temporary, until the public launch): a refused
+    // signup is told why, and how to ask to be let in.
+    'signups-closed': 'Hasanath is in early access and is not open for new signups yet. To ask for early access, write to support@hasanath.app.',
+    'signup-daily-limit': 'Hasanath is in early access and has reached its signup limit for today. To ask for early access, write to support@hasanath.app.',
+    'signup-weekly-limit': 'Hasanath is in early access and has reached its signup limit for this week. To ask for early access, write to support@hasanath.app.'
 };
 
 app.post("/api/auth/register", otpIpLimiter, resolveOtpTarget, otpEmailLimiter, async function(req, res){
@@ -4056,9 +4098,9 @@ app.post("/api/auth/register", otpIpLimiter, resolveOtpTarget, otpEmailLimiter, 
     // Signup limits from the admin Limits page: closed, or a daily/weekly cap.
     // Checked here so we do not send an OTP that can never be used.
     try {
-        const check = await limits.checkSignupAllowed();
+        const check = await limits.checkSignupAllowed(email);
         if (!check.allowed) {
-            return res.status(check.error === "signups-closed" ? 403 : 429).json({ error: check.error });
+            return res.status(check.error === "signups-closed" ? 403 : 429).json({ error: check.error, message: AUTH_MESSAGES });
         }
     } catch (err) {
         console.error("signup limit check:", err.message);
@@ -4137,10 +4179,10 @@ app.post("/api/auth/verify", async function(req, res){
     }
 
     try {
-        const check = await limits.checkSignupAllowed();
+        const check = await limits.checkSignupAllowed(pending.email);
         if (!check.allowed) {
             delete req.session.pendingSignup;
-            return res.status(check.error === "signups-closed" ? 403 : 429).json({ error: check.error });
+            return res.status(check.error === "signups-closed" ? 403 : 429).json({ error: check.error, message: AUTH_MESSAGES });
         }
     } catch (err) {
         console.error("signup limit check:", err.message);
@@ -4156,6 +4198,8 @@ app.post("/api/auth/verify", async function(req, res){
         });
 
         delete req.session.pendingSignup;
+        // If this address was on the early-access list, note that it was used.
+        earlyAccess.markSignedUp(user.email).catch((err) => console.error("early access mark:", err.message));
         await mergeGuestIntoUser(req, user);
         req.logIn(user, (err) => {
             if (err) return res.status(500).json({ error: "failed" });

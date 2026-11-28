@@ -10,6 +10,7 @@
 
 const mongoose = require("mongoose");
 const AppLimit = require("../models/AppLimit.js");
+const earlyAccess = require("./earlyAccess.js");
 const User = require("../models/User.js");
 const Posts = require("../models/Post.js");
 const AppNotification = require("../models/AppNotification.js");
@@ -238,11 +239,15 @@ async function describe() {
 
 // { allowed: true } or { allowed: false, error } where error is one of
 // "signups-closed", "signup-daily-limit", "signup-weekly-limit".
-async function checkSignupAllowed() {
+// `email` is the address trying to sign up. During early access an address an
+// admin has invited is let through whatever the caps say, including when
+// signups are closed (a cap of 0); everyone else meets the caps as usual.
+async function checkSignupAllowed(email) {
     const { values, thresholdPercent } = await settings();
     const daily = values.signupsPerDay;
     const weekly = values.signupsPerWeek;
     if (daily === null && weekly === null) return { allowed: true };
+    if (email && await earlyAccess.isInvited(email)) return { allowed: true, earlyAccess: true };
     if (daily === 0 || weekly === 0) return { allowed: false, error: "signups-closed" };
 
     const [today, thisWeek] = await Promise.all([

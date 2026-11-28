@@ -209,6 +209,10 @@ export const admin = {
   login: (identifier, password) => api.post('/admin/login', { identifier, password }),
   stats: () => api.get('/admin/stats'),
   // Every adjustable limit (signups and posting), with what has been used so far.
+  // Early access (temporary): the addresses allowed to sign up while signups are limited.
+  earlyAccess: () => api.get('/admin/early-access'),
+  addEarlyAccess: (email) => api.post('/admin/early-access', { email }),
+  removeEarlyAccess: (id) => api.request(`/admin/early-access/${id}`, { method: 'DELETE' }),
   limits: () => api.get('/admin/limits'),
   // payload: { values: { <key>: number | null }, thresholdPercent }. null = off.
   updateLimits: (payload) => api.request('/admin/limits', { method: 'PUT', body: payload }),

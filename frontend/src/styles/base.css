@@ -17121,3 +17121,48 @@ button.landing-challenge.is-checked .landing-challenge-streak { animation: landi
     animation: none !important;
   }
 }
+
+/* ---- Admin: the early-access list (temporary, until the public launch) ---- */
+.early-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.early-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--color-border-light);
+  border-radius: 12px;
+}
+
+.early-item-text {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.early-item-email {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.early-item-meta {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+.early-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.auth-alert a { color: inherit; font-weight: 700; text-decoration: underline; }

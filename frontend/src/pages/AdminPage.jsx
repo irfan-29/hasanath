@@ -8,6 +8,7 @@ import BannersPanel from '../components/admin/BannersPanel';
 import UsersPanel from '../components/admin/UsersPanel';
 import ContactMessagesPanel from '../components/admin/ContactMessagesPanel';
 import LimitsPanel from '../components/admin/LimitsPanel';
+import EarlyAccessPanel from '../components/admin/EarlyAccessPanel';
 
 // The admin portal.
 //
@@ -76,7 +77,12 @@ export default function AdminPage() {
         {tab === 'banners' && <BannersPanel />}
         {tab === 'users' && <UsersPanel />}
         {tab === 'messages' && <ContactMessagesPanel />}
-        {tab === 'limits' && <LimitsPanel />}
+        {tab === 'limits' && (
+          <>
+            <LimitsPanel />
+            <EarlyAccessPanel />
+          </>
+        )}
       </div>
     </>
   );
