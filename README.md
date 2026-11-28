@@ -471,3 +471,7 @@ always the final source of truth.
 ## 12. Author
 
 Built by **Mohammed Irfan U**. Personal project; no ads, no tracking.
+
+## Developer notes
+
+Every outside service the app uses, the settings each needs, and the things that are easy to forget are in [docs/developer-notes.md](docs/developer-notes.md).
