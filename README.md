@@ -202,8 +202,8 @@ living spec; update this file when a requirement changes.
 ### 2.11 Landing, PWA and Android
 
 - [x] Marketing landing page with live preview, Ayah of the Day, theme/accent
-  pickers, a two-card section for Dhikr & Dua and Masjids Nearby, a nine-tool
-  grid, and a Download for Android button. The hero cards sit in the page's
+  pickers, a nine-module grid in which every module has the same card with a
+  small moving picture of what it does, and a Download for Android button. The hero cards sit in the page's
   flow, so an ayah of any length never overlaps the card below it.
 - [x] Installable PWA: manifest, offline shell, network-first navigation,
   cache-first assets, never cache `/api/*` or personal data.

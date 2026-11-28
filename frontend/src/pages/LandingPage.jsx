@@ -110,66 +110,166 @@ const FEATURES = [
   },
 ];
 
-// The tools that live beside the tracker. None of them had a place on this
-// page, so a visitor who only read the marketing copy never learned the app
-// also carries hadith, prayer times, the qibla, the Hijri calendar, giving, a
-// monthly summary, dhikr and duas, the masjids nearby, and reminders.
+// Everything in the app beyond the five features shown on the stage above.
+// Every module here gets the same card: a small moving picture of what it
+// does, then its name and a line about it. None is singled out, and the order
+// is the order of a day: learn, remember, pray, find your way, give, look back.
 const TOOLS = [
   {
-    icon: 'format_quote',
+    art: 'hadith',
+    icon: 'library_books',
     title: 'Hadith',
     body: 'The sayings of the Prophet ﷺ from the major collections, searchable, with bookmarks.',
     to: '/hadith',
   },
   {
+    art: 'dhikr',
+    icon: 'menu_book',
+    title: 'Dhikr & Dua',
+    body: 'A tasbih you can use with your eyes closed, and duas for the morning, the evening and every day.',
+    to: '/dhikr',
+  },
+  {
+    art: 'timings',
     icon: 'schedule',
     title: 'Salah timings',
     body: 'Today’s prayer times for where you are, and what is next.',
     to: '/salah-timings',
   },
   {
+    art: 'qibla',
     icon: 'explore',
     title: 'Qibla',
     body: 'A compass that points to the Ka’bah, wherever you happen to be.',
     to: '/qibla',
   },
   {
-    icon: 'calendar_month',
-    title: 'Islamic calendar',
-    body: 'Hijri dates and months, side by side with the Gregorian day.',
-    to: '/calendar',
-  },
-  {
-    icon: 'volunteer_activism',
-    title: 'Charity',
-    body: 'Set a giving goal and keep a quiet record of what you give toward it.',
-    to: '/charity',
-  },
-  {
-    icon: 'insights',
-    title: 'Stats',
-    body: 'Salah, challenges and giving, gathered into one monthly view.',
-    to: '/stats',
-  },
-  {
-    icon: 'menu_book',
-    title: 'Dhikr & Dua',
-    body: 'A tasbih counter you can feel, and duas for the morning, the evening and the moments between.',
-    to: '/dhikr',
-  },
-  {
+    art: 'masjids',
     icon: 'mosque',
     title: 'Masjids nearby',
     body: 'The masjids closest to you on a map, with the distance to each and directions.',
     to: '/masjids',
   },
   {
+    art: 'calendar',
+    icon: 'calendar_month',
+    title: 'Islamic calendar',
+    body: 'Hijri dates and months, side by side with the Gregorian day.',
+    to: '/calendar',
+  },
+  {
+    art: 'charity',
+    icon: 'volunteer_activism',
+    title: 'Charity',
+    body: 'Set a giving goal and keep a quiet record of what you give toward it.',
+    to: '/charity',
+  },
+  {
+    art: 'stats',
+    icon: 'insights',
+    title: 'Stats',
+    body: 'Salah, challenges and giving, gathered into one monthly view.',
+    to: '/stats',
+  },
+  {
+    art: 'reminders',
     icon: 'notifications',
     title: 'Reminders',
     body: 'Prayer times and the Ayah of the Day on your phone, through the Android app or Telegram.',
     to: '/settings',
   },
 ];
+
+// The moving picture at the top of each module card. Pure decoration: the
+// card's words say everything, so the whole thing is hidden from screen
+// readers, and it stands still for anyone who asks for less motion.
+function ToolArt({ kind }) {
+  if (kind === 'hadith') {
+    return (
+      <span className="landing-art-saying">
+        <span className="landing-art-lines"><i /><i /><i /></span>
+      </span>
+    );
+  }
+  if (kind === 'dhikr') {
+    return (
+      <>
+        <span className="landing-art-ring" />
+        <span className="landing-art-ring" />
+        <span className="landing-art-ring" />
+        <span className="landing-art-count">33</span>
+      </>
+    );
+  }
+  if (kind === 'timings') {
+    return (
+      <>
+        <span className="landing-art-clock">
+          <i className="landing-art-hand landing-art-hand--hour" />
+          <i className="landing-art-hand landing-art-hand--minute" />
+        </span>
+        <span className="landing-art-chip">Asr · 4:13 PM</span>
+      </>
+    );
+  }
+  if (kind === 'qibla') {
+    return (
+      <span className="landing-art-compass">
+        <i className="landing-art-kaaba" />
+        <i className="landing-art-needle" />
+      </span>
+    );
+  }
+  if (kind === 'masjids') {
+    return (
+      <>
+        <span className="landing-art-road landing-art-road--a" />
+        <span className="landing-art-road landing-art-road--b" />
+        <span className="landing-art-pin landing-art-pin--1" />
+        <span className="landing-art-pin landing-art-pin--2" />
+        <span className="landing-art-pin landing-art-pin--3" />
+        <span className="landing-art-you" />
+        <span className="landing-art-chip">190 m · Directions</span>
+      </>
+    );
+  }
+  if (kind === 'calendar') {
+    return (
+      <>
+        <span className="landing-art-moon" />
+        <span className="landing-art-days">
+          {Array.from({ length: 21 }, (_, index) => (
+            <i key={index} className={index === 10 ? 'landing-art-today' : undefined} />
+          ))}
+        </span>
+      </>
+    );
+  }
+  if (kind === 'charity') {
+    return (
+      <span className="landing-art-goal">
+        <b>Masjid fund</b>
+        <span className="landing-art-track"><i /></span>
+        <small>78% of this month’s goal</small>
+      </span>
+    );
+  }
+  if (kind === 'stats') {
+    return (
+      <span className="landing-art-bars">
+        {[46, 70, 58, 88, 64, 100, 76].map((height, index) => (
+          <i key={index} style={{ '--bar': `${height}%`, '--bar-delay': `${index * 0.12}s` }} />
+        ))}
+      </span>
+    );
+  }
+  return (
+    <>
+      <span className="landing-art-note">Maghrib in 10 minutes</span>
+      <span className="landing-art-bell material-symbols-rounded">notifications</span>
+    </>
+  );
+}
 
 const STEPS = [
   {
@@ -728,24 +828,21 @@ export default function LandingPage() {
                 <Link to={appHref} className="btn btn-outline">
                   Explore without an account
                 </Link>
+                {/* The Android download is the third button in this row, in the
+                    same shape and size as the two before it, tinted with the
+                    accent so it reads as part of the set rather than a badge
+                    dropped beside it. */}
+                <a
+                  className="btn btn-outline landing-android-btn"
+                  href={ANDROID_APP.href}
+                  download
+                  aria-label={`Download Hasanath for Android, version ${ANDROID_APP.version}, ${ANDROID_APP.size}`}
+                >
+                  <span className="material-symbols-rounded" aria-hidden="true">android</span>
+                  Download for Android
+                  <span className="landing-android-btn-meta" aria-hidden="true">{ANDROID_APP.size}</span>
+                </a>
               </div>
-              {/* A real download button: the platform, what you get, and the
-                  down-arrow people look for. */}
-              <a
-                className="landing-android-btn"
-                href={ANDROID_APP.href}
-                download
-                aria-label={`Download Hasanath for Android, version ${ANDROID_APP.version}, ${ANDROID_APP.size}`}
-              >
-                <span className="landing-android-btn-logo material-symbols-rounded" aria-hidden="true">android</span>
-                <span className="landing-android-btn-text">
-                  <strong>Download for Android</strong>
-                  <small>Version {ANDROID_APP.version} · {ANDROID_APP.size} · APK</small>
-                </span>
-                <span className="landing-android-btn-get" aria-hidden="true">
-                  <span className="material-symbols-rounded">download</span>
-                </span>
-              </a>
               <div className="landing-trust">
                 <span className="landing-trust-item">
                   <span className="material-symbols-rounded" aria-hidden="true">check_circle</span>
@@ -895,78 +992,6 @@ export default function LandingPage() {
             <div className="landing-stat">
               <strong className="landing-stat-value">0</strong>
               <span className="landing-stat-label">ads or distractions</span>
-            </div>
-          </div>
-        </section>
-
-        {/* Two modules a visitor would not guess from the word "tracker", each
-            with a small moving picture of what it does. Nothing on this page
-            is called "new": the app has not been released, so everything is. */}
-        <section className="landing-section landing-section--tight" aria-labelledby="spot-title">
-          <div className="landing-inner">
-            <div className="landing-section-head landing-reveal">
-              <p className="landing-kicker">Close at hand</p>
-              <h2 id="spot-title" className="landing-section-title">
-                Remember Allah. Find the nearest masjid.
-              </h2>
-            </div>
-            <div className="landing-spot-grid">
-              <Link to="/dhikr" className="landing-spot landing-reveal">
-                <div className="landing-spot-art landing-spot-art--dhikr" aria-hidden="true">
-                  <span className="landing-spot-ring" />
-                  <span className="landing-spot-ring" />
-                  <span className="landing-spot-ring" />
-                  <span className="landing-spot-count">33</span>
-                  <span className="landing-spot-of">of 33 · SubhanAllah</span>
-                </div>
-                <div className="landing-spot-copy">
-                  <span className="landing-badge">Dhikr &amp; Dua</span>
-                  <h3>A tasbih you can use with your eyes closed.</h3>
-                  <p>
-                    Tap anywhere to count. You feel every count, and a long vibration tells
-                    you when you reach the target, so you never have to look.
-                  </p>
-                  <ul className="landing-spot-points">
-                    <li>Count with the screen, or the volume keys in the Android app</li>
-                    <li>33 · 33 · 34 flows on by itself</li>
-                    <li>Duas for the morning, the evening and every day</li>
-                  </ul>
-                  <span className="landing-spot-link">
-                    Open Dhikr &amp; Dua
-                    <span className="material-symbols-rounded" aria-hidden="true">arrow_forward</span>
-                  </span>
-                </div>
-              </Link>
-
-              <Link to="/masjids" className="landing-spot landing-reveal" style={{ '--step-delay': '0.08s' }}>
-                <div className="landing-spot-art landing-spot-art--map" aria-hidden="true">
-                  <span className="landing-spot-road landing-spot-road--a" />
-                  <span className="landing-spot-road landing-spot-road--b" />
-                  <span className="landing-spot-pin landing-spot-pin--1" />
-                  <span className="landing-spot-pin landing-spot-pin--2" />
-                  <span className="landing-spot-pin landing-spot-pin--3" />
-                  <span className="landing-spot-pin landing-spot-pin--4" />
-                  <span className="landing-spot-you" />
-                  <span className="landing-spot-chip">190 m · Directions</span>
-                </div>
-                <div className="landing-spot-copy">
-                  <span className="landing-badge">Masjids Nearby</span>
-                  <h3>The closest masjid, wherever you are.</h3>
-                  <p>
-                    See the masjids around you on a map and in a list, nearest first, with
-                    the distance to each. One tap opens directions.
-                  </p>
-                  <ul className="landing-spot-points">
-                    <li>Look 2, 5 or 10 km around you</li>
-                    <li>Search any city before you travel</li>
-                    <li>Directions open in Google Maps</li>
-                  </ul>
-                  <span className="landing-spot-link">
-                    Find masjids
-                    <span className="material-symbols-rounded" aria-hidden="true">arrow_forward</span>
-                  </span>
-                </div>
-              </Link>
             </div>
           </div>
         </section>
@@ -1289,7 +1314,7 @@ export default function LandingPage() {
         <section className="landing-section" aria-labelledby="tools-title">
           <div className="landing-inner">
             <div className="landing-section-head landing-reveal">
-              <p className="landing-kicker">Also inside</p>
+              <p className="landing-kicker">Everything inside</p>
               <h2 id="tools-title" className="landing-section-title">
                 The rest of the day, in the same place.
               </h2>
@@ -1305,8 +1330,11 @@ export default function LandingPage() {
                   key={tool.title}
                   to={tool.to}
                   className="landing-tool landing-reveal"
-                  style={{ '--step-delay': `${index * 0.06}s` }}
+                  style={{ '--step-delay': `${(index % 3) * 0.07}s` }}
                 >
+                  <span className={`landing-tool-art landing-tool-art--${tool.art}`} aria-hidden="true">
+                    <ToolArt kind={tool.art} />
+                  </span>
                   <span className="landing-tool-icon material-symbols-rounded" aria-hidden="true">
                     {tool.icon}
                   </span>
@@ -1476,6 +1504,7 @@ export default function LandingPage() {
             <h3>App</h3>
             <Link to="/quran">Qur’an</Link>
             <Link to="/hadith">Hadith</Link>
+            <Link to="/dhikr">Dhikr &amp; Dua</Link>
             <Link to="/salah">Salah Tracker</Link>
             <Link to="/challenges">Challenges</Link>
             <Link to="/posts">Community</Link>
@@ -1498,6 +1527,7 @@ export default function LandingPage() {
             <h3>Explore</h3>
             <Link to="/salah-timings">Salah timings</Link>
             <Link to="/qibla">Qibla</Link>
+            <Link to="/masjids">Masjids nearby</Link>
             <Link to="/calendar">Islamic calendar</Link>
             <Link to="/notifications">Notifications</Link>
             <Link to="/settings">Settings</Link>
