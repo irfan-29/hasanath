@@ -15904,18 +15904,6 @@ body:has(.sticky-banner-bottom) .global-audio-bar {
 
 .masjid-hint a { color: var(--color-primary); }
 
-.masjid-link {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--color-primary);
-  font: inherit;
-  font-weight: 700;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.masjid-link:disabled { opacity: 0.6; cursor: default; }
 
 .masjid-status .masjid-location { width: 100%; }
 
@@ -16039,6 +16027,45 @@ body:has(.sticky-banner-bottom) .global-audio-bar {
   border-radius: 16px;
   overflow: hidden;
   background: rgb(var(--accent-rgb) / 0.06);
+}
+
+/* The frame holds the map and, until its pictures arrive, a note over it. */
+.masjid-map-frame { position: relative; }
+
+.masjid-map-wait {
+  position: absolute;
+  left: 50%;
+  bottom: 0.9rem;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  background: var(--color-surface, #fff);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.masjid-map-spinner {
+  width: 0.9rem;
+  height: 0.9rem;
+  border: 2px solid rgb(var(--accent-rgb) / 0.25);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: masjid-map-turn 0.8s linear infinite;
+}
+
+@keyframes masjid-map-turn {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .masjid-map-spinner { animation: none; }
 }
 
 .masjid-map-loading {

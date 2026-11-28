@@ -135,12 +135,21 @@ Admins are exempt from the posting limits.
   point asked about, whatever distance is asked for. So a 5 km search asks
   from 5 points spread over the area and a 10 km search from 9, and the
   answers are put together (`samplePoints()` in `api/services/masjids.js`).
-- The page starts from the **saved location**, like Salah Timings, and does
-  not ask the phone for its position. The location picker at the top lets the
-  reader look around another city or their exact position; that choice is for
-  the page only and does not change the saved location.
-- Answers are remembered for 12 hours per map cell (about 110 m), in the
-  server's memory. A new deployment or a cold start clears them.
+- The page uses the **saved location**, like Salah Timings, and does not ask
+  the phone for its position. Choosing a place in the picker here **saves**
+  it, exactly as choosing one on Salah Timings or in Settings does.
+- Every answer is remembered twice: in the server's memory for 12 hours, and
+  in the database for a week (collection `masjidcaches`, one entry per source,
+  map cell of about 110 m, and distance). The database copy is shared by all
+  readers and survives cold starts, so a place that has been looked up before
+  is answered in a fraction of a second. Entries expire by themselves. A
+  changed location simply reads a different entry, so nothing needs clearing.
+- The map service (Overpass) is often the slow one. Once the directory has
+  answered, it is given 1.2 seconds more; if it has not answered by then the
+  list goes out without it, and its answer is saved for next time.
+- To empty the store by hand (for example after the directory fixes wrong
+  data), delete the documents in `masjidcaches` in Atlas. It refills as people
+  search.
 - **To switch the directory off**: set `MASJIDNEAR_API=off` on hasanath-api and
   redeploy. The page then uses OpenStreetMap alone.
 - The map uses no key. Putting pins on a Google map inside the page would need

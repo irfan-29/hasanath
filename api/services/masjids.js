@@ -17,8 +17,14 @@
 //    through its Overpass service. No key and no bill, but a masjid appears
 //    only if someone has added it to the map.
 //
-// Both are shared services, so results are cached in memory by map cell and
-// requests carry a contact address.
+// Both are shared services, and both can be slow, so every answer is
+// remembered twice: in this server's memory (gone on the next cold start) and
+// in the database (models/MasjidCache.js, kept for a week and shared by every
+// server and every reader). A place that has been looked up before is
+// therefore answered from the database in a fraction of a second, without
+// asking either service. Requests carry a contact address.
+
+const MasjidCache = require("../models/MasjidCache.js");
 
 const OVERPASS_ENDPOINTS = [
     "https://overpass-api.de/api/interpreter",
@@ -48,6 +54,47 @@ const CELL_MARGIN_M = 200;
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 const CACHE_MAX = 300;
 const cache = new Map();
+
+// How long an answer is kept in the database. Masjids are not built or closed
+// from one day to the next, so a week is fresh enough and keeps both services
+// from being asked more than they need to be.
+const STORE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+// When the directory has already answered, the map service is given this long
+// to add what it knows before the list is sent without it. Its answer is still
+// saved when it arrives, so the next search includes it.
+const MAP_WAIT_MS = 1200;
+
+// The two-level memory. `key` names the source, the cell and the distance.
+async function recall(key) {
+    const hit = cache.get(key);
+    if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.places;
+    try {
+        const stored = await MasjidCache.findById(key).lean();
+        if (stored && stored.expiresAt && new Date(stored.expiresAt).getTime() > Date.now()) {
+            keep(key, stored.places || []);
+            return stored.places || [];
+        }
+    } catch (err) {
+        // The database being briefly unreachable must not stop a fresh lookup.
+    }
+    return null;
+}
+
+function keep(key, places) {
+    if (cache.size >= CACHE_MAX * 4) cache.delete(cache.keys().next().value);   // drop the oldest
+    cache.set(key, { at: Date.now(), places });
+}
+
+function store(key, places) {
+    keep(key, places);
+    // Saved in the background: a failed write only means asking again next time.
+    MasjidCache.updateOne(
+        { _id: key },
+        { $set: { places, expiresAt: new Date(Date.now() + STORE_TTL_MS) } },
+        { upsert: true }
+    ).catch((err) => console.error("masjids: could not save to cache -", err.message));
+}
 
 function toRadians(deg) { return (deg * Math.PI) / 180; }
 
@@ -221,28 +268,32 @@ function samplePoints(lat, lng, within) {
     return points;
 }
 
-// The directory's answer for one point, from memory when fresh. A failure is
-// remembered for a few minutes, so a directory that is down is not asked again
-// on every page view.
+// The directory's answer for one point, from memory or the database when
+// there. A failure is remembered (in memory only) for a few minutes, so a
+// directory that is down is not asked again on every page view.
 const DIRECTORY_FAIL_TTL_MS = 5 * 60 * 1000;
-const directoryCache = new Map();
+const directoryFailures = new Map();
 
 async function directoryAt(lat, lng, radius) {
     const cell = cellOf(lat, lng);
-    const key = cell.lat + "," + cell.lng + "," + radius;
-    const hit = directoryCache.get(key);
-    if (hit && Date.now() - hit.at < (hit.failed ? DIRECTORY_FAIL_TTL_MS : CACHE_TTL_MS)) return hit;
+    const key = "dir:" + cell.lat + "," + cell.lng + "," + radius;
+    const known = await recall(key);
+    if (known) return { places: known, failed: false };
 
-    const entry = { at: Date.now(), places: [], failed: false };
+    const failedAt = directoryFailures.get(key);
+    if (failedAt && Date.now() - failedAt < DIRECTORY_FAIL_TTL_MS) return { places: [], failed: true };
+
     try {
-        entry.places = await fetchDirectory(cell.lat, cell.lng, radius + CELL_MARGIN_M);
+        const places = await fetchDirectory(cell.lat, cell.lng, radius + CELL_MARGIN_M);
+        store(key, places);
+        directoryFailures.delete(key);
+        return { places, failed: false };
     } catch (err) {
-        entry.failed = true;
         console.error("masjids: directory unavailable -", err.message);
+        if (directoryFailures.size >= CACHE_MAX) directoryFailures.delete(directoryFailures.keys().next().value);
+        directoryFailures.set(key, Date.now());
+        return { places: [], failed: true };
     }
-    if (directoryCache.size >= CACHE_MAX * 4) directoryCache.delete(directoryCache.keys().next().value);
-    directoryCache.set(key, entry);
-    return entry;
 }
 
 // Every masjid the directory knows within `within` metres, gathered from the
@@ -271,17 +322,17 @@ function cellOf(lat, lng) {
     return { lat: round(lat), lng: round(lng) };
 }
 
-// Every masjid around the cell that contains (lat, lng), from memory when fresh.
+// Every masjid on the map around the cell that contains (lat, lng), from
+// memory or the database when there.
 async function placesNear(lat, lng) {
     const cell = cellOf(lat, lng);
-    const key = cell.lat + "," + cell.lng;
-    const hit = cache.get(key);
-    if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.places;
+    const key = "osm:" + cell.lat + "," + cell.lng;
+    const known = await recall(key);
+    if (known) return known;
 
     const elements = await fetchOverpass(overpassQuery(cell.lat, cell.lng, MAX_RADIUS + CELL_MARGIN_M));
     const places = placesFrom(elements);
-    if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);   // drop the oldest
-    cache.set(key, { at: Date.now(), places });
+    store(key, places);
     return places;
 }
 
@@ -312,17 +363,30 @@ function withoutDuplicates(sorted) {
 // Masjids within `radius` metres of (lat, lng), nearest first, from both
 // sources. Either may fail without failing the search; only when the map
 // service fails and the directory has nothing is the error passed on.
+//
+// The map service is often the slow one and, where the directory is strong,
+// adds little. So both are asked at once, and when the directory has answered
+// the map is given MAP_WAIT_MS more before the list goes out without it.
 async function nearby(lat, lng, radius) {
     const within = radiusOf(radius);
-    const [fromDirectory, fromMap] = await Promise.all([
-        directoryNear(lat, lng, within),
-        placesNear(lat, lng).catch((err) => ({ error: err }))
-    ]);
+    const mapAnswer = placesNear(lat, lng).catch((err) => ({ error: err }));
+    const fromDirectory = await directoryNear(lat, lng, within);
+
+    let fromMap;
+    if (fromDirectory.length) {
+        let timer;
+        const late = new Promise((resolve) => { timer = setTimeout(() => resolve({ late: true }), MAP_WAIT_MS); });
+        fromMap = await Promise.race([mapAnswer, late]);
+        clearTimeout(timer);
+    } else {
+        fromMap = await mapAnswer;
+    }
     if (fromMap.error && !fromDirectory.length) throw fromMap.error;
+    const mapPlaces = Array.isArray(fromMap) ? fromMap : [];
 
     const measure = (place) => ({ ...place, distance: Math.round(distanceBetween(lat, lng, place.latitude, place.longitude)) });
     const merged = fromDirectory.map(measure)
-        .concat((fromMap.error ? [] : fromMap).map(measure))
+        .concat(mapPlaces.map(measure))
         .filter((place) => place.distance <= within)
         .sort((a, b) => a.distance - b.distance || (a.placeId ? -1 : 1));
     return withoutDuplicates(merged).slice(0, MAX_RESULTS);
@@ -340,5 +404,5 @@ module.exports = {
     _samplePoints: samplePoints,
     _withoutDuplicates: withoutDuplicates,
     _distanceBetween: distanceBetween,
-    _reset() { cache.clear(); directoryCache.clear(); }
+    _reset() { cache.clear(); directoryFailures.clear(); }
 };

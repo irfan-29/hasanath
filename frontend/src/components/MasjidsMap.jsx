@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -52,6 +52,9 @@ export default function MasjidsMap({ center, masjids, selectedId, onSelect, dist
   const markersRef = useRef(new Map());
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
+  // The map's pictures (its tiles) arrive after the pins. Until the first set
+  // is in, a note sits inside the frame so it never looks broken or empty.
+  const [tilesReady, setTilesReady] = useState(false);
 
   // The map itself, made once.
   useEffect(() => {
@@ -61,7 +64,11 @@ export default function MasjidsMap({ center, masjids, selectedId, onSelect, dist
       dragging: !L.Browser.mobile,
       tap: false,
     });
-    L.tileLayer(TILES, { maxZoom: 19, attribution: ATTRIBUTION }).addTo(map);
+    const tiles = L.tileLayer(TILES, { maxZoom: 19, attribution: ATTRIBUTION }).addTo(map);
+    tiles.once('load', () => setTilesReady(true));
+    // If the tiles cannot be fetched at all, stop saying "loading": the pins
+    // and the list still work without the picture behind them.
+    const giveUp = window.setTimeout(() => setTilesReady(true), 12000);
     map.attributionControl.setPrefix(false);
     layerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
@@ -69,7 +76,7 @@ export default function MasjidsMap({ center, masjids, selectedId, onSelect, dist
     // thumb travelling down the page does not get caught in it.
     const enableDrag = () => map.dragging.enable();
     map.on('click', enableDrag);
-    return () => { map.off('click', enableDrag); map.remove(); mapRef.current = null; };
+    return () => { window.clearTimeout(giveUp); map.off('click', enableDrag); map.remove(); mapRef.current = null; };
   }, []);
 
   // Pins, redrawn whenever the list or the centre changes.
@@ -111,5 +118,15 @@ export default function MasjidsMap({ center, masjids, selectedId, onSelect, dist
     }
   }, [selectedId, masjids]);
 
-  return <div className="masjid-map" ref={nodeRef} role="region" aria-label="Map of nearby masjids" />;
+  return (
+    <div className="masjid-map-frame">
+      <div className="masjid-map" ref={nodeRef} role="region" aria-label="Map of nearby masjids" />
+      {!tilesReady && (
+        <div className="masjid-map-wait" role="status">
+          <span className="masjid-map-spinner" aria-hidden="true" />
+          Loading the map…
+        </div>
+      )}
+    </div>
+  );
 }
