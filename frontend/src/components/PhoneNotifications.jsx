@@ -148,7 +148,7 @@ export default function PhoneNotifications({ toast }) {
         </label>
       </div>
 
-      {/* Ayah of the Day at a chosen time: needs app 1.9+, which reports `ayah` in its settings. */}
+      {/* Ayah of the Day at a chosen time: shown when the app reports `ayah` in its settings. */}
       {typeof s.ayah === 'boolean' && (
         <>
           <div className="tg-row tg-row-head">

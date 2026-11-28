@@ -1,8 +1,8 @@
 {
-  "versionCode": 12,
-  "versionName": "2.1",
-  "apkUrl": "https://hasanath.app/android/Hasanath-2.1.apk",
-  "sha256": "6d21f7b655808cb939ebc7d34e7cf64af099ae8638a0c6a283c8db06017c7e88",
-  "notes": "Hasanath has a new home: hasanath.app\nPlease sign in once more after updating\nKeeps prayer reminders and notifications working on the new address",
+  "versionCode": 1,
+  "versionName": "1.0",
+  "apkUrl": "https://hasanath.app/android/Hasanath-1.0.apk",
+  "sha256": "e99bbee0de2b36fe3c6442e980bc76a0aaff3611d83998af6449d7f6c3784de0",
+  "notes": "The first release of Hasanath for Android",
   "minSupportedVersionCode": 1
 }

@@ -165,6 +165,12 @@ Full steps are in `docs/android-releases.md`. The essentials:
 - The signing key (`hasanath-release.jks`) and its password are **not** in the
   repo and must never be. Without that key no update can ever be published,
   so keep a backup outside the repo.
+- The published app is **1.0** (versionCode 1). Earlier build numbers, up to
+  2.1, were only ever on the developer's phone and were reset before release.
+  A phone that still has one of those must uninstall it first: Android will
+  not install a lower version number over a higher one.
+- Every release after this must raise the versionCode (2, 3, ...). The
+  versionName can be anything readable (1.1, 1.2, ...).
 - Installed apps check `https://hasanath.app/android/version.json` at most
   once every 6 hours, on a fresh launch. Raising `minSupportedVersionCode`
   removes the "Later" button for older versions.

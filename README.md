@@ -209,13 +209,15 @@ living spec; update this file when a requirement changes.
   cache-first assets, never cache `/api/*` or personal data.
 - [x] Android app: native WebView, app links, in-app updater, prayer polling,
   media notification, splash themes.
-- [x] Android 2.1 is published: versionCode 12 / versionName 2.1, the signed APK
-  lives at `public/android/Hasanath-2.1.apk`, and `version.json` and the landing
-  button point at it. It opens `https://hasanath.app`. Since 1.8 it has gained:
-  the website's logo as its icon, location access for "Use my current
-  location", the Ayah of the Day as a notification at a chosen time, and for
-  the dhikr counter haptics, a keep-awake screen and counting with the volume
-  keys.
+- [x] Android 1.0 is the release build: versionCode 1 / versionName 1.0, the
+  signed APK lives at `public/android/Hasanath-1.0.apk`, and `version.json` and
+  the landing button point at it. It opens `https://hasanath.app`. The numbers
+  used while the app was being built (1.0 to 2.1, known only to the developer)
+  were reset before the first public release. It includes: the website's logo
+  as its icon, prayer reminders and other phone notifications, location access
+  for "Use my current location", the Ayah of the Day as a notification at a
+  chosen time, the in-app updater, and for the dhikr counter haptics, a
+  keep-awake screen and counting with the volume keys.
 
 ### 2.12 Non-functional requirements
 
