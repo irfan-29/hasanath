@@ -15862,44 +15862,58 @@ body:has(.sticky-banner-bottom) .global-audio-bar {
   text-align: center;
 }
 
-.masjid-status-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.6rem;
-}
-
 .masjid-toolbar {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 0.75rem 1rem;
+  gap: 0.9rem 1.25rem;
   max-width: 860px;
   margin: 0 auto 1rem;
 }
 
-.masjid-where {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin: 0;
+/* The same location picker as the prayer-times page, with its label above and
+   a line beneath saying which place is in use. */
+.masjid-location {
+  flex: 1 1 260px;
+  max-width: 420px;
+  min-width: 0;
+  text-align: left;
+}
+
+.masjid-kicker {
+  display: block;
+  margin-bottom: 0.3rem;
+  color: var(--color-primary-dark);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.masjid-hint {
+  margin: 0.4rem 0 0;
   color: var(--color-text-muted);
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: 0.78rem;
+  line-height: 1.5;
 }
 
-.masjid-where .material-symbols-rounded {
+.masjid-hint a { color: var(--color-primary); }
+
+.masjid-link {
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--color-primary);
-  font-size: 1.15rem;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
-.masjid-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.6rem;
-}
+.masjid-link:disabled { opacity: 0.6; cursor: default; }
+
+.masjid-status .masjid-location { width: 100%; }
 
 .masjid-radii {
   display: inline-flex;

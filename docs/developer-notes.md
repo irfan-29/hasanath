@@ -131,6 +131,14 @@ Admins are exempt from the posting limits.
   uses is called: `/v1/masjids/{lat}/{lng}/{radius}/12`. If the documented one
   starts working, `fetchDirectory()` in `api/services/masjids.js` is the one
   place to change.
+- The directory answers with at most about twenty masjids, the nearest to the
+  point asked about, whatever distance is asked for. So a 5 km search asks
+  from 5 points spread over the area and a 10 km search from 9, and the
+  answers are put together (`samplePoints()` in `api/services/masjids.js`).
+- The page starts from the **saved location**, like Salah Timings, and does
+  not ask the phone for its position. The location picker at the top lets the
+  reader look around another city or their exact position; that choice is for
+  the page only and does not change the saved location.
 - Answers are remembered for 12 hours per map cell (about 110 m), in the
   server's memory. A new deployment or a cold start clears them.
 - **To switch the directory off**: set `MASJIDNEAR_API=off` on hasanath-api and

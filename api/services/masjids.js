@@ -39,7 +39,7 @@ const MASJIDNEAR_PAGE = 12;
 const RADII = [2000, 5000, 10000];
 const DEFAULT_RADIUS = 5000;
 const MAX_RADIUS = RADII[RADII.length - 1];
-const MAX_RESULTS = 60;
+const MAX_RESULTS = 120;
 
 // One cache entry per map cell (three decimal places: about 110 m). Each holds
 // every masjid within the largest radius of the cell's centre, plus a margin
@@ -183,30 +183,87 @@ async function fetchDirectory(lat, lng, radius) {
     }
 }
 
-// The directory's answer for a cell and distance, from memory when fresh.
-// A failure is remembered for a few minutes, so a directory that is down is
-// not asked again on every page view.
+// The directory answers with at most about twenty masjids, the ones nearest
+// the point asked about, however large the distance asked for. One question
+// from the centre is therefore enough for 2 km, but for 5 km and 10 km it
+// would return the same twenty. So a wider search asks from several points
+// spread over the area, each for its own neighbourhood, and the answers are
+// put together.
+//
+//   2 km:  the centre
+//   5 km:  the centre, and four points 3 km out (north, east, south, west)
+//   10 km: those, and four more 7.5 km out on the diagonals, with the first
+//          ring moved to 4 km
+//
+// Each point's answer is remembered on its own, so two people a few streets
+// apart share most of them.
+const SAMPLE_RADIUS_M = 3500;
+
+function offsetPoint(lat, lng, metres, bearingDeg) {
+    const bearing = toRadians(bearingDeg);
+    const dLat = (metres * Math.cos(bearing)) / 111320;
+    const dLng = (metres * Math.sin(bearing)) / (111320 * Math.cos(toRadians(lat)));
+    return { lat: lat + dLat, lng: lng + dLng };
+}
+
+function samplePoints(lat, lng, within) {
+    const points = [{ lat, lng, radius: Math.min(within, SAMPLE_RADIUS_M) }];
+    if (within <= 2000) return points;
+    const ring = (metres, bearings) => bearings.forEach((bearing) => {
+        points.push({ ...offsetPoint(lat, lng, metres, bearing), radius: SAMPLE_RADIUS_M });
+    });
+    if (within <= 5000) {
+        ring(3000, [0, 90, 180, 270]);
+    } else {
+        ring(4000, [0, 90, 180, 270]);
+        ring(7500, [45, 135, 225, 315]);
+    }
+    return points;
+}
+
+// The directory's answer for one point, from memory when fresh. A failure is
+// remembered for a few minutes, so a directory that is down is not asked again
+// on every page view.
 const DIRECTORY_FAIL_TTL_MS = 5 * 60 * 1000;
 const directoryCache = new Map();
 
-async function directoryNear(lat, lng, radius) {
-    if (!MASJIDNEAR_ENABLED) return [];
+async function directoryAt(lat, lng, radius) {
     const cell = cellOf(lat, lng);
     const key = cell.lat + "," + cell.lng + "," + radius;
     const hit = directoryCache.get(key);
-    if (hit && Date.now() - hit.at < (hit.failed ? DIRECTORY_FAIL_TTL_MS : CACHE_TTL_MS)) return hit.places;
+    if (hit && Date.now() - hit.at < (hit.failed ? DIRECTORY_FAIL_TTL_MS : CACHE_TTL_MS)) return hit;
 
-    let places = [];
-    let failed = false;
+    const entry = { at: Date.now(), places: [], failed: false };
     try {
-        places = await fetchDirectory(cell.lat, cell.lng, radius + CELL_MARGIN_M);
+        entry.places = await fetchDirectory(cell.lat, cell.lng, radius + CELL_MARGIN_M);
     } catch (err) {
-        failed = true;
+        entry.failed = true;
         console.error("masjids: directory unavailable -", err.message);
     }
-    if (directoryCache.size >= CACHE_MAX) directoryCache.delete(directoryCache.keys().next().value);
-    directoryCache.set(key, { at: Date.now(), places, failed });
-    return places;
+    if (directoryCache.size >= CACHE_MAX * 4) directoryCache.delete(directoryCache.keys().next().value);
+    directoryCache.set(key, entry);
+    return entry;
+}
+
+// Every masjid the directory knows within `within` metres, gathered from the
+// sample points. The centre is asked first: if the directory is down there is
+// no point asking it eight more times. The rest are asked three at a time, to
+// be a light guest.
+async function directoryNear(lat, lng, within) {
+    if (!MASJIDNEAR_ENABLED) return [];
+    const points = samplePoints(lat, lng, within);
+    const centre = await directoryAt(points[0].lat, points[0].lng, points[0].radius);
+    if (centre.failed) return [];
+
+    const found = new Map(centre.places.map((place) => [place.id, place]));
+    const rest = points.slice(1);
+    for (let i = 0; i < rest.length; i += 3) {
+        const answers = await Promise.all(rest.slice(i, i + 3).map((point) => directoryAt(point.lat, point.lng, point.radius)));
+        for (const answer of answers) {
+            for (const place of answer.places) if (!found.has(place.id)) found.set(place.id, place);
+        }
+    }
+    return Array.from(found.values());
 }
 
 function cellOf(lat, lng) {
@@ -280,6 +337,7 @@ module.exports = {
     // Exposed for tests.
     _placesFrom: placesFrom,
     _placesFromDirectory: placesFromDirectory,
+    _samplePoints: samplePoints,
     _withoutDuplicates: withoutDuplicates,
     _distanceBetween: distanceBetween,
     _reset() { cache.clear(); directoryCache.clear(); }
