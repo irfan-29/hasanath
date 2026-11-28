@@ -48,6 +48,10 @@ The app should feel calm, private, ad-free, and quick to use one-handed.
 - **Current era:** unified responsive design revamp, PWA, Android WebView
   wrapper with in-app updates, Phone Notifications on Android, and the recent
   Salah/banner UX work.
+- **Launch preparation (November 2026):** the move to `hasanath.app`, the
+  database move to Mumbai, email from the app's own domain, paged posts and
+  simpler posting rules, the adjustable Limits page, Dhikr & Dua with
+  eyes-closed counting, Masjids Nearby, and the refreshed landing page.
 
 ---
 
@@ -198,15 +202,20 @@ living spec; update this file when a requirement changes.
 ### 2.11 Landing, PWA and Android
 
 - [x] Marketing landing page with live preview, Ayah of the Day, theme/accent
-  pickers, and Google Play-style "Get the app" APK link.
+  pickers, a two-card section for Dhikr & Dua and Masjids Nearby, a nine-tool
+  grid, and a Download for Android button. The hero cards sit in the page's
+  flow, so an ayah of any length never overlaps the card below it.
 - [x] Installable PWA: manifest, offline shell, network-first navigation,
   cache-first assets, never cache `/api/*` or personal data.
 - [x] Android app: native WebView, app links, in-app updater, prayer polling,
   media notification, splash themes.
-- [x] Android 1.8 is published: versionCode 9 / versionName 1.8, the signed APK
-  lives at `public/android/Hasanath-1.8.apk`, `version.json` and the landing
-  buttons point at it, and the Settings page exposes Phone Notifications inside
-  the app.
+- [x] Android 2.1 is published: versionCode 12 / versionName 2.1, the signed APK
+  lives at `public/android/Hasanath-2.1.apk`, and `version.json` and the landing
+  button point at it. It opens `https://hasanath.app`. Since 1.8 it has gained:
+  the website's logo as its icon, location access for "Use my current
+  location", the Ayah of the Day as a notification at a chosen time, and for
+  the dhikr counter haptics, a keep-awake screen and counting with the volume
+  keys.
 
 ### 2.12 Non-functional requirements
 
@@ -244,6 +253,43 @@ living spec; update this file when a requirement changes.
   per language. Do not edit the generated files by hand.
 - [x] No backend route: the module must keep working with no network, so the
   dua data ships with the app rather than being fetched from a third-party API.
+- [x] Feedback you can feel: a light vibration on every count, two short pulses
+  at 33/66/99 on the way to 100, and a long pattern at the target
+  (`services/haptics.js`); an optional click sound for iPhone, which cannot
+  vibrate from a web page; optional auto-next for the 33 · 33 · 34 tasbih.
+- [x] Eyes-closed mode: a dark counter that fills the space between the header
+  and the tab bar, where a tap anywhere counts, the screen stays awake, and in
+  the Android app either volume key counts.
+
+### 2.14 Masjids Nearby
+
+- [x] `/masjids`: the masjids around the saved location, nearest first, at 2, 5
+  or 10 km, as pins on a map and as a list with distance, address, Directions,
+  Show on map, Open in Google Maps and Call.
+- [x] The location is the same saved location the prayer times use, and the
+  same picker changes (and saves) it. The page never asks for the phone's
+  position on opening.
+- [x] Two sources, asked together and merged: the masjidnear.me directory and
+  OpenStreetMap (Overpass). A masjid known to both appears once. Wider searches
+  ask the directory from several points, because it answers with about twenty
+  masjids per question.
+- [x] Every answer is cached in memory (12 h) and in MongoDB (`masjidcaches`,
+  7 days, shared, self-expiring). The slower map service never holds up the
+  list. `MASJIDNEAR_API=off` switches the directory off.
+- [x] The map is Leaflet on OpenStreetMap tiles (no key), loaded only on this
+  page. Directions are Google Maps links.
+
+### 2.15 Adjustable limits
+
+- [x] Admin > Limits: every limit is a switch plus a number. Off means no
+  limit; a number means that number, and 0 means zero (a signup cap of 0 closes
+  signups). Defined once in `api/services/limits.js`, which both draws the page
+  and validates a save.
+- [x] Signups per day and per week, with a warning to admins before a cap.
+- [x] Posts per person per hour, the gap between posts, posts per day across
+  the app, the wait before a new account may post, and the account age before
+  posts are broadcast to Telegram. Admins are exempt.
+- [x] Days and weeks are counted in India time; settings are cached for 30 s.
 
 ---
 
@@ -263,6 +309,7 @@ living spec; update this file when a requirement changes.
 | `/posts`, `/post/:id`, `/u/:username` | Social feed and profiles | Yes for actions |
 | `/notifications` | Event feed | Yes |
 | `/salah-timings`, `/qibla`, `/calendar` | Prayer tools | No |
+| `/masjids` | Masjids nearby: map and list, with directions | No |
 | `/settings`, `/account` | Preferences and identity | Yes |
 | `/admin` | Admin portal (unlisted) | Admin |
 
@@ -276,8 +323,10 @@ Full detail is in the skill reference. The numbers users can hit:
 | --- | --- |
 | Login | 30 failed attempts/IP and 10 failed/account per 15 min |
 | OTP email | 20/IP and 5/address per hour; code valid 10 min, 5 attempts, 30 s resend cooldown |
-| Posts | 5/account and 10/IP per hour, plus 1/minute; report note ≤ 500 chars |
-| Post moderation | First 3 published posts still get a 24 h review hold; 3 open reports hide a post |
+| Signups | Per-day and per-week caps, off by default; adjustable at Admin > Limits |
+| Posts | 5/account per hour and 60 s between posts by default; optional app-wide daily cap; all adjustable at Admin > Limits; report note ≤ 500 chars |
+| Post moderation | A new account waits 24 h before its first post; 3 open reports hide a post; Telegram broadcast only from accounts ≥ 7 days old |
+| Masjids nearby | 40 searches per 10 min per visitor; 2, 5 or 10 km; up to 120 results |
 | Avatar | 4 MB max; JPEG/PNG/WebP |
 | Favourites / bookmarks | 300 each; last-read list 5 |
 | Guest store | ~3.8 KB cookie; 25 challenges; 60 salah entries; merges with caps 100/400 |
@@ -297,8 +346,9 @@ Full detail is in the skill reference. The numbers users can hit:
 - **API:** Node 24, Express 4, Mongoose 8/MongoDB Atlas, Passport
   (`passport-local-mongoose`), `express-session` + `connect-mongo`,
   `express-rate-limit` with a Mongo store.
-- **Frontend:** React 18, Vite 5, React Router 6, `react-easy-crop`; plain CSS
-  (one canonical stylesheet), self-hosted Material Symbols.
+- **Frontend:** React 18, Vite 5, React Router 6, `react-easy-crop`, Leaflet
+  (the Masjids Nearby map, loaded only there); plain CSS (one canonical
+  stylesheet), self-hosted Material Symbols.
 - **Jobs/email/storage:** Upstash QStash, Gmail SMTP or Resend, Vercel Blob.
 - **Hosting:** Vercel (API as a serverless function, frontend as a Vite static
   site with an `/api` rewrite), MongoDB Atlas.
@@ -366,6 +416,7 @@ the context window stays small.
 | `.opencode/skills/salah-tracker/references/backend.md` | API, auth, routes, models, services, limits |
 | `.opencode/skills/salah-tracker/references/frontend.md` | Routes, providers, pages, audio, styling, PWA |
 | `.opencode/skills/salah-tracker/references/operations.md` | Env vars, external APIs, deploy, Android, scripts |
+| [`docs/developer-notes.md`](docs/developer-notes.md) | Every outside service, setting, DNS record and off switch, in plain language |
 | [`docs/android-releases.md`](docs/android-releases.md) | APK release checklist |
 | [`frontend/vercel.md`](frontend/vercel.md) | Why the API rewrite and its order matter |
 
