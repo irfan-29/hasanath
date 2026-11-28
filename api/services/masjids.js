@@ -1,14 +1,19 @@
-// Masjids near a place, from OpenStreetMap.
+// Masjids near a place, from two sources that are asked together and merged.
 //
-// OpenStreetMap is a free, community-maintained map of the world. Its Overpass
-// service answers questions like "places of worship tagged as Muslim within
-// 5 km of this point" without an API key or a bill, which is why it is used
-// here rather than a paid places API. The trade-off is coverage: a masjid
-// appears only if someone has added it to the map.
+// 1. masjidnear.me: a masjid directory with good coverage in India, including
+//    small neighbourhood masjids, each with a Google Maps place id. It is
+//    another project's service, used here through its public address. It has
+//    no published terms for outside use, so it is treated as a guest would
+//    treat a host: asked rarely (answers are kept for 12 hours per area), never
+//    relied on (if it is slow or gone, the page still works from the second
+//    source), and switchable off without a code change (MASJIDNEAR_API=off).
 //
-// Overpass is a shared, donated service, so this module is careful with it:
-// results are kept in memory by map cell, one request serves every radius the
-// page offers, and requests carry a contact address as its usage policy asks.
+// 2. OpenStreetMap: a free, community-maintained map of the world, read
+//    through its Overpass service. No key and no bill, but a masjid appears
+//    only if someone has added it to the map.
+//
+// Both are shared services, so results are cached in memory by map cell and
+// requests carry a contact address.
 
 const OVERPASS_ENDPOINTS = [
     "https://overpass-api.de/api/interpreter",
@@ -17,12 +22,19 @@ const OVERPASS_ENDPOINTS = [
 const USER_AGENT = "Hasanath/1.0 (https://hasanath.app; support@hasanath.app)";
 const REQUEST_TIMEOUT_MS = 9000;
 
+// The directory. MASJIDNEAR_API may hold another base address, or "off".
+const MASJIDNEAR_BASE = String(process.env.MASJIDNEAR_API || "https://api.masjidnear.me/v1").replace(/\/+$/, "");
+const MASJIDNEAR_ENABLED = MASJIDNEAR_BASE.toLowerCase() !== "off";
+const MASJIDNEAR_TIMEOUT_MS = 8000;
+// The last path segment the directory's own site sends with every request.
+const MASJIDNEAR_PAGE = 12;
+
 // The distances the page may ask for, in metres. Anything else falls back to
 // the default, so the cache cannot be filled with arbitrary sizes.
 const RADII = [2000, 5000, 10000];
 const DEFAULT_RADIUS = 5000;
 const MAX_RADIUS = RADII[RADII.length - 1];
-const MAX_RESULTS = 40;
+const MAX_RESULTS = 60;
 
 // One cache entry per map cell (three decimal places: about 110 m). Each holds
 // every masjid within the largest radius of the cell's centre, plus a margin
@@ -120,6 +132,78 @@ async function fetchOverpass(query) {
     throw lastError || new Error("overpass unavailable");
 }
 
+// "PRMR+H27, Venkatesh nagar, Hosur" -> "Venkatesh nagar, Hosur". The leading
+// plus code is a map reference, not something a person reads as an address.
+function readableAddress(text) {
+    return String(text || "").replace(/^[A-Z0-9]{4,8}\+[A-Z0-9]{2,4},?\s*/i, "").trim().slice(0, 160);
+}
+
+// Turn the directory's records into the same plain places as placesFrom().
+// Coordinates arrive as [longitude, latitude]. Entries its own users have
+// flagged as not a masjid are left out.
+function placesFromDirectory(records) {
+    const places = [];
+    for (const record of Array.isArray(records) ? records : []) {
+        if (!record || record.notMasjid === true) continue;
+        const point = record.masjidLocation && record.masjidLocation.coordinates;
+        const lng = Number(point && point[0]);
+        const lat = Number(point && point[1]);
+        if (!validCoordinates(lat, lng)) continue;
+        const address = record.masjidAddress || {};
+        const timings = record.masjidTimings || {};
+        places.push({
+            id: "d" + String(record._id || lat + "," + lng),
+            name: String(record.masjidName || "").trim().slice(0, 120),
+            address: readableAddress(address.description),
+            phone: String(address.phone || "").trim().slice(0, 40),
+            placeId: String(address.googlePlaceId || "").trim().slice(0, 120),
+            jumuah: String(timings.jumah || "").trim().slice(0, 20),
+            latitude: lat,
+            longitude: lng
+        });
+    }
+    return places;
+}
+
+async function fetchDirectory(lat, lng, radius) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), MASJIDNEAR_TIMEOUT_MS);
+    try {
+        const url = MASJIDNEAR_BASE + "/masjids/" + lat + "/" + lng + "/" + radius + "/" + MASJIDNEAR_PAGE;
+        const response = await fetch(url, { headers: { "Accept": "application/json", "User-Agent": USER_AGENT }, signal: controller.signal });
+        if (!response.ok) throw new Error("directory " + response.status);
+        return placesFromDirectory(await response.json());
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+// The directory's answer for a cell and distance, from memory when fresh.
+// A failure is remembered for a few minutes, so a directory that is down is
+// not asked again on every page view.
+const DIRECTORY_FAIL_TTL_MS = 5 * 60 * 1000;
+const directoryCache = new Map();
+
+async function directoryNear(lat, lng, radius) {
+    if (!MASJIDNEAR_ENABLED) return [];
+    const cell = cellOf(lat, lng);
+    const key = cell.lat + "," + cell.lng + "," + radius;
+    const hit = directoryCache.get(key);
+    if (hit && Date.now() - hit.at < (hit.failed ? DIRECTORY_FAIL_TTL_MS : CACHE_TTL_MS)) return hit.places;
+
+    let places = [];
+    let failed = false;
+    try {
+        places = await fetchDirectory(cell.lat, cell.lng, radius + CELL_MARGIN_M);
+    } catch (err) {
+        failed = true;
+        console.error("masjids: directory unavailable -", err.message);
+    }
+    if (directoryCache.size >= CACHE_MAX) directoryCache.delete(directoryCache.keys().next().value);
+    directoryCache.set(key, { at: Date.now(), places, failed });
+    return places;
+}
+
 function cellOf(lat, lng) {
     const round = (value) => Math.round(value * 1000) / 1000;
     return { lat: round(lat), lng: round(lng) };
@@ -139,31 +223,47 @@ async function placesNear(lat, lng) {
     return places;
 }
 
-// The same building is sometimes on the map twice (as a point and as an
-// outline). Keep the first of any two with the same name within 60 m, and of
-// any two unnamed ones within 25 m.
+// The same building often arrives more than once: from both sources, or on the
+// map as both a point and an outline. Two entries within 45 m of each other,
+// or with the same name within 80 m, are one masjid. The list is walked
+// nearest first with directory entries ahead of map entries at equal distance,
+// and the first of each group is kept, borrowing what the other knows (a name,
+// an address, a phone number) where it has none.
 function withoutDuplicates(sorted) {
     const kept = [];
     for (const place of sorted) {
-        const twin = kept.some((other) => {
+        const twin = kept.find((other) => {
             const gap = distanceBetween(place.latitude, place.longitude, other.latitude, other.longitude);
             const sameName = place.name && other.name && place.name.toLowerCase() === other.name.toLowerCase();
-            return sameName ? gap < 60 : (!place.name || !other.name) && gap < 25;
+            return gap < 45 || (sameName && gap < 80);
         });
-        if (!twin) kept.push(place);
+        if (!twin) { kept.push({ ...place }); continue; }
+        if (!twin.name && place.name) twin.name = place.name;
+        if (!twin.address && place.address) twin.address = place.address;
+        if (!twin.phone && place.phone) twin.phone = place.phone;
+        if (!twin.placeId && place.placeId) twin.placeId = place.placeId;
+        if (!twin.jumuah && place.jumuah) twin.jumuah = place.jumuah;
     }
     return kept;
 }
 
-// Masjids within `radius` metres of (lat, lng), nearest first.
+// Masjids within `radius` metres of (lat, lng), nearest first, from both
+// sources. Either may fail without failing the search; only when the map
+// service fails and the directory has nothing is the error passed on.
 async function nearby(lat, lng, radius) {
     const within = radiusOf(radius);
-    const places = await placesNear(lat, lng);
-    const measured = places
-        .map((place) => ({ ...place, distance: Math.round(distanceBetween(lat, lng, place.latitude, place.longitude)) }))
+    const [fromDirectory, fromMap] = await Promise.all([
+        directoryNear(lat, lng, within),
+        placesNear(lat, lng).catch((err) => ({ error: err }))
+    ]);
+    if (fromMap.error && !fromDirectory.length) throw fromMap.error;
+
+    const measure = (place) => ({ ...place, distance: Math.round(distanceBetween(lat, lng, place.latitude, place.longitude)) });
+    const merged = fromDirectory.map(measure)
+        .concat((fromMap.error ? [] : fromMap).map(measure))
         .filter((place) => place.distance <= within)
-        .sort((a, b) => a.distance - b.distance);
-    return withoutDuplicates(measured).slice(0, MAX_RESULTS);
+        .sort((a, b) => a.distance - b.distance || (a.placeId ? -1 : 1));
+    return withoutDuplicates(merged).slice(0, MAX_RESULTS);
 }
 
 module.exports = {
@@ -174,7 +274,8 @@ module.exports = {
     nearby,
     // Exposed for tests.
     _placesFrom: placesFrom,
+    _placesFromDirectory: placesFromDirectory,
     _withoutDuplicates: withoutDuplicates,
     _distanceBetween: distanceBetween,
-    _reset() { cache.clear(); }
+    _reset() { cache.clear(); directoryCache.clear(); }
 };

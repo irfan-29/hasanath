@@ -16002,6 +16002,78 @@ body:has(.sticky-banner-bottom) .global-audio-bar {
   margin-top: 0.7rem;
 }
 
+/* The map. `isolation` keeps the map library's own layering (which runs into
+   the hundreds) inside this box, so it can never climb over the app's header,
+   tab bar or dialogs. */
+.masjid-map-wrap {
+  max-width: 860px;
+  margin: 0 auto 1rem;
+  scroll-margin-top: 6rem;
+}
+
+.masjid-map {
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+  height: min(52vh, 380px);
+  min-height: 260px;
+  border: 1px solid var(--color-border-light);
+  border-radius: 16px;
+  overflow: hidden;
+  background: rgb(var(--accent-rgb) / 0.06);
+}
+
+.masjid-map-loading {
+  display: grid;
+  place-items: center;
+}
+
+/* A masjid's pin: a teardrop in the accent colour, pointing at the spot. */
+.masjid-pin span {
+  display: block;
+  width: 24px;
+  height: 24px;
+  margin: 2px 3px 0;
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  background: var(--accent-fill-1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  transform: rotate(-45deg);
+}
+
+.masjid-pin.is-active span {
+  background: var(--color-gold, #d9a441);
+  transform: rotate(-45deg) scale(1.25);
+}
+
+/* Where the reader is: a blue dot with a soft ring. */
+.masjid-you span {
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 2px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: #2563eb;
+  box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.22), 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.masjid-popup {
+  display: grid;
+  gap: 0.2rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+.masjid-popup strong { font-size: 0.92rem; overflow-wrap: anywhere; }
+.masjid-popup span { color: #5b6b67; }
+.masjid-popup a { color: var(--color-primary); font-weight: 700; }
+
+.masjid-card.is-selected {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgb(var(--accent-rgb) / 0.18);
+}
+
 .masjid-note {
   max-width: 860px;
   margin: 1.5rem auto 2rem;
