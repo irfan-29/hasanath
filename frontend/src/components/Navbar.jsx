@@ -15,6 +15,7 @@ const PRIMARY = [
   { to: '/salah', path: '/salah', icon: 'checklist_rtl', label: 'Salah Tracker' },
   { to: '/salah-timings', path: '/salah-timings', icon: 'schedule', label: 'Salah Timings' },
   { to: '/qibla', path: '/qibla', icon: 'explore', label: 'Qibla' },
+  { to: '/masjids', path: '/masjids', icon: 'mosque', label: 'Masjids Nearby' },
   { to: '/calendar', path: '/calendar', icon: 'calendar_month', label: 'Islamic Calendar' },
   { to: '/challenges', path: '/challenges', icon: 'emoji_events', label: 'Challenges' },
   { to: '/dhikr', path: '/dhikr', icon: 'menu_book', label: 'Dhikr & Dua' },

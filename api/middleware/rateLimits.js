@@ -167,7 +167,27 @@ const contactAccountLimiter = rateLimit({
     handler: tooManyAttempts("contact-account", CONTACT_WINDOW_MS)
 });
 
+// --- Masjids nearby ----------------------------------------------------------
+//
+// Each uncached lookup asks OpenStreetMap's shared, donated Overpass service a
+// question. A person changing the distance a few times needs a handful of
+// requests; nobody needs dozens. This keeps one visitor (or a script) from
+// spending that service's goodwill in the app's name.
+const MASJIDS_WINDOW_MS = 10 * 60 * 1000;
+const MASJIDS_MAX = 40;
+
+const masjidsLimiter = rateLimit({
+    windowMs: MASJIDS_WINDOW_MS,
+    limit: MASJIDS_MAX,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    store: new MongoRateLimitStore("masjids:"),
+    keyGenerator: (req) => (req.user && req.user._id ? String(req.user._id) : ipKeyGenerator(req.ip || "")),
+    handler: tooManyAttempts("masjids", MASJIDS_WINDOW_MS)
+});
+
 module.exports = {
+    masjidsLimiter,
     loginIpLimiter,
     loginAccountLimiter,
     otpIpLimiter,

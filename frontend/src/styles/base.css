@@ -15851,3 +15851,167 @@ body:has(.sticky-banner-bottom) .global-audio-bar {
   .admin-limit-row { flex-wrap: wrap; }
   .admin-limit-control { width: 100%; justify-content: space-between; }
 }
+
+/* ---- Masjids nearby --------------------------------------------------------
+   A toolbar (where the search is centred, how far to look), then one card per
+   masjid: its name, how far it is, and the way there. */
+
+.masjid-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  max-width: 520px;
+  margin: 1.5rem auto;
+  text-align: center;
+}
+
+.masjid-status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.masjid-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  max-width: 860px;
+  margin: 0 auto 1rem;
+}
+
+.masjid-where {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.masjid-where .material-symbols-rounded {
+  color: var(--color-primary);
+  font-size: 1.15rem;
+}
+
+.masjid-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.masjid-radii {
+  display: inline-flex;
+  padding: 0.2rem;
+  border: 1px solid var(--color-border-light);
+  border-radius: 999px;
+  background: var(--color-surface, transparent);
+}
+
+.masjid-radius {
+  min-width: 3.4rem;
+  padding: 0.35rem 0.8rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.masjid-radius[aria-pressed='true'] {
+  background: var(--accent-fill-1);
+  color: #fff;
+}
+
+.masjid-radius:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.masjid-radius:disabled { cursor: default; opacity: 0.7; }
+
+.masjid-count {
+  max-width: 860px;
+  margin: 0 auto 0.75rem;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}
+
+.masjid-list {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+.masjid-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border-light);
+  border-radius: 16px;
+  background: var(--color-surface, transparent);
+}
+
+.masjid-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgb(var(--accent-rgb) / 0.12);
+  color: var(--color-primary);
+}
+
+.masjid-body { flex: 1 1 auto; min-width: 0; }
+
+.masjid-name {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.masjid-meta {
+  margin: 0.2rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.masjid-distance {
+  color: var(--color-text);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.masjid-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+}
+
+.masjid-note {
+  max-width: 860px;
+  margin: 1.5rem auto 2rem;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.masjid-note a { color: var(--color-primary); }

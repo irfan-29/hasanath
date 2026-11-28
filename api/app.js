@@ -14,7 +14,7 @@ const { MongoStore } = require("connect-mongo");
 const { islamicFinderFetch } = require("../api/utils/islamic-finder.js");
 const { sendTelegramMessage, claimChatByCode, makeVerifyCode, buildStreakSummary, normalizeChatId, normalizeToken, extractToken, isValidToken, botIsConfigured, ERROR_MESSAGES } = require("../api/utils/telegram.js");
 const { passport, requireLogin, resolveLoginIdentifier } = require("./middleware/auth.js");
-const { loginIpLimiter, loginAccountLimiter, otpIpLimiter, otpEmailLimiter, postAccountLimiter, contactAccountLimiter, resolveOtpTarget } = require("./middleware/rateLimits.js");
+const { loginIpLimiter, loginAccountLimiter, otpIpLimiter, otpEmailLimiter, postAccountLimiter, contactAccountLimiter, masjidsLimiter, resolveOtpTarget } = require("./middleware/rateLimits.js");
 // Named `userData` rather than `data`: several routes bind a local `data` to a
 // fetched surah/prayer payload, which would shadow the service module.
 const userData = require("./services/userData.js");
@@ -283,6 +283,7 @@ const Posts = require("./models/Post.js");
 const PostReport = require("./models/PostReport.js");
 const postModeration = require("./services/postModeration.js");
 const limits = require("./services/limits.js");
+const masjids = require("./services/masjids.js");
 
 // Keep like data useful without publishing the list of user ids. Every route
 // that returns a post goes through this, otherwise one endpoint would leak
@@ -3543,6 +3544,47 @@ app.get("/api/locations/search", async function(req, res){
         res.json({ locations: await prayerTimes.searchLocations(query) });
     } catch (err) {
         console.error("api/locations/search:", err.message);
+        res.status(502).json({ error: "unavailable" });
+    }
+});
+
+// ---- Masjids nearby ----
+//
+// GET /api/masjids/nearby?lat=..&lng=..&radius=2000|5000|10000
+// With coordinates (the phone's own position), masjids around that point.
+// Without, around the place saved for prayer times; with neither, the page is
+// told to ask for a location rather than being shown masjids in a city the
+// reader never chose. Places come from OpenStreetMap (see services/masjids.js).
+app.get("/api/masjids/nearby", masjidsLimiter, async function(req, res){
+    try {
+        const radius = masjids.radiusOf(req.query.radius);
+        let latitude = Number(req.query.lat);
+        let longitude = Number(req.query.lng);
+        let source = "gps";
+        let label = "";
+
+        if (req.query.lat === undefined || req.query.lng === undefined || !masjids.validCoordinates(latitude, longitude)) {
+            const settings = await userData.getSettings(req);
+            const saved = await prayerTimes.resolveLocation(settings);
+            if (!saved) return res.json({ needsLocation: true, masjids: [], radius, radii: masjids.RADII });
+            latitude = saved.latitude;
+            longitude = saved.longitude;
+            label = saved.label || "";
+            source = "saved";
+        }
+
+        const list = await masjids.nearby(latitude, longitude, radius);
+        res.json({
+            needsLocation: false,
+            masjids: list,
+            center: { latitude, longitude, label },
+            source,
+            radius,
+            radii: masjids.RADII
+        });
+    } catch (err) {
+        console.error("api/masjids/nearby:", err.message);
+        // The map service is busy or unreachable: say so, so the page can offer a retry.
         res.status(502).json({ error: "unavailable" });
     }
 });

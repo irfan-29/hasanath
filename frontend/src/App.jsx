@@ -25,6 +25,7 @@ import SalahPage from './pages/SalahPage';
 import SettingsPage from './pages/SettingsPage';
 import SalahTimingsPage from './pages/SalahTimingsPage';
 import QiblaPage from './pages/QiblaPage';
+import MasjidsPage from './pages/MasjidsPage';
 import CalendarPage from './pages/CalendarPage';
 import DhikrDuaPage from './pages/DhikrDuaPage';
 import { LoginPage, RegisterPage, VerifyPage, ForgotPasswordPage, ResetPasswordPage } from './pages/AuthPage';
@@ -283,6 +284,7 @@ function Shell() {
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/salah-timings" element={<SalahTimingsPage />} />
           <Route path="/qibla" element={<QiblaPage />} />
+          <Route path="/masjids" element={<MasjidsPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/dhikr" element={<DhikrDuaPage />} />
           <Route path="/post/:id" element={<PostPage />} />

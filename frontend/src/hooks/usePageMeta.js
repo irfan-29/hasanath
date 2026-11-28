@@ -23,6 +23,7 @@ const PAGES = [
   ['/hadith', { title: 'Hadith', description: 'Browse ten collections of hadith, including Sahih al-Bukhari and Sahih Muslim, and bookmark the ones that stay with you.' }],
   ['/salah-timings', { title: 'Salah Timings', description: 'Accurate prayer times for your city, with the Hijri date.' }],
   ['/salah', { title: 'Salah Tracker', description: 'Log your five daily prayers and see your day at a glance.' }],
+  ['/masjids', { title: 'Masjids Nearby', description: 'Find the masjids closest to you, with the distance to each and directions in Google Maps.' }],
   ['/qibla', { title: 'Qibla', description: 'Find the qibla direction from wherever you are.' }],
   ['/calendar', { title: 'Islamic Calendar', description: 'The Hijri calendar, month by month, with today marked.' }],
   ['/dhikr', { title: 'Dhikr & Dua', description: 'A dhikr counter you can use with your eyes closed, and a collection of duas.' }],
