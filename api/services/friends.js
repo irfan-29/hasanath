@@ -68,6 +68,16 @@ async function sendRequest(viewer, rawUsername) {
     if (!target) return { error: "not-found" };
     if (String(target._id) === String(viewer._id)) return { error: "self" };
 
+    // A block in either direction closes the door. The answer is "not found"
+    // both ways, so neither person learns from it that they were blocked.
+    const blocked = await User.exists({
+        $or: [
+            { _id: target._id, blockedUsers: viewer._id },
+            { _id: viewer._id, blockedUsers: target._id }
+        ]
+    });
+    if (blocked) return { error: "not-found" };
+
     const key = Friendship.keyFor(viewer._id, target._id);
     const existing = await Friendship.findOne({ key });
     if (existing) {

@@ -28,6 +28,11 @@ const postSchema = new mongoose.Schema({
     // it into a count plus a per-viewer flag.
     likedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
+    // True while the author's account is suspended. Kept on the post so the
+    // feed can leave it out with the same query it already runs, instead of
+    // looking up every author. Set and cleared in one step when an admin
+    // suspends or restores the account.
+    authorSuspended: { type: Boolean, default: false },
     status: {
         type: String,
         enum: ["published", "pending", "rejected"],

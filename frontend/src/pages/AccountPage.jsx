@@ -320,7 +320,7 @@ export default function AccountPage() {
         cpassword: pwConfirm
       });
       closePassword();
-      toast('Password updated');
+      toast('Password updated. Other devices have been signed out.');
     } catch (err) {
       const code = err instanceof ApiError && err.body?.error;
       setPwError(PASSWORD_ERRORS[code] || 'Could not change your password.');

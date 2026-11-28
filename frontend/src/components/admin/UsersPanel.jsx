@@ -93,6 +93,39 @@ export default function UsersPanel() {
     }
   }
 
+  // Suspend an account that is being abused, or restore one. Suspension is
+  // reversible: the account and everything in it stay exactly as they were.
+  async function toggleSuspended(user) {
+    if (busyId) return;
+    const name = user.username ? `@${user.username}` : (user.email || 'this account');
+    const suspending = !user.suspended;
+
+    const ok = await ask({
+      title: suspending ? `Suspend ${name}?` : `Restore ${name}?`,
+      message: suspending
+        ? 'They are signed out everywhere and cannot sign in again, and their posts are hidden. Nothing is deleted: you can restore the account from this table.'
+        : 'They can sign in again and their posts become visible.',
+      confirmLabel: suspending ? 'Suspend' : 'Restore',
+      danger: suspending,
+    });
+    if (!ok) return;
+
+    setBusyId(user.id);
+    setError('');
+    try {
+      await admin.setUserSuspended(user.id, suspending);
+      toast(suspending ? `${name} is suspended` : `${name} is restored`, suspending ? { kind: 'delete' } : undefined);
+      await load();
+    } catch (err) {
+      const code = err.body && err.body.error;
+      if (code === 'self') setError('You cannot suspend your own account.');
+      else if (code === 'is-admin') setError('Remove that account’s admin access before suspending it.');
+      else setError('Could not change that account.');
+    } finally {
+      setBusyId('');
+    }
+  }
+
   return (
     <>
       <section className="account-card">
@@ -104,7 +137,8 @@ export default function UsersPanel() {
         <p className="account-hint">
           Search by username, name or email. &ldquo;Last active&rdquo; comes from
           the app boot and updates at most every five minutes. Access controls
-          who can open this portal.
+          who can open this portal. Suspend signs an account out everywhere and
+          hides its posts until you restore it.
         </p>
 
         <form className="admin-search" onSubmit={submit}>
@@ -206,6 +240,21 @@ export default function UsersPanel() {
                           <span className="admin-role-note">You</span>
                         )}
                       </div>
+                      {/* Suspension sits under the role. Admins cannot be
+                          suspended, so the button is offered for members only. */}
+                      {(user.suspended || (!user.isAdmin && !user.envAdmin && user.username !== viewer)) && (
+                        <div className="admin-role">
+                          {user.suspended && <span className="admin-status is-suspended">Suspended</span>}
+                          <button
+                            type="button"
+                            className="admin-role-btn"
+                            disabled={busyId === user.id}
+                            onClick={() => toggleSuspended(user)}
+                          >
+                            {user.suspended ? 'Restore' : 'Suspend'}
+                          </button>
+                        </div>
+                      )}
                     </td>
                     <td className="admin-cell-muted" data-label="Telegram">{user.telegram ? 'On' : '—'}</td>
                   </tr>

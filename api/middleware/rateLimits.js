@@ -186,7 +186,75 @@ const masjidsLimiter = rateLimit({
     handler: tooManyAttempts("masjids", MASJIDS_WINDOW_MS)
 });
 
+// --- The API as a whole ------------------------------------------------------
+//
+// The limits above protect particular actions. These two put a ceiling on
+// everything else, so that a script cannot spend the month's hosting allowance
+// by calling ordinary endpoints in a loop.
+//
+// They are kept in this server's memory, not in MongoDB like the others. A
+// database write on every single request would slow the whole app down and
+// use up the very allowance being protected. The cost of memory is that each
+// running server keeps its own count, so the real ceiling is a little higher
+// than the number below when several are running; that is fine for a ceiling
+// whose job is to stop floods, not to meter people.
+//
+// A person using the app makes a few requests per page. 300 in five minutes is
+// far above that and far below what a script wants.
+//
+// Visitors who are not signed in can only be counted by network address, and
+// one address is often many people (an office, a mobile carrier, a campus).
+// Their ceiling is therefore three times higher, so a busy shared address is
+// not mistaken for one greedy visitor.
+const API_WINDOW_MS = 5 * 60 * 1000;
+const API_MAX = 300;
+const API_MAX_PER_ADDRESS = 900;
+const WRITE_WINDOW_MS = 60 * 1000;
+const WRITE_MAX = 60;
+const WRITE_MAX_PER_ADDRESS = 120;
+
+// Signed in: counted per account, so people behind one shared address (an
+// office, a mobile carrier) do not use up each other's allowance.
+function visitorKey(req) {
+    return req.user && req.user._id ? "u:" + String(req.user._id) : ipKeyGenerator(req.ip || "");
+}
+
+// The scheduler's own calls are signed and arrive on a fixed timetable; they
+// are not a visitor and must never be turned away.
+function isSchedulerCall(req) {
+    return req.path.startsWith("/qstash/") || req.originalUrl.startsWith("/api/qstash/");
+}
+
+const signedIn = (req) => Boolean(req.user && req.user._id);
+
+const apiLimiter = rateLimit({
+    windowMs: API_WINDOW_MS,
+    limit: (req) => (signedIn(req) ? API_MAX : API_MAX_PER_ADDRESS),
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    keyGenerator: visitorKey,
+    skip: isSchedulerCall,
+    handler: tooManyAttempts("api", API_WINDOW_MS)
+});
+
+// Anything that changes data: a tighter ceiling, on top of the one above.
+const writeLimiter = rateLimit({
+    windowMs: WRITE_WINDOW_MS,
+    limit: (req) => (signedIn(req) ? WRITE_MAX : WRITE_MAX_PER_ADDRESS),
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    keyGenerator: visitorKey,
+    skip: (req) => isSchedulerCall(req) || req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS",
+    handler: tooManyAttempts("writes", WRITE_WINDOW_MS)
+});
+
 module.exports = {
+    apiLimiter,
+    writeLimiter,
+    API_MAX,
+    API_MAX_PER_ADDRESS,
+    WRITE_MAX,
+    WRITE_MAX_PER_ADDRESS,
     masjidsLimiter,
     loginIpLimiter,
     loginAccountLimiter,

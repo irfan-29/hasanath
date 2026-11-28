@@ -173,6 +173,12 @@ const userSchema = new mongoose.Schema({
     // it hides their posts from this viewer's feed and profile, and prevents
     // liking those posts. The other account is untouched and is not told.
     blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    // Set by an admin (Admin > Users). A suspended account cannot sign in, is
+    // signed out everywhere, and its posts are hidden until it is restored.
+    // Nothing is deleted, so a suspension can be undone.
+    suspended: { type: Boolean, default: false },
+    suspendedAt: { type: Date, default: null },
+    suspendedReason: { type: String, default: "", trim: true, maxlength: 300 },
     // Chat the app-level Hasanath bot should notify. Never a bot token:
     // one shared bot, many subscribers.
     telegramChatId: String,

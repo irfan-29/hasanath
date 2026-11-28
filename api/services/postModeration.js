@@ -76,6 +76,8 @@ function visibleFilter(viewer) {
     const filter = { $or: or };
     const blocked = blockedIds(viewer);
     if (blocked.length) filter.author = { $nin: blocked };
+    // Posts by a suspended account are hidden from everyone but admins.
+    if (!isAdmin(viewer)) filter.authorSuspended = { $ne: true };
     return filter;
 }
 
@@ -87,6 +89,7 @@ function canView(post, viewer) {
 
     if (isAdmin(viewer)) return true;
     if (isBlocked(viewer, authorId)) return false;
+    if (post.authorSuspended) return false;
     if (post.status === "rejected") return false;
     if (post.status === "pending") {
         return Boolean(viewer && viewer._id && authorId && String(viewer._id) === authorId);

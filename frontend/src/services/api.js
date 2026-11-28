@@ -223,6 +223,9 @@ export const admin = {
   // Grants or revokes the portal flag. ADMIN_EMAILS addresses always stay
   // admins, and the server refuses a change to your own account.
   setUserAdmin: (id, isAdmin) => api.request(`/admin/users/${id}`, { method: 'PATCH', body: { isAdmin } }),
+  // Suspends or restores an account. A suspended account cannot sign in, is
+  // signed out everywhere and has its posts hidden; nothing is deleted.
+  setUserSuspended: (id, suspended, reason = '') => api.request(`/admin/users/${id}`, { method: 'PATCH', body: { suspended, reason } }),
   banners: () => api.get('/admin/banners'),
   createBanner: (payload) => api.post('/admin/banners', payload),
   updateBanner: (id, payload) => api.request(`/admin/banners/${id}`, { method: 'PATCH', body: payload }),

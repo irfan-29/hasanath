@@ -14654,6 +14654,14 @@ a.leaderboard-player:hover .leaderboard-name {
   color: #15803d;
 }
 
+/* An account an admin has suspended. */
+.admin-status.is-suspended {
+  border-color: rgba(220, 38, 38, 0.35);
+  background: rgba(220, 38, 38, 0.1);
+  color: #b91c1c;
+}
+
+
 [data-theme="dark"] .admin-status.is-live { color: #86efac; }
 
 /* --- Sticky announcement bar -------------------------------------------- */

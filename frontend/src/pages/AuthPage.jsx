@@ -21,6 +21,7 @@ const MESSAGES = {
   'no-pending': 'That request has expired. Please start again.',
   'too-many-attempts': 'Too many incorrect attempts. Please request a new code.',
   'email-not-sent': 'We could not send the email. Please try again shortly.',
+  'account-suspended': 'This account has been suspended. If you think this is a mistake, write to support@hasanath.app.',
   'signups-closed': 'Signups are closed right now. Please check back later.',
   'signup-daily-limit': 'Today’s signups are full. Please try again tomorrow.',
   'signup-weekly-limit': 'This week’s signups are full. Please try again next week.',

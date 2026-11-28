@@ -42,7 +42,7 @@ async function list({ query = "", page = 1, limit = DEFAULT_LIMIT } = {}) {
 
     const [users, total] = await Promise.all([
         User.find(filter)
-            .select("username name email avatarUrl createdAt lastSeenAt telegram.enabled isAdmin")
+            .select("username name email avatarUrl createdAt lastSeenAt telegram.enabled isAdmin suspended suspendedAt suspendedReason")
             .sort({ lastSeenAt: -1, _id: -1 })
             .skip((safePage - 1) * safeLimit)
             .limit(safeLimit)
@@ -88,6 +88,9 @@ async function list({ query = "", page = 1, limit = DEFAULT_LIMIT } = {}) {
                 // that row without a toggle: only the deployment can change it.
                 isAdmin: Boolean(user.isAdmin),
                 envAdmin: postModeration.isEnvAdmin(user),
+                suspended: Boolean(user.suspended),
+                suspendedAt: user.suspendedAt || null,
+                suspendedReason: user.suspendedReason || "",
                 joinedAt: joinedAt(user),
                 lastSeenAt: user.lastSeenAt || null,
                 posts: stats.posts || 0,

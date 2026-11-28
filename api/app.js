@@ -14,7 +14,7 @@ const { MongoStore } = require("connect-mongo");
 const { islamicFinderFetch } = require("../api/utils/islamic-finder.js");
 const { sendTelegramMessage, claimChatByCode, makeVerifyCode, buildStreakSummary, normalizeChatId, normalizeToken, extractToken, isValidToken, botIsConfigured, ERROR_MESSAGES } = require("../api/utils/telegram.js");
 const { passport, requireLogin, resolveLoginIdentifier } = require("./middleware/auth.js");
-const { loginIpLimiter, loginAccountLimiter, otpIpLimiter, otpEmailLimiter, postAccountLimiter, contactAccountLimiter, masjidsLimiter, resolveOtpTarget } = require("./middleware/rateLimits.js");
+const { loginIpLimiter, loginAccountLimiter, otpIpLimiter, otpEmailLimiter, postAccountLimiter, contactAccountLimiter, masjidsLimiter, apiLimiter, writeLimiter, resolveOtpTarget } = require("./middleware/rateLimits.js");
 // Named `userData` rather than `data`: several routes bind a local `data` to a
 // fetched surah/prayer payload, which would shadow the service module.
 const userData = require("./services/userData.js");
@@ -154,6 +154,24 @@ app.use(cookieParser(COOKIE_SECRET));
 // user straight back to a signed-out page.
 app.set("trust proxy", 1);
 
+// Protective headers on every API answer. (The website's own pages get the
+// same ones from frontend/vercel.json.)
+//   nosniff          a browser must not guess a file's type and run it
+//   frame options    the API can never be shown inside another site's frame
+//   referrer         other sites learn only our address, never the full link
+//   permissions      the features an answer from here may switch on: none
+//   HSTS             browsers use HTTPS for this address for the next two years
+app.disable("x-powered-by");
+app.use(function securityHeaders(req, res, next) {
+    res.set("X-Content-Type-Options", "nosniff");
+    res.set("X-Frame-Options", "DENY");
+    res.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    res.set("Cross-Origin-Resource-Policy", "same-site");
+    if (IS_PRODUCTION) res.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains");
+    next();
+});
+
 // Gate every request behind the initial connection. Running before the session
 // middleware matters: the session store reads from Mongo on every request, so
 // without this a cold start spends its budget on a buffered session lookup.
@@ -200,6 +218,21 @@ app.use(session({
 
 app.use(passport.initialize());
 app.use(passport.session());
+
+// A suspended account is signed out on its very next request, wherever it is
+// signed in. deserializeUser reloads the account each time, so this takes
+// effect the moment an admin presses Suspend.
+app.use(function refuseSuspended(req, res, next) {
+    if (!req.user || !req.user.suspended) return next();
+    req.logout(function() {
+        if (req.path === "/api/session") return next();      // answers as a signed-out visitor
+        res.status(401).json({ error: "account-suspended" });
+    });
+});
+
+// A ceiling on the API as a whole, then a tighter one on anything that changes
+// data. After the session is read, so signed-in people are counted per account.
+app.use("/api", apiLimiter, writeLimiter);
 
 // The guest store needs `res` to set its cookie; expose it on `req` once.
 app.use(userData.attachResponse);
@@ -2251,6 +2284,30 @@ app.delete("/api/users/:id/block", requireLogin, async function(req, res){
 // is still deliberately small and every route re-checks it, but adding a
 // moderator no longer needs a redeploy. Review holds still expire on their own
 // when nobody is configured at all.
+// End an account's sign-ins on every device, except (optionally) the one making
+// this request. Sessions live in the "sessions" collection, and each records
+// who is signed in by email address, as text or as an object depending on how
+// the store was configured, so both shapes are matched.
+async function endSessionsFor(email, exceptSessionId) {
+    const address = String(email || "").trim().toLowerCase();
+    if (!address) return 0;
+    const escaped = address.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const filter = {
+        $or: [
+            { session: { $regex: '"passport":\\{"user":"' + escaped + '"', $options: "i" } },
+            { "session.passport.user": address }
+        ]
+    };
+    if (exceptSessionId) filter._id = { $ne: exceptSessionId };
+    try {
+        const result = await mongoose.connection.collection("sessions").deleteMany(filter);
+        return result.deletedCount || 0;
+    } catch (err) {
+        console.error("endSessionsFor:", err.message);
+        return 0;
+    }
+}
+
 function requireAdmin(req, res, next) {
     if (!postModeration.isAdmin(req.user)) return res.status(403).json({ error: "forbidden" });
     next();
@@ -2615,11 +2672,43 @@ app.get("/api/admin/users", requireLogin, requireAdmin, async function(req, res)
 
 app.patch("/api/admin/users/:id", requireLogin, requireAdmin, async function(req, res){
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "not-found" });
-    if (!req.body || typeof req.body.isAdmin !== "boolean") return res.status(400).json({ error: "invalid-admin-flag" });
+    const body = req.body || {};
+    const changesAdmin = typeof body.isAdmin === "boolean";
+    const changesSuspension = typeof body.suspended === "boolean";
+    if (!changesAdmin && !changesSuspension) return res.status(400).json({ error: "invalid-admin-flag" });
 
     try {
-        const target = await User.findById(req.params.id).select("username email isAdmin");
+        const target = await User.findById(req.params.id).select("username email isAdmin suspended suspendedAt suspendedReason");
         if (!target) return res.status(404).json({ error: "not-found" });
+
+        // Suspend or restore an account. An admin cannot be suspended: remove
+        // the admin role first, so one admin cannot quietly lock out another.
+        if (changesSuspension) {
+            if (String(target._id) === String(req.user._id)) return res.status(400).json({ error: "self" });
+            if (postModeration.isAdmin(target)) return res.status(400).json({ error: "is-admin" });
+
+            target.suspended = body.suspended;
+            target.suspendedAt = body.suspended ? new Date() : null;
+            target.suspendedReason = body.suspended ? String(body.reason || "").trim().slice(0, 300) : "";
+            await target.save();
+            // Their posts are hidden (or shown again) in the same step, and a
+            // suspended account is signed out everywhere at once.
+            await Posts.updateMany({ author: target._id }, { $set: { authorSuspended: body.suspended } });
+            if (body.suspended) await endSessionsFor(target.email);
+            console.log("admin: " + (req.user.username || req.user.email) + (body.suspended ? " suspended " : " restored ") + (target.username || target.email));
+
+            return res.json({
+                user: {
+                    id: String(target._id),
+                    username: target.username || "",
+                    isAdmin: Boolean(target.isAdmin),
+                    envAdmin: false,
+                    suspended: Boolean(target.suspended),
+                    suspendedAt: target.suspendedAt,
+                    suspendedReason: target.suspendedReason
+                }
+            });
+        }
 
         // The environment list is root access. Letting the portal edit it would
         // mean a demoted account keeps coming back after the next request.
@@ -2660,6 +2749,20 @@ app.get("/api/admin/stats", requireLogin, requireAdmin, async function(req, res)
 //
 // One page for every adjustable limit. The list of limits, their ranges and
 // their defaults live in services/limits.js; these routes only pass them on.
+
+// What this server sees of the caller's network address. The limits for
+// visitors who are not signed in are counted by address, so this is how to
+// check, once, that the address seen is the visitor's own and not the hosting
+// provider's: open /api/admin/request-info from two different networks and
+// compare the "ip" values. They should differ.
+app.get("/api/admin/request-info", requireLogin, requireAdmin, function(req, res){
+    res.json({
+        ip: req.ip,
+        forwardedFor: req.headers["x-forwarded-for"] || null,
+        realIp: req.headers["x-real-ip"] || null,
+        vercelForwardedFor: req.headers["x-vercel-forwarded-for"] || null
+    });
+});
 
 app.get("/api/admin/limits", requireLogin, requireAdmin, async function(req, res){
     try {
@@ -3137,7 +3240,11 @@ app.post("/api/account/password", requireLogin, async function(req, res){
 
         await user.setPassword(password);
         await user.save();
-        res.json({ ok: true });
+        // Whoever else is signed in to this account, on any device, is signed
+        // out now. If the password was changed because someone else got in,
+        // this is what actually puts them out. This device stays signed in.
+        const ended = await endSessionsFor(user.email, req.sessionID);
+        res.json({ ok: true, signedOutElsewhere: ended });
     } catch (err) {
         console.error("api/account/password POST:", err.message);
         res.status(500).json({ error: "failed" });
@@ -3931,6 +4038,7 @@ const AUTH_MESSAGES = {
     'no-pending': 'Start by registering again.',
     'too-many-attempts': 'Too many incorrect attempts. Please register again.',
     'email-not-sent': 'We could not send a verification email. Please try again.',
+    'account-suspended': 'This account has been suspended. If you think this is a mistake, write to support@hasanath.app.',
     'signups-closed': 'Signups are closed right now. Please check back later.',
     'signup-daily-limit': 'Today\'s signups are full. Please try again tomorrow.',
     'signup-weekly-limit': 'This week\'s signups are full. Please try again next week.'
@@ -4078,6 +4186,9 @@ app.post("/api/auth/login", loginIpLimiter, resolveLoginIdentifier, loginAccount
     passport.authenticate("local", function(err, user){
         if (err) return next(err);
         if (!user) return res.status(401).json({ error: "invalid-credentials" });
+        // Said only after the password was right, so it tells nothing to
+        // someone guessing at accounts.
+        if (user.suspended) return res.status(403).json({ error: "account-suspended", message: AUTH_MESSAGES });
 
         req.logIn(user, (err) => {
             if (err) return res.status(500).json({ error: "failed" });
@@ -4188,6 +4299,10 @@ app.post("/api/auth/reset", async function(req, res){
         await user.setPassword(password);
         await user.save();
         delete req.session.pendingReset;
+        // A reset usually means the old password is no longer trusted, so
+        // every earlier sign-in to this account ends here.
+        await endSessionsFor(user.email, req.sessionID);
+        if (user.suspended) return res.status(403).json({ error: "account-suspended", message: AUTH_MESSAGES });
 
         // The mailbox just proved ownership, so signing in here is the same
         // promise the login form makes - no extra round trip through /login.
