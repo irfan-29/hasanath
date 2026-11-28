@@ -1,12 +1,17 @@
 // Masjids near a place, from two sources that are asked together and merged.
 //
 // 1. masjidnear.me: a masjid directory with good coverage in India, including
-//    small neighbourhood masjids, each with a Google Maps place id. It is
-//    another project's service, used here through its public address. It has
-//    no published terms for outside use, so it is treated as a guest would
-//    treat a host: asked rarely (answers are kept for 12 hours per area), never
-//    relied on (if it is slow or gone, the page still works from the second
-//    source), and switchable off without a code change (MASJIDNEAR_API=off).
+//    small neighbourhood masjids, each with a Google Maps place id. Its
+//    developer page (https://api.masjidnear.me) invites developers to read its
+//    database. That page documents /v1/masjids/search?lat=..&lng=..&rad=..,
+//    which was not answering when this was written (November 2026), so the
+//    address its own site uses is called instead: /v1/masjids/{lat}/{lng}/
+//    {radius}/{n}. If the documented form starts working, fetchDirectory() is
+//    the one place to change.
+//    It is still someone else's free service, so it is asked rarely (answers
+//    are kept for 12 hours per area), never relied on (if it is slow or gone,
+//    the page still works from the second source), and can be switched off
+//    without a code change (MASJIDNEAR_API=off).
 //
 // 2. OpenStreetMap: a free, community-maintained map of the world, read
 //    through its Overpass service. No key and no bill, but a masjid appears
