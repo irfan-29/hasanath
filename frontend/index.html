@@ -11,6 +11,12 @@
     <!-- The app logo as the favicon so the browser tab wears the same teal
          mosque mark as the sidebar. SVG keeps it crisp at every size. -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- PNG copies in the sizes Google asks for (a multiple of 48 px) for the
+         icon it shows beside a search result, plus /favicon.ico at the root
+         for anything that asks for that file by name. -->
+    <link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon-48.png" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/icons/favicon-96.png" />
+    <link rel="icon" type="image/png" sizes="144x144" href="/icons/favicon-144.png" />
     <!-- Android/iOS home screens need PNGs; SVG apple-touch-icons are ignored. -->
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <!-- Installable app (PWA / Android). See public/manifest.webmanifest and public/sw.js. -->
