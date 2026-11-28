@@ -122,6 +122,85 @@ Fixed in code: 3 reports hide a post until an admin reviews it; login, OTP,
 contact and masjid-search requests are rate-limited (`api/middleware/rateLimits.js`).
 Admins are exempt from the posting limits.
 
+## Security
+
+What is in place, and what each part is for.
+
+| Protection | What it does | Where |
+|---|---|---|
+| General API ceiling | 300 requests per 5 minutes per signed-in account; 900 per network address for visitors who are not signed in | `api/middleware/rateLimits.js` (`apiLimiter`) |
+| Write ceiling | 60 changes per minute per account; 120 per address | same file (`writeLimiter`) |
+| Action limits | Login, OTP, posting, contact and masjid search each have their own | same file |
+| Protective headers | No framing by other sites, no content-type guessing, HTTPS only, a referrer policy | `api/app.js` for the API, `frontend/vercel.json` for the website |
+| Sessions | Changing or resetting a password signs the account out everywhere else | `endSessionsFor()` in `api/app.js` |
+| Suspension | Admin > Users. Signs the account out, blocks sign-in, hides its posts. Reversible | `PATCH /api/admin/users/:id` |
+| Sign-in redirect | After signing in, only a path inside the site is followed | `safeReturnPath()` in `AuthPage.jsx` |
+
+The two general ceilings are kept in the server's memory, not the database,
+so they cost nothing per request. Each running server keeps its own count, so
+the real ceiling is somewhat higher when several are running. That is
+acceptable: their job is to stop floods, not to meter people.
+
+**Check once after deploying:** sign in as an admin and open
+`/api/admin/request-info` from two different networks (for example home
+Wi-Fi and mobile data). The `ip` values should differ. If they are the same,
+the server is seeing the hosting provider's address instead of the visitor's,
+and the per-address limits would be shared by everyone; tell whoever
+maintains the code.
+
+**Known and accepted:**
+
+- `npm audit` still reports a high-severity advisory in `zod`, reached only
+  through `@vercel/blob`'s own configuration code. It is not exposed to
+  anything a visitor sends, and no newer `@vercel/blob` removes it yet.
+  Re-run `npm audit` every month or so and update when a fix exists.
+- The website's `react-router-dom` (version 6) has a moderate advisory that
+  is only fixed in version 7, a larger upgrade. The part of it that matters
+  here, following an address taken from a link, is closed by
+  `safeReturnPath()`.
+
+**Backups:** Atlas's free tier does not back up by itself. Once a week run
+`mongodump --uri "<MONGO_URI>" --archive=hasanath-YYYY-MM-DD.archive` and
+keep the file somewhere safe. Without it, a mistake or a bad deploy is
+permanent.
+
+## Early access (temporary)
+
+For the period before the public launch.
+
+- Signups are held back with the caps on **Admin > Limits**. A refused signup
+  is told that Hasanath is in early access and to write to
+  `support@hasanath.app`.
+- **Admin > Limits > Early access**: enter an email address to let it sign up
+  whatever the caps say (including when signups are closed). The person is
+  emailed an invitation and must register with that same address. The card
+  lists everyone invited, whether the email went out, and whether they have
+  signed up.
+- Code: `api/models/EarlyAccess.js`, `api/services/earlyAccess.js`, the
+  `/api/admin/early-access` routes, one line in `checkSignupAllowed()`
+  (`api/services/limits.js`), and `EarlyAccessPanel.jsx`.
+
+**At launch:** switch the signup limits off on the Limits page. From that
+moment the list has no effect and nothing else needs doing. To remove the
+feature from the code afterwards: delete the files above, the routes, the
+`earlyAccess.isInvited` line in `checkSignupAllowed()`, the panel from
+`AdminPage.jsx`, restore the plain wording of the three signup messages in
+`AuthPage.jsx` and `api/app.js`, and drop the `earlyaccesses` collection.
+
+## Legal pages
+
+- `/privacy`, `/terms` and `/credits` are in `frontend/src/pages/LegalPage.jsx`.
+  They describe what the app actually does. If the app starts collecting
+  something new or using a new outside service, update the matching section
+  and the "Last updated" date at the top of that file.
+- Sign-up requires a tick box (18 or older, or a guardian's permission, and
+  agreement to both documents). The server checks it and stores the time on
+  the account as `termsAcceptedAt`.
+- The complaints contact named in the documents is `support@hasanath.app`,
+  with an acknowledgement within 24 hours and a resolution within 15 days.
+  That promise needs someone reading the inbox daily.
+- They were drafted with care but not by a lawyer. Have them reviewed.
+
 ## Masjids Nearby
 
 - Two sources are asked together and merged: the masjidnear.me directory and
@@ -202,6 +281,8 @@ Full steps are in `docs/android-releases.md`. The essentials:
 | Stop using the masjid directory | `MASJIDNEAR_API=off`, redeploy |
 | Send email through Gmail again | `EMAIL_PROVIDER=gmail`, redeploy |
 | Close signups | Admin > Limits: set a signup limit to 0 |
+| Let one person in while signups are limited | Admin > Limits > Early access: add their email |
+| Stop an abusive account | Admin > Users: Suspend |
 | Stop all posting | Admin > Limits: set a post limit to 0 |
 | Stop Telegram reminders being triggered | `npm run qstash:schedule -- delete` |
 | Force everyone onto a new app version | Raise `minSupportedVersionCode` in `public/android/version.json` |
@@ -214,5 +295,9 @@ Full steps are in `docs/android-releases.md`. The essentials:
   show the app's own email passing.
 - Campaigns (fundraising) was designed but put on hold; see the discussion of
   how money would flow before starting it.
+- Have the Privacy Policy and Terms of Use reviewed by someone qualified.
+- After the first deploy with the general limits, do the
+  `/api/admin/request-info` check described under Security.
+- Start the weekly database backup.
 - Vercel's free plan is for non-commercial use. If Hasanath ever earns money,
   move to a paid plan or another host first.

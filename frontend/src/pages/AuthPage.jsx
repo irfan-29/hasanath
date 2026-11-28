@@ -40,6 +40,16 @@ function rateLimitedMessage(err) {
   return `Too many emails requested. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`;
 }
 
+// A same-site path, or null. Rejects full addresses ("https://..."), addresses
+// that borrow the current scheme ("//elsewhere.example"), and backslash tricks
+// that some browsers treat as a slash ("/\\elsewhere.example").
+function safeReturnPath(value) {
+  const path = String(value || '');
+  if (!path.startsWith('/') || path.startsWith('//') || path.includes('\\')) return null;
+  if (/[\u0000-\u001f]/.test(path)) return null;
+  return path;
+}
+
 // A message that names the support address shows it as a link that opens a
 // new email, so asking for early access is one tap.
 const SUPPORT_ADDRESS = 'support@hasanath.app';
@@ -73,7 +83,12 @@ export default function AuthPage({ mode: initialMode = 'login' }) {
   const [cooldown, setCooldown] = useState(0);
   const [params] = useSearchParams();
 
-  const returnTo = params.get('returnTo') || null;
+  // Where to go after signing in, if the link asked for somewhere. Only a path
+  // inside this site is accepted: it must start with a single "/" and contain
+  // no backslash. Without this check a link such as
+  // /login?returnTo=https://elsewhere.example would send a person who has just
+  // typed their password to another site, which is how phishing pages are fed.
+  const returnTo = safeReturnPath(params.get('returnTo'));
 
   function go(target, nextMode) {
     setMode(nextMode);

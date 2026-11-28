@@ -281,6 +281,19 @@ living spec; update this file when a requirement changes.
 - [x] The map is Leaflet on OpenStreetMap tiles (no key), loaded only on this
   page. Directions are Google Maps links.
 
+### 2.16 Security, early access and legal pages
+
+- [x] A general ceiling on the API and a tighter one on writes, in memory;
+  protective headers on the API and the website; sign-out everywhere on a
+  password change; account suspension by admins; blocks stop friend requests;
+  the sign-in redirect accepts only paths inside the site.
+- [x] Early access (temporary): a refused signup explains how to ask for
+  access, and Admin > Limits has a list of invited email addresses that may
+  sign up whatever the caps say. Each is emailed an invitation.
+- [x] `/privacy`, `/terms` and `/credits`, with an agreement tick box at
+  sign-up that the server enforces and records.
+- [x] Details, checks and removal steps: `docs/developer-notes.md`.
+
 ### 2.15 Adjustable limits
 
 - [x] Admin > Limits: every limit is a switch plus a number. Off means no
