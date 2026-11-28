@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { SUPPORT_EMAIL } from '../utils/contact';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { api, account, posts as postsApi, contact, ApiError } from '../services/api';
 import { useSession } from '../hooks/useSession.jsx';
 import { useToast } from '../components/ToastProvider';
@@ -843,6 +843,14 @@ export default function AccountPage() {
           onUploaded={avatarUploaded}
         />
       )}
+
+      {/* Where to read what the app does with your information, its rules,
+          and where its content comes from. */}
+      <p className="account-legal">
+        <Link to="/privacy">Privacy Policy</Link>
+        <Link to="/terms">Terms of Use</Link>
+        <Link to="/credits">Sources and credits</Link>
+      </p>
     </>
   );
 }

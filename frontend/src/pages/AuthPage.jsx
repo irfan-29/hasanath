@@ -27,6 +27,7 @@ const MESSAGES = {
   'signups-closed': 'Hasanath is in early access and is not open for new signups yet. To ask for early access, write to support@hasanath.app.',
   'signup-daily-limit': 'Hasanath is in early access and has reached its signup limit for today. To ask for early access, write to support@hasanath.app.',
   'signup-weekly-limit': 'Hasanath is in early access and has reached its signup limit for this week. To ask for early access, write to support@hasanath.app.',
+  'terms-required': 'Please tick the box to confirm your age and that you agree to the Terms of Use and the Privacy Policy.',
   'same-password': 'Choose a password different from the current one.'
 };
 
@@ -63,6 +64,8 @@ export default function AuthPage({ mode: initialMode = 'login' }) {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  // The tick box on the sign-up form: age, and agreement to the two documents.
+  const [agree, setAgree] = useState(false);
   const [code, setCode] = useState('');
   const [verifyEmail, setVerifyEmail] = useState('');
   const [error, setError] = useState('');
@@ -113,7 +116,7 @@ export default function AuthPage({ mode: initialMode = 'login' }) {
     e.preventDefault();
     setBusy(true); setError('');
     try {
-      const result = await api.post('/auth/register', { email, password, cpassword: confirm });
+      const result = await api.post('/auth/register', { email, password, cpassword: confirm, agree });
       setVerifyEmail(result.email);
       setCode('');
       go('/verify-email', 'verify');
@@ -272,7 +275,20 @@ export default function AuthPage({ mode: initialMode = 'login' }) {
               <label htmlFor="cpassword">Confirm password</label>
             </div>
             <p className="auth-hint">At least 8 characters.</p>
-            <button type="submit" className="btn btn-primary auth-submit" disabled={busy}>
+            <label className="auth-agree">
+              <input
+                type="checkbox"
+                checked={agree}
+                onChange={(e) => setAgree(e.target.checked)}
+                required
+              />
+              <span>
+                I am 18 or older, or have my parent’s or guardian’s permission, and I agree to the{' '}
+                <Link to="/terms" target="_blank" rel="noopener">Terms of Use</Link> and the{' '}
+                <Link to="/privacy" target="_blank" rel="noopener">Privacy Policy</Link>.
+              </span>
+            </label>
+            <button type="submit" className="btn btn-primary auth-submit" disabled={busy || !agree}>
               {busy ? 'Creating…' : 'Create account'}
             </button>
           </form>

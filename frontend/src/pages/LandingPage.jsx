@@ -1754,7 +1754,12 @@ export default function LandingPage() {
 
         <div className="landing-inner landing-footer-bottom">
           <span>© {new Date().getFullYear()} Hasanath</span>
-          <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
+          <span className="landing-footer-legal">
+            <Link to="/privacy">Privacy</Link>
+            <Link to="/terms">Terms</Link>
+            <Link to="/credits">Credits</Link>
+            <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
+          </span>
           <span>Pray · Track · Grow</span>
         </div>
       </footer>

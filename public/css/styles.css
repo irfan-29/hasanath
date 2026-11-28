@@ -17162,3 +17162,106 @@ button.landing-challenge.is-checked .landing-challenge-streak { animation: landi
 }
 
 .auth-alert a { color: inherit; font-weight: 700; text-decoration: underline; }
+
+/* ---- Sign-up: the agreement tick box ---- */
+.auth-agree {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 0 0 1rem;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+}
+
+.auth-agree input {
+  flex: 0 0 auto;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-top: 0.15rem;
+  accent-color: var(--color-primary);
+}
+
+.auth-agree a { color: var(--color-primary); font-weight: 600; }
+
+/* ---- Landing footer: the legal links ---- */
+.landing-footer-legal {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+}
+
+/* ---- Privacy, Terms and Credits: long text, set for reading ---- */
+.legal {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0.5rem 0 3rem;
+  line-height: 1.7;
+}
+
+.legal-head { margin-bottom: 2rem; }
+
+.legal h1 {
+  margin: 0 0 0.4rem;
+  font-size: clamp(1.7rem, 4vw, 2.3rem);
+  line-height: 1.2;
+}
+
+.legal-updated {
+  margin: 0 0 1rem;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.legal-lede {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--color-text-muted);
+}
+
+.legal section { margin-bottom: 2rem; }
+
+.legal h2 {
+  margin: 0 0 0.6rem;
+  font-size: 1.2rem;
+}
+
+.legal h3 {
+  margin: 1.2rem 0 0.4rem;
+  font-size: 1rem;
+}
+
+.legal p { margin: 0 0 0.8rem; }
+
+.legal ul {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0 0 0.9rem;
+  padding-left: 1.2rem;
+}
+
+.legal a { color: var(--color-primary); }
+
+.legal-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-border-light);
+  font-size: 0.88rem;
+}
+
+/* ---- Account page: links to the legal pages ---- */
+.account-legal {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem 1.25rem;
+  margin: 2rem 0 0;
+  font-size: 0.82rem;
+}
+
+.account-legal a { color: var(--color-text-muted); }
+.account-legal a:hover { color: var(--color-primary); }

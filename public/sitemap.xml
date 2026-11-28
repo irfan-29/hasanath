@@ -7,6 +7,9 @@
   <url><loc>https://hasanath.app/salah-timings</loc><priority>0.6</priority></url>
   <url><loc>https://hasanath.app/qibla</loc><priority>0.6</priority></url>
   <url><loc>https://hasanath.app/masjids</loc><priority>0.6</priority></url>
+  <url><loc>https://hasanath.app/privacy</loc><priority>0.3</priority></url>
+  <url><loc>https://hasanath.app/terms</loc><priority>0.3</priority></url>
+  <url><loc>https://hasanath.app/credits</loc><priority>0.3</priority></url>
   <url><loc>https://hasanath.app/calendar</loc><priority>0.6</priority></url>
   <url><loc>https://hasanath.app/dhikr</loc><priority>0.6</priority></url>
   <url><loc>https://hasanath.app/challenges</loc><priority>0.6</priority></url>

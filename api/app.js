@@ -4078,6 +4078,7 @@ const AUTH_MESSAGES = {
     'no-pending': 'Start by registering again.',
     'too-many-attempts': 'Too many incorrect attempts. Please register again.',
     'email-not-sent': 'We could not send a verification email. Please try again.',
+    'terms-required': 'Please confirm your age and that you agree to the Terms of Use and the Privacy Policy.',
     'account-suspended': 'This account has been suspended. If you think this is a mistake, write to support@hasanath.app.',
     // Early access wording (temporary, until the public launch): a refused
     // signup is told why, and how to ask to be let in.
@@ -4094,6 +4095,9 @@ app.post("/api/auth/register", otpIpLimiter, resolveOtpTarget, otpEmailLimiter, 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: "invalid-email" });
     if (password.length < 8) return res.status(400).json({ error: "weak-password" });
     if (password !== confirm) return res.status(400).json({ error: "mismatch" });
+    // The tick box on the sign-up form: age, and agreement to the Terms of Use
+    // and the Privacy Policy. Checked here too, so the form cannot be skipped.
+    if (req.body.agree !== true) return res.status(400).json({ error: "terms-required", message: AUTH_MESSAGES });
 
     // Signup limits from the admin Limits page: closed, or a daily/weekly cap.
     // Checked here so we do not send an OTP that can never be used.
@@ -4119,7 +4123,9 @@ app.post("/api/auth/register", otpIpLimiter, resolveOtpTarget, otpEmailLimiter, 
         otpHash: emailService.hashOtp(code),
         expiresAt: Date.now() + 10 * 60 * 1000,
         attempts: 0,
-        sentAt: Date.now()
+        sentAt: Date.now(),
+        // When the terms were agreed to; saved on the account once it exists.
+        agreedAt: Date.now()
     };
 
     const sent = await emailService.sendOtpEmail({ to: email, code });
@@ -4194,7 +4200,8 @@ app.post("/api/auth/verify", async function(req, res){
             hash: pending.hash,
             salt: pending.salt,
             username: await allocateUsername(pending.email),
-            emailVerifiedAt: new Date()
+            emailVerifiedAt: new Date(),
+            termsAcceptedAt: pending.agreedAt ? new Date(pending.agreedAt) : new Date()
         });
 
         delete req.session.pendingSignup;

@@ -144,6 +144,9 @@ const userSchema = new mongoose.Schema({
     // Set once the emailed OTP is confirmed. Signup does not create a User at
     // all until then, so this is a backstop rather than the primary gate.
     emailVerifiedAt: Date,
+    // When this person agreed to the Terms of Use and the Privacy Policy on
+    // the sign-up form. Accounts created before the form asked have no value.
+    termsAcceptedAt: Date,
     phone: String,
     // The five most recent surahs, newest first. Each entry is one string:
     // "2:255" when the reader left an exact verse, or "2" when they only
