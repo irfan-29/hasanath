@@ -11,6 +11,7 @@
 const mongoose = require("mongoose");
 const AppLimit = require("../models/AppLimit.js");
 const earlyAccess = require("./earlyAccess.js");
+const { compose, siteUrl } = require("./emailTemplate.js");
 const User = require("../models/User.js");
 const Posts = require("../models/Post.js");
 const AppNotification = require("../models/AppNotification.js");
@@ -296,9 +297,13 @@ async function warnAdmins(thresholdPercent, checks) {
             notify.safeDeliver(admin, "<b>Hasanath</b> — " + title + "\n\n" + body + "\n\nOpen: /admin?tab=limits").catch(() => {});
             if (admin.email) {
                 emailService.sendEmail({
-                    to: admin.email, subject: title,
-                    text: body + "\n\nOpen the admin portal: /admin?tab=limits",
-                    html: "<p>" + body + "</p><p><a href=\"/admin?tab=limits\">Open the admin portal</a></p>"
+                    to: admin.email,
+                    ...compose({
+                        subject: title,
+                        lines: [body],
+                        button: { label: "Open the Limits page", url: siteUrl() + "/admin?tab=limits" },
+                        note: "You are receiving this because you are an administrator of Hasanath."
+                    })
                 }).catch(() => {});
             }
         }

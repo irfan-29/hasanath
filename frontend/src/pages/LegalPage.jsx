@@ -163,11 +163,12 @@ export function PrivacyPage() {
       </section>
 
       <section>
-        <h2>Children</h2>
+        <h2>Younger users</h2>
         <p>
-          Hasanath is intended for people aged 18 and over. Someone younger may use it only with the
-          permission of a parent or guardian. If you believe a child has created an account without
-          that permission, write to <Mail subject="Child account" /> and it will be removed.
+          Hasanath is for Muslims of every age, and there is no age limit for creating an account. If
+          you are under 18, please use it with the knowledge and permission of a parent or guardian.
+          A parent or guardian who would like a child’s account or information removed can write to{' '}
+          <Mail subject="Child account" /> and it will be done.
         </p>
       </section>
 
@@ -210,7 +211,7 @@ export function TermsPage() {
       <section>
         <h2>Your account</h2>
         <ul>
-          <li>You must be 18 or older, or have the permission of a parent or guardian.</li>
+          <li>Hasanath is open to every age. If you are under 18, use it with the knowledge and permission of a parent or guardian.</li>
           <li>Use an email address that is yours, and keep your password to yourself. You are responsible for what is done through your account.</li>
           <li>One person, one account. Do not create accounts by automated means.</li>
           <li>You can delete your account at any time from the Account page.</li>

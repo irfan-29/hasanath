@@ -291,7 +291,7 @@ living spec; update this file when a requirement changes.
   access, and Admin > Limits has a list of invited email addresses that may
   sign up whatever the caps say. Each is emailed an invitation.
 - [x] `/privacy`, `/terms` and `/credits`, with an agreement tick box at
-  sign-up that the server enforces and records.
+  sign-up that the server enforces and records. No age limit on the form.
 - [x] Details, checks and removal steps: `docs/developer-notes.md`.
 
 ### 2.15 Adjustable limits
@@ -431,6 +431,7 @@ the context window stays small.
 | `.opencode/skills/salah-tracker/references/backend.md` | API, auth, routes, models, services, limits |
 | `.opencode/skills/salah-tracker/references/frontend.md` | Routes, providers, pages, audio, styling, PWA |
 | `.opencode/skills/salah-tracker/references/operations.md` | Env vars, external APIs, deploy, Android, scripts |
+| [`AGENTS.md`](AGENTS.md) | Rules for anyone changing the code, person or AI assistant: how emails are written, the words the app uses, design, styles, server conventions |
 | [`docs/developer-notes.md`](docs/developer-notes.md) | Every outside service, setting, DNS record and off switch, in plain language |
 | [`docs/android-releases.md`](docs/android-releases.md) | APK release checklist |
 | [`frontend/vercel.md`](frontend/vercel.md) | Why the API rewrite and its order matter |

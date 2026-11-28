@@ -23,6 +23,7 @@
 // returning false lets the caller offer a resend instead of a dead end.
 
 const crypto = require("crypto");
+const { compose } = require("./emailTemplate.js");
 
 const PROVIDER = (process.env.EMAIL_PROVIDER || "auto").toLowerCase();
 
@@ -136,41 +137,29 @@ function gmail() {
 }
 
 // Two codes leave this app: the signup confirmation and the password reset.
-// They carry different consequences, so the copy differs - a reset mail that
-// said "no account was created" would be alarming and wrong.
+// They carry different consequences, so the words differ - a reset mail that
+// said "no account was created" would be alarming and wrong. Both are laid
+// out by emailTemplate.compose(), like every other email the app sends.
 function messageFor(code, purpose) {
     if (purpose === "reset") {
-        return {
+        return compose({
             subject: `${code} is your Hasanath password reset code`,
-            text: [
-                `Your password reset code is ${code}.`,
-                "",
-                "It expires in 10 minutes. Enter it in the app to choose a new password.",
-                "If you did not ask to reset your password, you can ignore this email -",
-                "your current password still works.",
-            ].join("\n"),
-            html: [
-                "<p>Your password reset code is:</p>",
-                `<p style="font-size:28px;font-weight:700;letter-spacing:6px;margin:20px 0">${code}</p>`,
-                '<p style="color:#666">It expires in 10 minutes. Enter it in the app to choose a new password. If you did not ask to reset your password, you can ignore this email &mdash; your current password still works.</p>',
-            ].join(""),
-        };
+            heading: "Reset your password",
+            lines: ["Use this code to choose a new password for your Hasanath account:"],
+            code,
+            after: ["It expires in 10 minutes. Enter it in the app to continue."],
+            note: "If you did not ask to reset your password, you can ignore this email. Your current password still works."
+        });
     }
 
-    return {
+    return compose({
         subject: `${code} is your Hasanath verification code`,
-        text: [
-            `Your verification code is ${code}.`,
-            "",
-            "It expires in 10 minutes. If you did not try to create an account,",
-            "you can ignore this email - no account was created.",
-        ].join("\n"),
-        html: [
-            "<p>Your verification code is:</p>",
-            `<p style="font-size:28px;font-weight:700;letter-spacing:6px;margin:20px 0">${code}</p>`,
-            '<p style="color:#666">It expires in 10 minutes. If you did not try to create an account, you can ignore this email &mdash; no account was created.</p>',
-        ].join(""),
-    };
+        heading: "Verify your email",
+        lines: ["Use this code to finish creating your Hasanath account:"],
+        code,
+        after: ["It expires in 10 minutes."],
+        note: "If you did not try to create an account, you can ignore this email. No account was created."
+    });
 }
 
 async function sendViaGmail({ to, code, purpose }) {
@@ -320,4 +309,6 @@ module.exports = {
     otpMatches,
     sendOtpEmail,
     sendEmail,
+    // Exposed for tests.
+    _messageFor: messageFor,
 };

@@ -4,6 +4,7 @@
 const EarlyAccess = require("../models/EarlyAccess.js");
 const User = require("../models/User.js");
 const emailService = require("./email.js");
+const { compose, escapeHtml, siteUrl } = require("./emailTemplate.js");
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_LIST = 500;
@@ -12,42 +13,24 @@ function clean(email) {
     return String(email || "").trim().toLowerCase();
 }
 
-// The address the invitation links to. FRONTEND_URL in production.
+// The address the invitation links to.
 function signupUrl() {
-    const base = String(process.env.FRONTEND_URL || "https://hasanath.app").replace(/\/+$/, "");
-    return base + "/register";
+    return siteUrl() + "/register";
 }
 
 function invitation(email) {
-    const url = signupUrl();
-    const subject = "Your early access to Hasanath";
-    const text = [
-        "Assalamu alaikum,",
-        "",
-        "You have been given early access to Hasanath: a quiet, ad-free place to track your salah, read the Qur'an, keep your dhikr and grow with friends.",
-        "",
-        "You can create your account now:",
-        url,
-        "",
-        "Please sign up with this email address (" + email + "). Early access is tied to it.",
-        "",
-        "If you did not ask for this, you can ignore this email.",
-        "",
-        "Hasanath",
-        "support@hasanath.app"
-    ].join("\n");
-    const html = [
-        '<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1f2937;line-height:1.6">',
-        '<h1 style="font-size:20px;margin:0 0 16px;color:#0f766e">Your early access to Hasanath</h1>',
-        "<p>Assalamu alaikum,</p>",
-        "<p>You have been given early access to Hasanath: a quiet, ad-free place to track your salah, read the Qur’an, keep your dhikr and grow with friends.</p>",
-        '<p style="margin:24px 0"><a href="' + url + '" style="display:inline-block;padding:12px 22px;border-radius:999px;background:#0d9488;color:#ffffff;text-decoration:none;font-weight:700">Create your account</a></p>',
-        "<p>Please sign up with this email address (<strong>" + email + "</strong>). Early access is tied to it.</p>",
-        '<p style="color:#6b7280;font-size:13px">If you did not ask for this, you can ignore this email.</p>',
-        '<p style="color:#6b7280;font-size:13px">Hasanath · <a href="mailto:support@hasanath.app" style="color:#0f766e">support@hasanath.app</a></p>',
-        "</div>"
-    ].join("");
-    return { subject, text, html };
+    return compose({
+        subject: "Your early access to Hasanath",
+        lines: [
+            "You have been given early access to Hasanath: a quiet, ad-free place to track your salah, read the Qur’an, keep your dhikr and grow with friends."
+        ],
+        button: { label: "Create your account", url: signupUrl() },
+        after: [{
+            text: "Please sign up with this email address (" + email + "). Early access is tied to it.",
+            html: "Please sign up with this email address (<strong>" + escapeHtml(email) + "</strong>). Early access is tied to it."
+        }],
+        note: "If you did not ask for this, you can ignore this email."
+    });
 }
 
 // Is this address on the list? Used by the signup checks.

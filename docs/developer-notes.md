@@ -164,6 +164,21 @@ maintains the code.
 keep the file somewhere safe. Without it, a mistake or a bad deploy is
 permanent.
 
+## Emails
+
+- Every email is laid out by `compose()` in `api/services/emailTemplate.js`:
+  the logo, a heading, "Assalamu alaikum,", the message, and
+  "Hasanath · support@hasanath.app" at the foot. The rules for writing one
+  are in `AGENTS.md`.
+- The logo in an email is `https://hasanath.app/icons/icon-192.png`. Email
+  programs download it from the website, so that file must stay at that
+  address. Some programs hide pictures until the reader allows them; the
+  word "Hasanath" beside it is text and always shows.
+- The round picture beside the sender's name in Gmail is **not** part of the
+  email and cannot be set from the code. It comes from the sender's own
+  account, or from a standard called BIMI, which needs a registered
+  trademark. Until then Gmail shows a letter or a blank figure.
+
 ## Early access (temporary)
 
 For the period before the public launch.
@@ -193,9 +208,10 @@ feature from the code afterwards: delete the files above, the routes, the
   They describe what the app actually does. If the app starts collecting
   something new or using a new outside service, update the matching section
   and the "Last updated" date at the top of that file.
-- Sign-up requires a tick box (18 or older, or a guardian's permission, and
-  agreement to both documents). The server checks it and stores the time on
-  the account as `termsAcceptedAt`.
+- Sign-up requires a tick box agreeing to both documents. The server checks
+  it and stores the time on the account as `termsAcceptedAt`. There is no age
+  limit on the form; the documents ask anyone under 18 to use the app with a
+  parent's or guardian's permission.
 - The complaints contact named in the documents is `support@hasanath.app`,
   with an acknowledgement within 24 hours and a resolution within 15 days.
   That promise needs someone reading the inbox daily.

@@ -27,7 +27,7 @@ const MESSAGES = {
   'signups-closed': 'Hasanath is in early access and is not open for new signups yet. To ask for early access, write to support@hasanath.app.',
   'signup-daily-limit': 'Hasanath is in early access and has reached its signup limit for today. To ask for early access, write to support@hasanath.app.',
   'signup-weekly-limit': 'Hasanath is in early access and has reached its signup limit for this week. To ask for early access, write to support@hasanath.app.',
-  'terms-required': 'Please tick the box to confirm your age and that you agree to the Terms of Use and the Privacy Policy.',
+  'terms-required': 'Please tick the box to confirm that you agree to the Terms of Use and the Privacy Policy.',
   'same-password': 'Choose a password different from the current one.'
 };
 
@@ -74,7 +74,7 @@ export default function AuthPage({ mode: initialMode = 'login' }) {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  // The tick box on the sign-up form: age, and agreement to the two documents.
+  // The tick box on the sign-up form: agreement to the two documents.
   const [agree, setAgree] = useState(false);
   const [code, setCode] = useState('');
   const [verifyEmail, setVerifyEmail] = useState('');
@@ -298,7 +298,7 @@ export default function AuthPage({ mode: initialMode = 'login' }) {
                 required
               />
               <span>
-                I am 18 or older, or have my parent’s or guardian’s permission, and I agree to the{' '}
+                I agree to the{' '}
                 <Link to="/terms" target="_blank" rel="noopener">Terms of Use</Link> and the{' '}
                 <Link to="/privacy" target="_blank" rel="noopener">Privacy Policy</Link>.
               </span>
